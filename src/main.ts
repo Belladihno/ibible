@@ -1,6 +1,8 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { Logger } from '@nestjs/common';
+import { ResponseInterceptor } from './common/interceptors/response.interceptor';
+import { HttpExceptionFilter } from './common/interceptors/http-exception.filter';
 
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
@@ -15,6 +17,12 @@ async function bootstrap() {
     origin: true,
     credentials: true,
   });
+
+  // global interceptor for successful responses
+  app.useGlobalInterceptors(new ResponseInterceptor());
+
+  // global exception filter for error responses
+  app.useGlobalFilters(new HttpExceptionFilter());
 
   const port = process.env.PORT || 3000;
 
