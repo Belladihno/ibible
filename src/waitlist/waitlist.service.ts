@@ -19,20 +19,21 @@ export class WaitlistService {
   ) {}
 
   async create(createWaitlistEntryDto: CreateWaitlistEntryDto) {
-    const { email } = createWaitlistEntryDto;
+    // Get both email and name from the DTO
+    const { email, name } = createWaitlistEntryDto;
 
-    // This 'catch' block is now fixed
     try {
-      const newEntry = new this.waitlistEntryModel({ email });
+      // Save both email and name to the database
+      const newEntry = new this.waitlistEntryModel({ email, name });
       await newEntry.save();
 
       return {
         message: 'Success! You are on the waitlist.',
         email: newEntry.email,
+        name: newEntry.name,
         id: newEntry._id,
       };
     } catch (error: any) {
-      // <-- This 'any' is the fix for the linter
       if (error.code === 11000) {
         throw new ConflictException('This email is already on the waitlist.');
       }

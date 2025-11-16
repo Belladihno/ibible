@@ -1,9 +1,10 @@
-// We need to import this "decorator" to validate the email
-import { IsEmail, IsNotEmpty } from 'class-validator';
-
-// This is our DTO class
+import { IsEmail, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 export class CreateWaitlistEntryDto {
-  @IsEmail() // This decorator says the field *must* be a valid email
-  @IsNotEmpty() // This decorator says the field *must not* be empty
+  @IsEmail()
+  @IsNotEmpty()
   email: string;
+
+  @IsString()
+  @IsOptional()
+  name?: string;
 }
