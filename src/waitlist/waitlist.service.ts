@@ -6,31 +6,34 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CreateWaitlistEntryDto } from './dto/create-waitlist-entry.dto';
-import {WaitlistEntry } from './schemas/waitlist-entry.entity';
+import { WaitlistEntry } from './schemas/waitlist-entry.entity';
+import { WaitListEntryModelAction } from 'src/actions/model-actions';
 
 @Injectable()
 export class WaitlistService {
   constructor(
-    @InjectRepository(WaitlistEntry)
-    private waitlistRepo: Repository<WaitlistEntry>,
+    private readonly WaitlEntryModelAction: WaitListEntryModelAction,
   ) {}
 
   async create(createWaitlistEntryDto: CreateWaitlistEntryDto) {
     const { email, name } = createWaitlistEntryDto;
 
-    const entry = this.waitlistRepo.create({
-      email,
-      name,
+    const entry = await this.WaitlEntryModelAction.create({
+      createPayload: {
+        ...createWaitlistEntryDto,
+        email: email,
+        name: name,
+      },
+      transactionOptions: {
+        useTransaction: false,
+      },
     });
 
     try {
-      const saved = await this.waitlistRepo.save(entry);
-
       return {
         message: 'Success! You are on the waitlist.',
-        email: saved.email,
-        name: saved.name,
-        id: saved.id,
+        email: entry.email,
+        name: entry.name,
       };
     } catch (error) {
       if (error.code === '23505') {
@@ -42,6 +45,9 @@ export class WaitlistService {
   }
 
   async findAll() {
-    return this.waitlistRepo.find();
+    const { payload } = await this.WaitlEntryModelAction.list({});
+    return {
+      data: payload,
+    };
   }
 }
