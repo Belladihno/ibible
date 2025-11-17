@@ -65,13 +65,13 @@ export class MailService {
         cid: 'rea-logo',
       },
       {
-        filename: 'Ellipse 32.svg',
-        path: join(process.cwd(), 'src', 'email', 'images', 'Ellipse 32.svg'),
+        filename: 'Ellipse 33.svg',
+        path: join(process.cwd(), 'src', 'email', 'images', 'Ellipse 33.svg'),
         cid: 'ellipse-32',
       },
       {
-        filename: 'Ellipse 33.svg',
-        path: join(process.cwd(), 'src', 'email', 'images', 'Ellipse 33.svg'),
+        filename: 'Ellipse 34.svg',
+        path: join(process.cwd(), 'src', 'email', 'images', 'Ellipse 34.svg'),
         cid: 'ellipse-33',
       },
     ];
