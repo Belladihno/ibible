@@ -1,4 +1,4 @@
-import { Controller, Get } from '@nestjs/common';
+import { Controller, Get, Req } from '@nestjs/common';
 import { AppService } from './app.service';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 
@@ -13,7 +13,7 @@ export class AppController {
     description: 'Returns the welcome message from the service',
   })
   @Get()
-  getHome() {
-    return this.appService.getWelcomeMessage();
+  getHome(@Req() req) {
+    return this.appService.getWelcomeMessage(req);
   }
 }

@@ -1,4 +1,5 @@
 # REA Interactive Bible Backend
+# REA Interactive Bible Backend
 
 Welcome to the backend for the REA Interactive Bible App – "A friend that brings you closer to God".
 
@@ -42,6 +43,12 @@ Production:
 npm run start:prod
 ```
 
+The application will be running at `http://localhost:3000/api/v1`.
+And the following documentation endpoints will be available:
+- **Scalar:** `http://localhost:3000/api/v1/reference`
+- **Swagger UI:** `http://localhost:3000/api/v1/docs`
+
+
 ### 4. Testing
 
 Unit tests:
@@ -56,10 +63,14 @@ E2E tests:
 npm run test:e2e
 ```
 
+
 Coverage:
 
 ```bash
 npm run test:cov
 ```
+
+---
+
 
 
