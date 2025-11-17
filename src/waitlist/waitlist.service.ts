@@ -3,45 +3,45 @@ import {
   Injectable,
   InternalServerErrorException,
 } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import { CreateWaitlistEntryDto } from './dto/create-waitlist-entry.dto';
-import {
-  WaitlistEntry,
-  WaitlistEntryDocument,
-} from './schemas/waitlist-entry.schema';
+import {WaitlistEntry } from './schemas/waitlist-entry.entity';
 
 @Injectable()
 export class WaitlistService {
   constructor(
-    @InjectModel(WaitlistEntry.name)
-    private waitlistEntryModel: Model<WaitlistEntryDocument>,
+    @InjectRepository(WaitlistEntry)
+    private waitlistRepo: Repository<WaitlistEntry>,
   ) {}
 
   async create(createWaitlistEntryDto: CreateWaitlistEntryDto) {
-    // Get both email and name from the DTO
     const { email, name } = createWaitlistEntryDto;
 
+    const entry = this.waitlistRepo.create({
+      email,
+      name,
+    });
+
     try {
-      // Save both email and name to the database
-      const newEntry = new this.waitlistEntryModel({ email, name });
-      await newEntry.save();
+      const saved = await this.waitlistRepo.save(entry);
 
       return {
         message: 'Success! You are on the waitlist.',
-        email: newEntry.email,
-        name: newEntry.name,
-        id: newEntry._id,
+        email: saved.email,
+        name: saved.name,
+        id: saved.id,
       };
-    } catch (error: any) {
-      if (error.code === 11000) {
+    } catch (error) {
+      if (error.code === '23505') {
         throw new ConflictException('This email is already on the waitlist.');
       }
+
       throw new InternalServerErrorException();
     }
   }
 
   async findAll() {
-    return this.waitlistEntryModel.find().exec();
+    return this.waitlistRepo.find();
   }
 }
