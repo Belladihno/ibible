@@ -1,8 +1,10 @@
-
-
 # REA Interactive Bible Backend
 
 Welcome to the backend for the REA Interactive Bible App – "A friend that brings you closer to God".
+
+## Contribution Guidelines (DO NOT SKIP)
+
+For detailed contribution instructions, please see [CONTRIBUTION.md](./CONTRIBUTION.md)
 
 ## System Diagram
 
@@ -23,16 +25,19 @@ Copy the example environment file and edit your credentials:
 ```bash
 cp .env.example .env
 ```
+
 Edit `.env` with your own database connection string and secrets.
 
 ### 3. Run the project
 
 Development:
+
 ```bash
 npm run start:dev
 ```
 
 Production:
+
 ```bash
 npm run start:prod
 ```
@@ -40,21 +45,21 @@ npm run start:prod
 ### 4. Testing
 
 Unit tests:
+
 ```bash
 npm run test
 ```
 
 E2E tests:
+
 ```bash
 npm run test:e2e
 ```
 
 Coverage:
+
 ```bash
 npm run test:cov
 ```
 
-## Pull Request Guidelines
-
-When opening a pull request, please use the template provided in `PULL_REQUEST_TEMPLATE.md`. All Pull requests should be made against the `staging` branch.
 
