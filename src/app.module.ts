@@ -5,6 +5,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { HealthModule } from './health/health.module';
 import { WaitlistModule } from './waitlist/waitlist.module';
+import {MailModule} from './mail/mail.module'
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { WaitlistModule } from './waitlist/waitlist.module';
 
     HealthModule,
     WaitlistModule,
+    MailModule,
   ],
   controllers: [AppController],
   providers: [AppService],
