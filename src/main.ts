@@ -3,6 +3,7 @@ import { AppModule } from './app.module';
 import { Logger } from '@nestjs/common';
 import { ResponseInterceptor } from './common/interceptors/response.interceptor';
 import { HttpExceptionFilter } from './common/interceptors/http-exception.filter';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
@@ -10,8 +11,22 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
     logger: ['log', 'error', 'warn', 'debug'],
   });
+  const apiVersion = process.env.API_VERSION || 'api/v1';
 
-  app.setGlobalPrefix(process.env.API_VERSION || 'api/v1');
+  app.setGlobalPrefix(apiVersion);
+
+  // Swagger configuration
+  const config = new DocumentBuilder()
+    .setTitle('REA API Docs')
+    .setDescription('API documentation for REA Interactive Bible Backend')
+    .setVersion('1.0')
+    .addBearerAuth()
+    .build();
+
+  const document = SwaggerModule.createDocument(app, config, {
+    operationIdFactory: (controllerKey, methodKey) => methodKey,
+  });
+  SwaggerModule.setup(`${apiVersion}/docs`, app, document);
 
   app.enableCors({
     origin: true,
@@ -35,6 +50,8 @@ async function bootstrap() {
   logger.log(
     `Health: http://localhost:${port}/${process.env.API_VERSION || 'api/v1'}/health`,
   );
+
+  console.log(`REA Backend is running on: http://localhost:${port}/`);
 }
 bootstrap().catch((error) => {
   console.error('Failed to start application', error);
