@@ -14,4 +14,3 @@ export class WaitListEntryModelAction extends AbstractModelAction<WaitlistEntry>
     super(repository, WaitlistEntry);
   }
 }
-
