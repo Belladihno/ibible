@@ -42,14 +42,14 @@ jobs:
           sed -i "s|DATABASE_URI=.*|DATABASE_URI=${{ secrets.DATABASE_URI }}|" .env
 
           # SMTP
-          sed -i "s|MAIL_MAILER=.*|MAIL_MAILER=smtp|" .env
-          sed -i "s|MAIL_HOST=.*|MAIL_HOST=${{ secrets.MAIL_HOST }}|" .env
-          sed -i "s|MAIL_PORT=.*|MAIL_PORT=${{ secrets.MAIL_PORT }}|" .env
-          sed -i "s|MAIL_USERNAME=.*|MAIL_USERNAME=${{ secrets.MAIL_USERNAME }}|" .env
-          sed -i "s|MAIL_PASSWORD=.*|MAIL_PASSWORD=${{ secrets.MAIL_PASSWORD }}|" .env
-          sed -i "s|MAIL_ENCRYPTION=.*|MAIL_ENCRYPTION=${{ secrets.MAIL_ENCRYPTION }}|" .env
-          sed -i "s|MAIL_FROM_ADDRESS=.*|MAIL_FROM_ADDRESS=${{ secrets.MAIL_FROM_ADDRESS }}|" .env
-          sed -i "s|MAIL_FROM_NAME=.*|MAIL_FROM_NAME=\"${{ secrets.MAIL_FROM_NAME }}\"|" .env
+          sed -i "s|EMAIL_MAILER=.*|EMAIL_MAILER=smtp|" .env
+          sed -i "s|EMAIL_HOST=.*|EMAIL_HOST=${{ secrets.MAIL_HOST }}|" .env
+          sed -i "s|EMAIL_PORT=.*|EMAIL_PORT=${{ secrets.MAIL_PORT }}|" .env
+          sed -i "s|EMAIL_USERNAME=.*|EMAIL_USERNAME=${{ secrets.MAIL_USERNAME }}|" .env
+          sed -i "s|EMAIL_PASSWORD=.*|EMAIL_PASSWORD=${{ secrets.MAIL_PASSWORD }}|" .env
+          sed -i "s|EMAIL_ENCRYPTION=.*|EMAIL_ENCRYPTION=${{ secrets.MAIL_ENCRYPTION }}|" .env
+          sed -i "s|EMAIL_FROM_ADDRESS=.*|EMAIL_FROM_ADDRESS=${{ secrets.MAIL_FROM_ADDRESS }}|" .env
+          sed -i "s|EMAIL_FROM_NAME=.*|EMAIL_FROM_NAME=\"${{ secrets.MAIL_FROM_NAME }}\"|" .env
 
           echo "Building TypeScript..."
           npm run build
