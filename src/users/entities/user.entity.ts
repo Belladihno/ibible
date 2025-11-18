@@ -31,10 +31,10 @@ export class User {
   fullName: string;
 
   @Column({ name: 'profile_picture', type: 'text', nullable: true })
-  profilePicture: string;
+  profilePicture: string | null;
 
-  @Column({ name: 'phone_number', nullable: true })
-  phoneNumber: string;
+  @Column({ name: 'phone_number', type: 'varchar', nullable: true })
+  phoneNumber: string | null;
 
   @Column({
     name: 'auth_provider',
