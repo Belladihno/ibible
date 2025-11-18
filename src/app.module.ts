@@ -8,6 +8,7 @@ import { WaitlistModule } from './waitlist/waitlist.module';
 
 import { UsersModule } from './users/users.module';
 import { EmailModule } from './email';
+import { AuthModule } from './auth/auth.module';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { EmailModule } from './email';
     WaitlistModule,
     EmailModule,
     UsersModule,
+    AuthModule,
   ],
   controllers: [AppController],
   providers: [AppService],
