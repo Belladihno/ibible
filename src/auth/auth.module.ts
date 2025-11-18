@@ -1,14 +1,39 @@
 import { Module } from '@nestjs/common';
-import { AuthService } from './auth.service';
-import { AuthController } from './auth.controller';
-import { GoogleStrategy } from './strategy/google.strategy';
-import { ConfigModule } from '@nestjs/config';
+import { JwtModule } from '@nestjs/jwt';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { PassportModule } from '@nestjs/passport';
-import { UsersModule } from 'src/users/users.module';
+import { UsersModule } from '../users/users.module';
+import { EmailModule } from '../email/email.module';
+import { AuthController } from './auth.controller';
+import { JwtStrategy } from './strategy/jwt.strategy';
+import { AuthService } from './auth.service';
+import { GoogleStrategy } from './strategy/google.strategy';
 
 @Module({
-  imports: [ConfigModule, PassportModule, UsersModule],
+  imports: [
+    PassportModule,
+
+    JwtModule.registerAsync({
+      imports: [ConfigModule],
+      useFactory: (configService: ConfigService) => {
+        const expiresIn = configService.get<string>('JWT_EXPIRES_IN');
+        // Convert string like "900" to number 900 (15 minutes in seconds)
+        const expiresInSeconds = expiresIn ? parseInt(expiresIn) : 900;
+
+        return {
+          secret: configService.get<string>('JWT_SECRET') || 'fallback-secret',
+          signOptions: {
+            expiresIn: expiresInSeconds,
+          },
+        };
+      },
+      inject: [ConfigService],
+    }),
+    UsersModule,
+    EmailModule,
+  ],
   controllers: [AuthController],
-  providers: [AuthService, GoogleStrategy],
+  providers: [AuthService, JwtStrategy, GoogleStrategy],
+  exports: [AuthService],
 })
 export class AuthModule {}
