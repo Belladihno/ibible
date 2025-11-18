@@ -1,0 +1,45 @@
+name: Deploy Backend to Staging
+
+on:
+  push:
+    branches:
+    - staging
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+    - name: SSH into server & deploy
+      uses: appleboy/ssh-action@v1.0.3
+
+      with:
+        host: ${{ secrets.SERVER_HOST }}
+        username: ${{ secrets.SERVER_USER }}
+        password: ${{ secrets.SERVER_PASSWORD }}
+
+        script: |
+          cd ${{ secrets.SERVER_APP_DIR }}
+
+          echo "Fetching latest code..."
+          git fetch --all
+          git reset --hard origin/staging
+
+          echo "Installing dependencies..."
+          npm install --legacy-peer-deps
+
+          echo "Creating .env from .env.example..."
+          cp .env.example .env
+
+          echo "Updating environment variables..."
+          sed -i "s|DATABASE_URI=.*|DATABASE_URI=${{ secrets.DATABASE_URI }}|" .env
+          sed -i "s|PORT=.*|PORT=${{ secrets.PORT }}|" .env
+
+          echo "Building TypeScript..."
+          npm run build
+
+          echo "Reloading server with zero downtime..."
+          pm2 reload backend || pm2 start dist/main.js --name backend

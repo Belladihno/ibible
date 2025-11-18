@@ -4,12 +4,12 @@ import { WaitlistEntry } from './schemas/waitlist-entry.entity';
 import { WaitlistService } from './waitlist.service';
 import { WaitlistController } from './waitlist.controller';
 import { WaitListEntryModelAction } from 'src/actions/model-actions';
-import { MailModule } from 'src/mail/mail.module';
+import { EmailModule } from 'src/email/email.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([WaitlistEntry]),MailModule],
+  imports: [TypeOrmModule.forFeature([WaitlistEntry]), EmailModule],
   controllers: [WaitlistController],
-  providers: [WaitlistService,WaitListEntryModelAction],
-  exports:[WaitListEntryModelAction]
+  providers: [WaitlistService, WaitListEntryModelAction],
+  exports: [WaitListEntryModelAction],
 })
 export class WaitlistModule {}

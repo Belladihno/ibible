@@ -4,7 +4,7 @@ import { Logger } from '@nestjs/common';
 import { ResponseInterceptor } from './common/interceptors/response.interceptor';
 import { HttpExceptionFilter } from './common/interceptors/http-exception.filter';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-import { apiReference } from '@scalar/nestjs-api-reference';
+// import { apiReference } from '@scalar/nestjs-api-reference';
 
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
@@ -30,8 +30,8 @@ async function bootstrap() {
   SwaggerModule.setup(`/${apiVersion}/docs`, app, document);
 
   // Ensure leading slash for mounting path
-  const scalarPath = `/${apiVersion}/reference`;
-  app.use(scalarPath, apiReference({ content: document }));
+  // const scalarPath = `/${apiVersion}/reference`;
+  // app.use(scalarPath, apiReference({ content: document }));
 
   app.enableCors({
     origin: true,
@@ -47,9 +47,9 @@ async function bootstrap() {
   const port = process.env.PORT || 3000;
 
   await app.listen(port);
-  logger.log(
-    `Scalar API Reference available at: http://localhost:${port}${scalarPath}`,
-  );
+  // logger.log(
+  //   `Scalar API Reference available at: http://localhost:${port}${scalarPath}`,
+  // );
 
   logger.log(`REA Backend is running on: http://localhost:${port}/`);
   logger.log(
