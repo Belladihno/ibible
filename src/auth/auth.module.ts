@@ -1,9 +1,38 @@
 import { Module } from '@nestjs/common';
-import { AuthService } from './auth.service';
+import { JwtModule } from '@nestjs/jwt';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { PassportModule } from '@nestjs/passport';
+import { UsersModule } from '../users/users.module';
+import { EmailModule } from '../email/email.module';
 import { AuthController } from './auth.controller';
+import { JwtStrategy } from './strategy/jwt.strategy';
+import { AuthService } from './auth.service';
 
 @Module({
+  imports: [
+    PassportModule,
+
+    JwtModule.registerAsync({
+      imports: [ConfigModule],
+      useFactory: (configService: ConfigService) => {
+        const expiresIn = configService.get<string>('JWT_EXPIRES_IN');
+        // Convert string like "900" to number 900 (15 minutes in seconds)
+        const expiresInSeconds = expiresIn ? parseInt(expiresIn) : 900;
+
+        return {
+          secret: configService.get<string>('JWT_SECRET') || 'fallback-secret',
+          signOptions: {
+            expiresIn: expiresInSeconds,
+          },
+        };
+      },
+      inject: [ConfigService],
+    }),
+    UsersModule,
+    EmailModule,
+  ],
   controllers: [AuthController],
-  providers: [AuthService],
+  providers: [AuthService, JwtStrategy],
+  exports: [AuthService],
 })
 export class AuthModule {}
