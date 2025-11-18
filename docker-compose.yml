@@ -19,26 +19,6 @@ services:
       timeout: 5s
       retries: 5
 
-  # NestJS Application
-  app:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: rea-app
-    restart: unless-stopped
-    ports:
-      - '${PORT}:3000'
-    environment:
-      NODE_ENV: ${NODE_ENV}
-      PORT: ${PORT}
-      DATABASE_URI: ${DATABASE_URI}
-      API_VERSION: ${API_VERSION}
-    depends_on:
-      postgres:
-        condition: service_healthy
-    networks:
-      - rea-network
-
 networks:
   rea-network:
     driver: bridge
