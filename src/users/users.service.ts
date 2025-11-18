@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -20,7 +24,14 @@ export class UsersService {
       user.passwordHash = await bcrypt.hash(data.password, 10);
     }
 
-    return this.repo.save(user);
+    try {
+      return await this.repo.save(user);
+    } catch (error: any) {
+      if (error.code === '23505' && error.detail.includes('email')) {
+        throw new ConflictException('Email already exists.');
+      }
+      throw error;
+    }
   }
 
   findAll() {
@@ -30,8 +41,7 @@ export class UsersService {
   async findOne(id: string) {
     const user = await this.repo.findOne({ where: { id } });
 
-    if (!user) throw new NotFoundException('User not found');
-
+    if (!user) throw new NotFoundException(`User with ID ${id} not found`);
     return user;
   }
 
