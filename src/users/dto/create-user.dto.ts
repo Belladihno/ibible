@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsEmail, IsOptional, IsString } from 'class-validator';
+import { AuthProvider } from '../enums/user.enums';
 
 export class CreateUserDto {
   @ApiProperty({
@@ -14,6 +15,7 @@ export class CreateUserDto {
     description: 'User password',
   })
   @IsString()
+  @IsOptional()
   password?: string;
 
   @ApiProperty({
@@ -21,5 +23,30 @@ export class CreateUserDto {
     description: 'Full name of the user',
   })
   @IsString()
+  @IsOptional()
   fullName?: string;
+
+  @ApiProperty({
+    example: 'https://example.com/profile.jpg',
+    description: 'URL of the user profile picture',
+  })
+  @IsOptional()
+  @IsString()
+  profilePicture?: string | null;
+
+  @ApiProperty({
+    example: '+1234567890',
+    description: 'Phone number of the user',
+  })
+  @IsOptional()
+  @IsString()
+  phoneNumber?: string | null;
+
+  @ApiProperty({
+    example: 'google',
+    description: 'Authentication provider (e.g., google, apple)',
+  })
+  @IsOptional()
+  @IsString()
+  authProvider?: AuthProvider;
 }

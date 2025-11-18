@@ -58,8 +58,6 @@ async function bootstrap() {
   logger.log(
     `Health: http://localhost:${port}/${process.env.API_VERSION || 'api/v1'}/health`,
   );
-
-  console.log(`REA Backend is running on: http://localhost:${port}/`);
 }
 bootstrap().catch((error) => {
   console.error('Failed to start application', error);
