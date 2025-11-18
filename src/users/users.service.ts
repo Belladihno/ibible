@@ -1,26 +1,58 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { User } from './entities/user.entity';
+import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class UsersService {
-  create(createUserDto: CreateUserDto) {
-    return 'This action adds a new user';
+  constructor(
+    @InjectRepository(User)
+    private repo: Repository<User>,
+  ) {}
+
+  async create(data: CreateUserDto) {
+    const user = this.repo.create(data);
+
+    if (data.password) {
+      user.passwordHash = await bcrypt.hash(data.password, 10);
+    }
+
+    return this.repo.save(user);
   }
 
   findAll() {
-    return `This action returns all users`;
+    return this.repo.find();
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} user`;
+  async findOne(id: string) {
+    const user = await this.repo.findOne({ where: { id } });
+
+    if (!user) throw new NotFoundException('User not found');
+
+    return user;
   }
 
-  update(id: number, updateUserDto: UpdateUserDto) {
-    return `This action updates a #${id} user`;
+  async update(id: string, changes: UpdateUserDto) {
+    const user = await this.findOne(id);
+
+    if (changes.password) {
+      changes['passwordHash'] = await bcrypt.hash(changes.password, 10);
+      delete changes.password;
+    }
+
+    Object.assign(user, changes);
+
+    return this.repo.save(user);
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} user`;
+  async remove(id: string) {
+    const user = await this.findOne(id);
+    user.deletedAt = new Date();
+    user.isActive = false;
+
+    return this.repo.save(user);
   }
 }
