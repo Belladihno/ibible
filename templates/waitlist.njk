@@ -8,123 +8,296 @@
       body {
         margin: 0;
         padding: 0;
-        background: #ffffff;
         font-family: Arial, Helvetica, sans-serif;
+        background-color: #f5f5f5;
+      }
+
+      .email-wrapper {
+        width: 100%;
+        padding: 20px;
+        box-sizing: border-box;
       }
 
       .container {
-        width: 100%;
+        width: 90%;
         max-width: 600px;
-        margin: auto;
-        background: #ffffff;
+        color: #5c5c5c;
+        margin: 0 auto;
+        background-color: #ffffff;
       }
 
       .header {
-        background: #7d52f41a;
-        padding: 40px 20px 20px;
-        text-align: left;
+        height: 144px;
+        background-color: #7d52f41a;
+        display: flex;
+        flex-direction: column;
+        position: relative;
+        justify-content: flex-end;
+        padding: 0;
       }
 
-      .logo img {
-        height: 40px;
+      .logo {
+        width: 70px;
+        height: 44px;
+        margin: 20px;
+        display: block;
       }
 
-      .hero-circle {
-        width: 120px;
-        float: right;
-        margin-top: -60px;
+      .ellipse-one {
+        width: 230px;
+        height: 50px;
+        position: absolute;
+        right: 0;
+        bottom: 0;
+      }
+
+      .ellipse-two {
+        width: 111px;
+        height: 60px;
+        position: absolute;
+        top: 0;
+        left: 0;
+      }
+
+      .ellipse-three {
+        width: 170px;
+        height: 60px;
+        position: absolute;
+        top: 0;
+        right: 50px;
       }
 
       .content {
-        padding: 30px 20px;
-        color: #5c5c5c;
+        padding: 20px;
+        color: #333333;
+        line-height: 1.6;
+      }
+
+      .greeting {
         font-size: 16px;
-        line-height: 24px;
+        margin-bottom: 8px;
+        color: #333333;
+      }
+
+      .main-text {
+        font-size: 16px;
+        margin-bottom: 24px;
+        color: #333333;
       }
 
       .highlight-box {
-        background: #7d52f41a;
+        background-color: #7d52f41a;
         border-left: 4px solid #7d52f4;
-        padding: 12px 16px;
-        margin: 20px 0;
-        font-weight: bold;
         color: #7d52f4;
+        padding: 20px;
+        margin: 24px 0;
+      }
+
+      .highlight-text {
+        font-size: 16px;
+        color: #6b4de6;
+        margin: 0;
+        line-height: 1.5;
+      }
+
+      .body-text {
+        font-size: 15px;
+        color: #555555;
+        line-height: 1.7;
+        margin-bottom: 16px;
+      }
+
+      .signature {
+        font-size: 15px;
+        color: #333333;
+        margin-top: 24px;
+      }
+
+      .signature p {
+        margin: 0;
+      }
+
+      .signature p + p {
+        margin-top: 4px;
       }
 
       .footer {
-        background: #f7f7f7;
+        padding: 30px 40px;
         text-align: center;
-        padding: 20px 16px;
-        font-size: 14px;
-        color: #a3a3a3;
-        line-height: 20px;
+        background-color: #f7f7f7;
       }
 
-      a.unsubscribe {
-        color: #5c5c5c;
+      .unsubscribe {
+        font-size: 13px;
+        color: #999999;
+        margin-bottom: 12px;
+      }
+
+      .link {
+        color: #999999;
         text-decoration: underline;
       }
 
-      @media screen and (max-width: 480px) {
-        .hero-circle {
+      .copyright {
+        font-size: 13px;
+        color: #bbbbbb;
+        margin: 0;
+      }
+
+      /* Responsive design */
+      @media screen and (max-width: 600px) {
+        .container {
+          width: 100%;
+        }
+
+        .ellipse-one,
+        .ellipse-two,
+        .ellipse-three {
           display: none;
         }
-        .header {
-          text-align: center;
-          padding-top: 30px;
+
+        .content {
+          padding: 15px;
+        }
+
+        .footer {
+          padding: 20px 15px;
         }
       }
     </style>
   </head>
 
   <body>
-    <table class="container" cellpadding="0" cellspacing="0">
-      <!-- HEADER -->
-      <tr>
-        <td class="header">
-          <div class="logo">
-            <!-- <img src="cid:rea-logo" alt="Rea Logo" /> -->
-          </div>
-          <img src="cid:rea-logo" class="hero-circle" alt="" />
-        </td>
-      </tr>
+    <div class="email-wrapper">
+      <table
+        width="100%"
+        cellpadding="0"
+        cellspacing="0"
+        style="max-width: 600px; margin: 0 auto"
+      >
+        <tbody>
+          <tr>
+            <td>
+              <div class="container">
+                <!-- HEADER -->
+                <div class="header">
+                  <svg
+                    class="logo"
+                    width="54"
+                    height="19"
+                    viewBox="0 0 54 19"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      d="M0 18.612V17.892H2.448V1.332H0V0.612001C1.224 0.612001 4.392 0.612001 6.408 0H6.768V3.276L7.236 2.88C8.46 1.836 10.656 0.215999 13.248 0.215999C17.964 0.215999 17.856 4.932 14.832 4.932C12.312 4.932 13.212 1.656 11.052 1.62C9.648 1.62 7.632 3.492 6.768 4.212V17.892H9.216V18.612H0Z"
+                      fill="#7D52F4"
+                    />
+                    <path
+                      d="M33.507 13.068L33.903 13.248C32.571 16.956 29.007 18.972 25.911 18.972C14.895 18.972 14.283 0.251999 26.163 0.251999C30.123 0.251999 33.795 1.872 33.831 5.472H21.627C20.799 9.828 23.175 15.768 28.863 15.768C30.699 15.768 32.463 14.868 33.507 13.068ZM21.807 4.752H29.727C29.547 2.556 28.719 0.972 26.199 0.972C23.895 0.972 22.419 2.592 21.807 4.752Z"
+                      fill="#7D52F4"
+                    />
+                    <path
+                      d="M34.9664 14.364C34.9664 7.344 46.4864 11.736 46.4864 5.184C46.4864 2.412 44.7584 1.332 43.2824 1.332C42.0224 1.332 40.5824 1.872 40.5824 3.348C40.5824 4.068 41.1584 4.68 41.1584 5.508C41.1584 6.84 40.2224 7.452 39.2144 7.452C38.1704 7.452 37.0904 6.768 37.0904 5.4C37.0904 2.556 41.8784 0.251999 45.1184 0.251999C48.3944 0.251999 50.8784 1.656 50.9144 5.112C50.9504 9.576 46.8104 9.36 43.6784 9.756C41.3024 10.044 39.2504 10.404 39.2504 12.744C39.2504 14.508 40.2944 15.696 42.1664 15.696C46.4504 15.66 47.2064 12.528 49.6544 12.528C50.2664 12.528 50.8064 12.744 50.8064 13.464V15.12C50.8064 16.668 50.8064 17.892 52.4264 17.892H53.1464V18.612C52.3544 18.684 50.5544 18.72 49.7624 18.72C47.1704 18.72 46.5584 17.892 46.4864 15.012C44.7584 16.236 42.8504 19.008 39.7184 19.008C36.9824 19.008 34.9664 17.1 34.9664 14.364Z"
+                      fill="#7D52F4"
+                    />
+                  </svg>
 
-      <!-- BODY -->
-      <tr>
-        <td class="content">
-          <p>Hi {{ name }},</p>
+                  <svg
+                    class="ellipse-one"
+                    width="201"
+                    height="51"
+                    viewBox="0 0 201 51"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <circle
+                      cx="100.233"
+                      cy="-49.3091"
+                      r="100.209"
+                      transform="rotate(14.1701 100.233 -49.3091)"
+                      fill="#7D52F4"
+                      fill-opacity="0.1"
+                    />
+                  </svg>
 
-          <p>Thank you for joining the waitlist for Rea.</p>
+                  <svg
+                    class="ellipse-two"
+                    width="56"
+                    height="56"
+                    viewBox="0 0 56 56"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      d="M55.7145 -0.142757C55.7145 30.7063 30.7063 55.7145 -0.142757 55.7145C-30.9919 55.7145 -56 30.7063 -56 -0.142757C-56 -30.9919 -30.9919 -56 -0.142757 -56C30.7063 -56 55.7145 -30.9919 55.7145 -0.142757ZM-46.2123 -0.142757C-46.2123 25.3007 -25.5862 45.9267 -0.142757 45.9267C25.3007 45.9267 45.9267 25.3007 45.9267 -0.142757C45.9267 -25.5862 25.3007 -46.2123 -0.142757 -46.2123C-25.5862 -46.2123 -46.2123 -25.5862 -46.2123 -0.142757Z"
+                      fill="#7D52F4"
+                      fill-opacity="0.1"
+                    />
+                  </svg>
 
-          <div class="highlight-box">
-            We're exploring a simple idea:<br />
-            What if the Bible could talk back?
-          </div>
+                  <svg
+                    class="ellipse-three"
+                    width="56"
+                    height="56"
+                    viewBox="0 0 56 56"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      d="M55.7145 -0.142757C55.7145 30.7063 30.7063 55.7145 -0.142757 55.7145C-30.9919 55.7145 -56 30.7063 -56 -0.142757C-56 -30.9919 -30.9919 -56 -0.142757 -56C30.7063 -56 55.7145 -30.9919 55.7145 -0.142757ZM-46.2123 -0.142757C-46.2123 25.3007 -25.5862 45.9267 -0.142757 45.9267C25.3007 45.9267 45.9267 25.3007 45.9267 -0.142757C45.9267 -25.5862 25.3007 -46.2123 -0.142757 -46.2123C-25.5862 -46.2123 -46.2123 -25.5862 -46.2123 -0.142757Z"
+                      fill="#7D52F4"
+                      fill-opacity="0.1"
+                    />
+                  </svg>
+                </div>
 
-          <p>
-            Rea is being built to help you reflect, ask questions, and grow
-            closer to God through gentle, Scripture-filled conversations.
-            You'll be among the first to experience it.
-          </p>
+                <!-- CONTENT -->
+                <div class="content">
+                  <p class="greeting">Hi {{ name }},</p>
+                  <p class="main-text">
+                    Thank you for joining the waitlist for Rea.
+                  </p>
 
-          <p>
-            Thank you for being part of this journey with us.<br />
-            We can't wait to share more with you soon.
-          </p>
+                  <div class="highlight-box">
+                    <p class="highlight-text">
+                      We're exploring a simple idea:<br />
+                      What if the Bible could talk back?
+                    </p>
+                  </div>
 
-          <p>With gratitude,<br />The Rea Team</p>
-        </td>
-      </tr>
+                  <p class="body-text">
+                    Rea is being built to help you reflect, ask questions, and
+                    grow closer to God through gentle, Scripture-filled
+                    conversations. We'll keep you updated as we get closer to
+                    launch, and you'll be among the first to experience it.
+                  </p>
 
-      <!-- FOOTER -->
-      <tr>
-        <td class="footer">
-          If you ever wish to step off this journey, you can
-          <a href="#" class="unsubscribe">unsubscribe</a> anytime.
-          <br /><br />
-          © {{ copyRightYear }} Rea
-        </td>
-      </tr>
-    </table>
+                  <p class="body-text">
+                    Thank you for being part of this journey with us.<br />
+                    We can't wait to share more with you soon.
+                  </p>
+
+                  <div class="signature">
+                    <p>With gratitude,</p>
+                    <p>The Rea Team.</p>
+                  </div>
+                </div>
+
+                <!-- FOOTER -->
+                <div class="footer">
+                  <p class="unsubscribe">
+                    If you ever wish to step off this journey, you can
+                    <a href="{{ unsubscribeUrl }}" class="link">unsubscribe</a>
+                    anytime.
+                  </p>
+                  <p class="copyright">© {{ copyRightYear }} Rea</p>
+                </div>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
   </body>
 </html>
