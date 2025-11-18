@@ -5,7 +5,8 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { HealthModule } from './health/health.module';
 import { WaitlistModule } from './waitlist/waitlist.module';
-import { EmailModule } from './email/email.module';
+import {MailModule} from './mail/mail.module'
+import { UsersModule } from './users/users.module';
 
 @Module({
   imports: [
@@ -19,13 +20,15 @@ import { EmailModule } from './email/email.module';
         url: config.get<string>('DATABASE_URI'),
         autoLoadEntities: true,
         synchronize: true,
+      
       }),
       inject: [ConfigService],
     }),
 
     HealthModule,
     WaitlistModule,
-    EmailModule,
+    MailModule,
+    UsersModule,
   ],
   controllers: [AppController],
   providers: [AppService],
