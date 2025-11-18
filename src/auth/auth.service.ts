@@ -5,6 +5,7 @@ import {
   Injectable,
   UnauthorizedException,
   ConflictException,
+  BadRequestException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
@@ -15,6 +16,7 @@ import { AuthProvider } from 'src/users/enums/user.enums';
 import { UsersService } from 'src/users/users.service';
 import { LoginDto } from './dto/login-user.dto';
 import { TokenResponseDto } from './dto/token-response.dto';
+import { UserPayload } from './strategy/interface';
 
 @Injectable()
 export class AuthService {
@@ -29,7 +31,6 @@ export class AuthService {
   ): Promise<{ user: User; tokens: TokenResponseDto }> {
     const { email, password, fullName = AuthProvider.EMAIL } = registerDto;
 
-    // Check if user already exists
     const existingUser = await this.usersService
       .findAll()
       .then((users) => users.find((user) => user.email === email));
@@ -38,14 +39,12 @@ export class AuthService {
       throw new ConflictException('User with this email already exists');
     }
 
-    // Create user
     const user = await this.usersService.create({
       email,
       password,
       fullName,
     });
 
-    // Generate tokens
     const tokens = await this.generateTokens(user);
 
     return { user, tokens };
@@ -55,8 +54,6 @@ export class AuthService {
     loginDto: LoginDto,
   ): Promise<{ user: User; tokens: TokenResponseDto }> {
     const { email, password } = loginDto;
-
-    // Find user
     const user = await this.usersService
       .findAll()
       .then((users) => users.find((user) => user.email === email));
@@ -69,8 +66,6 @@ export class AuthService {
     if (!user.isActive) {
       throw new UnauthorizedException('Account is deactivated');
     }
-
-    // Verify password for email auth provider
     if (user.authProvider === AuthProvider.EMAIL) {
       if (!user.passwordHash) {
         throw new UnauthorizedException('Invalid authentication method');
@@ -125,6 +120,44 @@ export class AuthService {
       refreshToken,
       expiresIn: 15 * 60,
       tokenType: 'Bearer',
+    };
+  }
+
+  async validateGoogleUser(userDetails: UserPayload) {
+    let user = await this.usersService.findOneByEmail(userDetails.email);
+
+    if (user) {
+      if (user.authProvider === AuthProvider.EMAIL) {
+        throw new BadRequestException(
+          'An account with this email already exists. Please sign in using your email and password.',
+        );
+      }
+
+      return this.googleSignIn(user);
+    } else {
+      return this.googleSignUp(userDetails);
+    }
+  }
+
+  async googleSignIn(userDetails: UserPayload) {
+    return {
+      msg: `Google signin successful for user: ${userDetails.email}`,
+      user: userDetails,
+    };
+  }
+
+  async googleSignUp(userDetails: UserPayload) {
+    const payload = {
+      email: userDetails.email,
+      fullName: `${userDetails.firstName} ${userDetails.lastName}`,
+      profilePicture: userDetails.picture,
+      authProvider: AuthProvider.GOOGLE,
+    };
+
+    const newUser = await this.usersService.create(payload);
+    return {
+      msg: `Google signup successful. New user created: ${newUser.email}`,
+      user: newUser,
     };
   }
 }
