@@ -8,16 +8,18 @@ import { AuthController } from './auth.controller';
 import { JwtStrategy } from './strategy/jwt.strategy';
 import { AuthService } from './auth.service';
 import { GoogleStrategy } from './strategy/google.strategy';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { PasswordResetToken } from './entities/password-reset-token.entity';
 
 @Module({
   imports: [
+    TypeOrmModule.forFeature([PasswordResetToken]),
     PassportModule,
 
     JwtModule.registerAsync({
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => {
         const expiresIn = configService.get<string>('JWT_EXPIRES_IN');
-        // Convert string like "900" to number 900 (15 minutes in seconds)
         const expiresInSeconds = expiresIn ? parseInt(expiresIn) : 900;
 
         return {
@@ -33,6 +35,7 @@ import { GoogleStrategy } from './strategy/google.strategy';
     EmailModule,
   ],
   controllers: [AuthController],
+  // providers: [AuthService, JwtStrategy],
   providers: [AuthService, JwtStrategy, GoogleStrategy],
   exports: [AuthService],
 })
