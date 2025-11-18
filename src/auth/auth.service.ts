@@ -31,9 +31,7 @@ export class AuthService {
   ): Promise<{ user: User; tokens: TokenResponseDto }> {
     const { email, password, fullName = AuthProvider.EMAIL } = registerDto;
 
-    const existingUser = await this.usersService
-      .findAll()
-      .then((users) => users.find((user) => user.email === email));
+    const existingUser = await this.usersService.findOneByEmail(email);
 
     if (existingUser) {
       throw new ConflictException('User with this email already exists');
@@ -54,15 +52,12 @@ export class AuthService {
     loginDto: LoginDto,
   ): Promise<{ user: User; tokens: TokenResponseDto }> {
     const { email, password } = loginDto;
-    const user = await this.usersService
-      .findAll()
-      .then((users) => users.find((user) => user.email === email));
+    const user = await this.usersService.findOneByEmail(email);
 
     if (!user) {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    // Check if user is active
     if (!user.isActive) {
       throw new UnauthorizedException('Account is deactivated');
     }

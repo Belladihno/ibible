@@ -5,7 +5,6 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { HealthModule } from './health/health.module';
 import { WaitlistModule } from './waitlist/waitlist.module';
-
 import { UsersModule } from './users/users.module';
 import { EmailModule } from './email';
 import { AuthModule } from './auth/auth.module';
