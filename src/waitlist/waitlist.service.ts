@@ -43,6 +43,8 @@ export class WaitlistService {
         templateId: EmailTemplateId.WAITLIST,
         templateData: {
           name: entry.name || 'There',
+          // TODO: Implement waitlist unsubscribe functionality
+          unsubscribeUrl: '#',
         },
       };
 
