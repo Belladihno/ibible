@@ -6,6 +6,7 @@ Thank you for your interest in contributing! Please read the following guideline
 
 ## Pull Request Guidelines
 
+- **Issue Based:** Every PR must link to an issue or ticket. If there is no existing issue, please create one and link it before submitting your PR.
 - **Use the PR Template:** When opening a pull request, use the template provided in `PULL_REQUEST_TEMPLATE.md`. This ensures all required information is included for reviewers.
 - **Target Branch:** All pull requests must be made against the `staging` branch. Do not open PRs directly to `main`.
 - **Branch Management:**
