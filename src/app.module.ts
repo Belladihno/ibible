@@ -12,6 +12,7 @@ import { EmailModule } from './email';
 import { AuthModule } from './auth/auth.module';
 import { SwaggerSyncModule } from 'nestjs-swagger-sync';
 import { BibleModule } from './bible/bible.module';
+import { NotificationsModule } from './notifications/notifications.module';
 
 @Module({
   imports: [
@@ -61,6 +62,7 @@ import { BibleModule } from './bible/bible.module';
     UsersModule,
     AuthModule,
     BibleModule,
+    NotificationsModule,
   ],
   controllers: [AppController],
   providers: [
