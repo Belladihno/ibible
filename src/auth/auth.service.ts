@@ -6,6 +6,7 @@ import {
   UnauthorizedException,
   ConflictException,
   BadRequestException,
+  NotFoundException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
@@ -17,6 +18,10 @@ import { UsersService } from 'src/users/users.service';
 import { LoginDto } from './dto/login-user.dto';
 import { TokenResponseDto } from './dto/token-response.dto';
 import { UserPayload } from './strategy/interface';
+import { randomBytes } from 'crypto';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { PasswordResetToken } from './entities/password-reset-token.entity';
 
 @Injectable()
 export class AuthService {
@@ -24,6 +29,8 @@ export class AuthService {
     private usersService: UsersService,
     private jwtService: JwtService,
     private configService: ConfigService,
+    @InjectRepository(PasswordResetToken)
+    private passwordResetTokenRepo: Repository<PasswordResetToken>,
   ) {}
 
   async register(
@@ -79,7 +86,6 @@ export class AuthService {
     // Generate tokens
     const tokens = await this.generateTokens(user);
 
-    // Update last active timestamp
     await this.usersService.update(user.id, {
       lastActiveAt: new Date(),
     } as any);
@@ -154,5 +160,47 @@ export class AuthService {
       msg: `Google signup successful. New user created: ${newUser.email}`,
       user: newUser,
     };
+  }
+
+  async forgotPassword(email: string): Promise<{ token: string }> {
+    const user = await this.usersService.findOneByEmail(email);
+
+    if (!user) {
+      return { token: '' };
+    }
+    const token = randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+
+    const resetToken = this.passwordResetTokenRepo.create({
+      userId: user.id,
+      token,
+      expiresAt,
+    });
+
+    await this.passwordResetTokenRepo.save(resetToken);
+
+    return { token };
+  }
+
+  async resetPassword(token: string, newPassword: string): Promise<void> {
+    const resetToken = await this.passwordResetTokenRepo.findOne({
+      where: { token, isUsed: false },
+      relations: ['user'],
+    });
+
+    if (!resetToken) {
+      throw new NotFoundException('Invalid or expired reset token');
+    }
+
+    if (resetToken.expiresAt < new Date()) {
+      throw new BadRequestException('Reset token has expired');
+    }
+
+    await this.usersService.update(resetToken.user.id, {
+      password: newPassword,
+    });
+
+    resetToken.isUsed = true;
+    await this.passwordResetTokenRepo.save(resetToken);
   }
 }

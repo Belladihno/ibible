@@ -5,16 +5,16 @@ import { AuthGuard } from '@nestjs/passport';
 import { UserPayload } from './strategy/interface';
 import { ConfigService } from '@nestjs/config';
 import type { Response } from 'express';
-
 import { CreateUserDto } from 'src/users/dto/create-user.dto';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login-user.dto';
 import { TokenResponseDto } from './dto/token-response.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 
 @ApiTags('Authentication')
 @Controller('auth')
 export class AuthController {
-
   constructor(
     private readonly authService: AuthService,
     private readonly configService: ConfigService,
@@ -67,5 +67,43 @@ export class AuthController {
     const redirectUrl = `${this.configService.get('FRONTEND_URL')}?token=${authResult?.msg}`;
 
     return res.redirect(redirectUrl);
+  }
+
+  @Post('forgot-password')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Request password reset' })
+  @ApiResponse({
+    status: 200,
+    description: 'Password reset email sent if user exists',
+  })
+  async forgotPassword(@Body() forgotPasswordDto: ForgotPasswordDto) {
+    const { token } = await this.authService.forgotPassword(
+      forgotPasswordDto.email,
+    );
+
+    return {
+      success: true,
+      message: 'Request successful',
+      token,
+      timestamp: new Date().toISOString(),
+    };
+  }
+
+  @Post('reset-password')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Reset password with token' })
+  @ApiResponse({
+    status: 200,
+    description: 'Password successfully reset',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Invalid or expired reset token',
+  })
+  async resetPassword(@Body() resetPasswordDto: ResetPasswordDto) {
+    return this.authService.resetPassword(
+      resetPasswordDto.token,
+      resetPasswordDto.password,
+    );
   }
 }

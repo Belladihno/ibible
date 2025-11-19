@@ -24,6 +24,7 @@ export interface BaseEmailTemplateContext {
  **/
 export interface WaitlistEmailTemplateContext extends BaseEmailTemplateContext {
   name: string;
+  unsubscribeUrl?: string;
 }
 
 export interface EmailVerificationTemplateContext

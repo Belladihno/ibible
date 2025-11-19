@@ -114,30 +114,32 @@ export class EmailService {
   }
 
   // Get inline attachments for email templates (images with CID references)
-  private getInlineAttachments(): Array<{
+  private getInlineAttachments(templateId: EmailTemplateId): Array<{
     filename: string;
     path: string;
     cid: string;
   }> {
-    const imagesPath = join(process.cwd(), 'templates', 'images');
-
-    return [
-      {
-        filename: 'rea.svg',
-        path: join(imagesPath, 'rea.svg'),
-        cid: 'rea-logo',
-      },
-      {
-        filename: 'Ellipse 33.svg',
-        path: join(imagesPath, 'Ellipse 33.svg'),
-        cid: 'ellipse-32',
-      },
-      {
-        filename: 'Ellipse 34.svg',
-        path: join(imagesPath, 'Ellipse 34.svg'),
-        cid: 'ellipse-33',
-      },
-    ];
+    // Only add attachments for templates that require them
+    if (templateId === EmailTemplateId.WAITLIST) {
+      return [
+        {
+          filename: 'rea.png',
+          path: join(process.cwd(), 'templates/images/rea.png'),
+          cid: 'logo',
+        },
+        {
+          filename: 'Ellipse 33.png',
+          path: join(process.cwd(), 'templates/images/Ellipse 33.png'),
+          cid: 'ellipse-one',
+        },
+        {
+          filename: 'Ellipse 34.png',
+          path: join(process.cwd(), 'templates/images/Ellipse 34.png'),
+          cid: 'ellipse-two',
+        },
+      ];
+    }
+    return [];
   }
 
   async sendMail<T extends EmailTemplateId>(
@@ -155,7 +157,7 @@ export class EmailService {
 
       const to = payload.to.map((recipient) => this.formatRecipient(recipient));
 
-      const inlineAttachments = this.getInlineAttachments();
+      const inlineAttachments = this.getInlineAttachments(payload.templateId);
       const allAttachments = payload.attachments
         ? [...inlineAttachments, ...payload.attachments]
         : inlineAttachments;

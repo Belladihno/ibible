@@ -8,123 +8,231 @@
       body {
         margin: 0;
         padding: 0;
-        background: #ffffff;
         font-family: Arial, Helvetica, sans-serif;
+        background-color: #f5f5f5;
+      }
+
+      .email-wrapper {
+        width: 100%;
+        padding: 20px;
+        box-sizing: border-box;
       }
 
       .container {
-        width: 100%;
+        width: 90%;
         max-width: 600px;
-        margin: auto;
-        background: #ffffff;
+        color: #5c5c5c;
+        margin: 0 auto;
+        background-color: #ffffff;
       }
 
       .header {
-        background: #7d52f41a;
-        padding: 40px 20px 20px;
-        text-align: left;
+        height: 144px;
+        background-color: #7d52f41a;
+        display: flex;
+        flex-direction: column;
+        position: relative;
+        justify-content: flex-end;
+        padding: 0;
       }
 
-      .logo img {
-        height: 40px;
+      .logo {
+        width: 70px;
+        height: 44px;
+        margin: 20px;
+        display: block;
       }
 
-      .hero-circle {
-        width: 120px;
-        float: right;
-        margin-top: -60px;
+      .ellipse-one {
+        width: 230px;
+        height: 50px;
+        position: absolute;
+        right: 0;
+        bottom: 0;
+      }
+
+      .ellipse-two {
+        width: 111px;
+        height: 60px;
+        position: absolute;
+        top: 0;
+        left: 0;
+      }
+
+      .ellipse-three {
+        width: 170px;
+        height: 60px;
+        position: absolute;
+        top: 0;
+        right: 50px;
       }
 
       .content {
-        padding: 30px 20px;
-        color: #5c5c5c;
+        padding: 20px;
+        color: #333333;
+        line-height: 1.6;
+      }
+
+      .greeting {
         font-size: 16px;
-        line-height: 24px;
+        margin-bottom: 8px;
+        color: #333333;
+      }
+
+      .main-text {
+        font-size: 16px;
+        margin-bottom: 24px;
+        color: #333333;
       }
 
       .highlight-box {
-        background: #7d52f41a;
+        background-color: #7d52f41a;
         border-left: 4px solid #7d52f4;
-        padding: 12px 16px;
-        margin: 20px 0;
-        font-weight: bold;
         color: #7d52f4;
+        padding: 20px;
+        margin: 24px 0;
+      }
+
+      .highlight-text {
+        font-size: 16px;
+        color: #6b4de6;
+        margin: 0;
+        line-height: 1.5;
+      }
+
+      .body-text {
+        font-size: 15px;
+        color: #555555;
+        line-height: 1.7;
+        margin-bottom: 16px;
+      }
+
+      .signature {
+        font-size: 15px;
+        color: #333333;
+        margin-top: 24px;
+      }
+
+      .signature p {
+        margin: 0;
+      }
+
+      .signature p + p {
+        margin-top: 4px;
       }
 
       .footer {
-        background: #f7f7f7;
+        padding: 30px 40px;
         text-align: center;
-        padding: 20px 16px;
-        font-size: 14px;
-        color: #a3a3a3;
-        line-height: 20px;
+        background-color: #f7f7f7;
       }
 
-      a.unsubscribe {
-        color: #5c5c5c;
+      .unsubscribe {
+        font-size: 13px;
+        color: #999999;
+        margin-bottom: 12px;
+      }
+
+      .link {
+        color: #999999;
         text-decoration: underline;
       }
 
-      @media screen and (max-width: 480px) {
-        .hero-circle {
+      .copyright {
+        font-size: 13px;
+        color: #bbbbbb;
+        margin: 0;
+      }
+
+      /* Responsive design */
+      @media screen and (max-width: 600px) {
+        .container {
+          width: 100%;
+        }
+
+        .ellipse-one,
+        .ellipse-two,
+        .ellipse-three {
           display: none;
         }
-        .header {
-          text-align: center;
-          padding-top: 30px;
+
+        .content {
+          padding: 15px;
+        }
+
+        .footer {
+          padding: 20px 15px;
         }
       }
     </style>
   </head>
 
   <body>
-    <table class="container" cellpadding="0" cellspacing="0">
-      <!-- HEADER -->
-      <tr>
-        <td class="header">
-          <div class="logo">
-            <!-- <img src="cid:rea-logo" alt="Rea Logo" /> -->
-          </div>
-          <img src="cid:rea-logo" class="hero-circle" alt="" />
-        </td>
-      </tr>
+    <div class="email-wrapper">
+      <table
+        width="100%"
+        cellpadding="0"
+        cellspacing="0"
+        style="max-width: 600px; margin: 0 auto"
+      >
+        <tbody>
+          <tr>
+            <td>
+              <div class="container">
+                <!-- HEADER -->
+                <div class="header">
+                  <img src="cid:logo" alt="Rea Logo" width="70" height="44" class="logo" />
+                  <img src="cid:ellipse-one" class="ellipse-one" alt="" width="201" height="51" />
+                  <img src="cid:ellipse-two" class="ellipse-two" alt="" width="56" height="56" />
+                  <img src="cid:ellipse-three" class="ellipse-three" alt="" width="56" height="56" />
+                </div>
 
-      <!-- BODY -->
-      <tr>
-        <td class="content">
-          <p>Hi {{ name }},</p>
+                <!-- CONTENT -->
+                <div class="content">
+                  <p class="greeting">Hi {{ name }},</p>
+                  <p class="main-text">
+                    Thank you for joining the waitlist for Rea.
+                  </p>
 
-          <p>Thank you for joining the waitlist for Rea.</p>
+                  <div class="highlight-box">
+                    <p class="highlight-text">
+                      We're exploring a simple idea:<br />
+                      What if the Bible could talk back?
+                    </p>
+                  </div>
 
-          <div class="highlight-box">
-            We're exploring a simple idea:<br />
-            What if the Bible could talk back?
-          </div>
+                  <p class="body-text">
+                    Rea is being built to help you reflect, ask questions, and
+                    grow closer to God through gentle, Scripture-filled
+                    conversations. We'll keep you updated as we get closer to
+                    launch, and you'll be among the first to experience it.
+                  </p>
 
-          <p>
-            Rea is being built to help you reflect, ask questions, and grow
-            closer to God through gentle, Scripture-filled conversations.
-            You'll be among the first to experience it.
-          </p>
+                  <p class="body-text">
+                    Thank you for being part of this journey with us.<br />
+                    We can't wait to share more with you soon.
+                  </p>
 
-          <p>
-            Thank you for being part of this journey with us.<br />
-            We can't wait to share more with you soon.
-          </p>
+                  <div class="signature">
+                    <p>With gratitude,</p>
+                    <p>The Rea Team.</p>
+                  </div>
+                </div>
 
-          <p>With gratitude,<br />The Rea Team</p>
-        </td>
-      </tr>
-
-      <!-- FOOTER -->
-      <tr>
-        <td class="footer">
-          If you ever wish to step off this journey, you can
-          <a href="#" class="unsubscribe">unsubscribe</a> anytime.
-          <br /><br />
-          © {{ copyRightYear }} Rea
-        </td>
-      </tr>
-    </table>
+                <!-- FOOTER -->
+                <div class="footer">
+                  <p class="unsubscribe">
+                    If you ever wish to step off this journey, you can
+                    <a href="{{ unsubscribeUrl }}" class="link">unsubscribe</a>
+                    anytime.
+                  </p>
+                  <p class="copyright">© {{ copyRightYear }} Rea</p>
+                </div>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
   </body>
 </html>
