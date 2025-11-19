@@ -11,13 +11,29 @@ services:
       - '${POSTGRES_PORT}:5432'
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    networks:
-      - rea-network
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER}']
-      interval: 10s
-      timeout: 5s
+      interval: 5s
+      timeout: 3s
       retries: 5
+    networks:
+      - rea-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: rea-redis
+    command: ['redis-server', '--appendonly', 'yes']
+    ports:
+      - '${REDIS_PORT}:6379'
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - rea-network
 
 networks:
   rea-network:
@@ -25,4 +41,4 @@ networks:
 
 volumes:
   postgres_data:
-    driver: local
+  redis_data:

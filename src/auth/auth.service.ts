@@ -172,7 +172,6 @@ export class AuthService {
     const user = await this.usersService.findOneByEmail(email);
 
     if (!user) {
-      // Don't reveal whether email exists or not
       return { token: '' };
     }
     const token = randomBytes(32).toString('hex');
