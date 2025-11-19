@@ -1,58 +1,184 @@
-name: Deploy Backend to Staging
+name: Deploy Backend to Staging Evironment
 
 on:
   push:
     branches:
     - staging
 
+  pull_request:
+    branches:
+    - staging
+    types: [ closed ]
+
 jobs:
-  deploy:
+
+  build-test:
+    name: CI - Build, Lint, Test
     runs-on: ubuntu-latest
+    if: github.event_name == 'push' || github.event.pull_request.merged == true
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Run lint
+      run: npm run lint
+      continue-on-error: false
+
+    - name: Run tests
+      run: npm test
+      continue-on-error: false
+
+    - name: Run security audit
+      run: npm audit --audit-level=high
+      continue-on-error: true
+
+    - name: Build NestJS app
+      run: npm run build
+
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: build-artifacts-dist
+        path: dist/
+        retention-days: 7
+
+  deploy:
+    name: CD - Deploy to server
+    needs: build-test
+    runs-on: ubuntu-latest
+    environment:
+      name: staging
+      # url: ${{ secrets.STAGING_URL }}
 
     steps:
     - name: Checkout Code
       uses: actions/checkout@v4
 
-    - name: SSH into server & deploy
+    - name: Download build artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: build-artifacts-dist
+        path: dist/
+    - name: Deploy via SSH
       uses: appleboy/ssh-action@v1.0.3
-
       with:
         host: ${{ secrets.SERVER_HOST }}
         username: ${{ secrets.SERVER_USER }}
         password: ${{ secrets.SERVER_PASSWORD }}
-
         script: |
+          set -e  # Exit on any error
+
+          echo "📦 Navigating to application directory..."
           cd ${{ secrets.SERVER_APP_DIR }}
 
-          echo "Fetching latest code..."
+          echo "🔄 Fetching latest code from staging branch..."
           git fetch --all
           git reset --hard origin/staging
 
-          echo "Installing dependencies..."
-          npm install --legacy-peer-deps
+          echo "📥 Installing dependencies..."
+          npm ci --production --legacy-peer-deps
 
-          echo "Creating .env from .env.example..."
+          echo "⚙️ Setting up environment variables..."
+          # Create .env from example
           cp .env.example .env
 
-          sed -i "s|API_VERSION=.*|API_VERSION=${{ secrets.API_VERSION }}|" .env
+          # Update environment variables using a safer approach
+          cat << 'EOF' > .env
+          # API Configuration
+          API_VERSION=${{ secrets.API_VERSION }}
+          PORT=${{ secrets.PORT }}
 
-          sed -i "s|PORT=.*|PORT=${{ secrets.PORT }}|" .env
+          # Database Configuration
+          DATABASE_URI=${{ secrets.DATABASE_URI }}
 
-          # PostgreSQL
-          sed -i "s|DATABASE_URI=.*|DATABASE_URI=${{ secrets.DATABASE_URI }}|" .env
+          # Email Configuration
+          EMAIL_MAILER=smtp
+          EMAIL_HOST=${{ secrets.MAIL_HOST }}
+          EMAIL_PORT=${{ secrets.MAIL_PORT }}
+          EMAIL_USERNAME=${{ secrets.MAIL_USERNAME }}
+          EMAIL_PASSWORD=${{ secrets.MAIL_PASSWORD }}
+          EMAIL_ENCRYPTION=${{ secrets.MAIL_ENCRYPTION }}
+          EMAIL_FROM_ADDRESS=${{ secrets.MAIL_FROM_ADDRESS }}
+          EMAIL_FROM_NAME="${{ secrets.MAIL_FROM_NAME }}"
 
-          # SMTP
-          sed -i "s|EMAIL_MAILER=.*|EMAIL_MAILER=smtp|" .env
-          sed -i "s|EMAIL_HOST=.*|EMAIL_HOST=${{ secrets.MAIL_HOST }}|" .env
-          sed -i "s|EMAIL_PORT=.*|EMAIL_PORT=${{ secrets.MAIL_PORT }}|" .env
-          sed -i "s|EMAIL_USERNAME=.*|EMAIL_USERNAME=${{ secrets.MAIL_USERNAME }}|" .env
-          sed -i "s|EMAIL_PASSWORD=.*|EMAIL_PASSWORD=${{ secrets.MAIL_PASSWORD }}|" .env
-          sed -i "s|EMAIL_ENCRYPTION=.*|EMAIL_ENCRYPTION=${{ secrets.MAIL_ENCRYPTION }}|" .env
-          sed -i "s|EMAIL_FROM_ADDRESS=.*|EMAIL_FROM_ADDRESS=${{ secrets.MAIL_FROM_ADDRESS }}|" .env
-          sed -i "s|EMAIL_FROM_NAME=.*|EMAIL_FROM_NAME=\"${{ secrets.MAIL_FROM_NAME }}\"|" .env
+          #Other variables
+          GOOGLE_CLIENT_ID="${{ secrets.GOOGLE_CLIENT_ID}}"
+          GOOGLE_CLIENT_SECRET="${{ secrets.GOOGLE_CLIENT_SECRET}}"
+          GOOGLE_CALLBACK_URL=http://localhost:3600/api/v1/auth/google/callback
 
-          echo "Building TypeScript..."
+          FRONTEND_URL="${{ secrets.FRONTEND_URL}}"
+          POSTMAN_API_KEY="${{ secrets.POSTMAN_API_KEY}}"
+
+          EOF
+
+          echo "🔨 Building TypeScript application..."
           npm run build
 
-          echo "Reloading server with zero downtime..."
+          echo "🚀 Restarting application with PM2..."
           pm2 reload backend || pm2 start dist/main.js --name backend
+
+          echo "💾 Saving PM2 process list..."
+          pm2 save
+
+          echo "✅ Deployment completed successfully!"
+
+          # Display PM2 status
+          pm2 list
+
+    - name: Health Check
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: ${{ secrets.SERVER_HOST }}
+        username: ${{ secrets.SERVER_USER }}
+        password: ${{ secrets.SERVER_PASSWORD }}
+        script: |
+          echo "⏳ Waiting for application to start..."
+          sleep 15
+
+          echo "🏥 Performing health check on localhost..."
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:3600/api/v1/health || echo "000")
+
+          if [ "$HTTP_STATUS" -eq 200 ]; then
+            echo "✅ Health check passed! Application is running on port 3600."
+          else
+            echo "❌ Health check failed! HTTP Status: $HTTP_STATUS"
+            echo "Checking PM2 status..."
+            pm2 status
+            pm2 logs backend --lines 50 --nostream
+            exit 1
+          fi
+
+    - name: Deployment Summary
+      if: success()
+      run: |
+        echo "## 🎉 Deployment Successful!" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Environment:** Staging" >> $GITHUB_STEP_SUMMARY
+        echo "**Branch:** ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Deployed by:** ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Time:** $(date -u +'%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "🔗 [View Application](${{ secrets.STAGING_URL }})" >> $GITHUB_STEP_SUMMARY
+
+    - name: Deployment Failure Notification
+      if: failure()
+      run: |
+        echo "## ❌ Deployment Failed!" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Environment:** Staging" >> $GITHUB_STEP_SUMMARY
+        echo "**Branch:** ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Failed step:** Check logs above" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "Please review the workflow logs for details." >> $GITHUB_STEP_SUMMARY
