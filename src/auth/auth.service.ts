@@ -38,9 +38,7 @@ export class AuthService {
   ): Promise<{ user: User; tokens: TokenResponseDto }> {
     const { email, password, fullName = AuthProvider.EMAIL } = registerDto;
 
-    const existingUser = await this.usersService
-      .findAll()
-      .then((users) => users.find((user) => user.email === email));
+    const existingUser = await this.usersService.findOneByEmail(email);
 
     if (existingUser) {
       throw new ConflictException('User with this email already exists');
@@ -61,9 +59,7 @@ export class AuthService {
     loginDto: LoginDto,
   ): Promise<{ user: User; tokens: TokenResponseDto }> {
     const { email, password } = loginDto;
-    const user = await this.usersService
-      .findAll()
-      .then((users) => users.find((user) => user.email === email));
+    const user = await this.usersService.findOneByEmail(email);
 
     if (!user) {
       throw new UnauthorizedException('Invalid credentials');
@@ -129,7 +125,7 @@ export class AuthService {
   }
 
   async validateGoogleUser(userDetails: UserPayload) {
-    let user = await this.usersService.findOneByEmail(userDetails.email);
+    const user = await this.usersService.findOneByEmail(userDetails.email);
 
     if (user) {
       if (user.authProvider === AuthProvider.EMAIL) {
@@ -145,6 +141,12 @@ export class AuthService {
   }
 
   async googleSignIn(userDetails: UserPayload) {
+    const user = await this.usersService.findOneByEmail(userDetails.email);
+
+    if (!user) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
     return {
       msg: `Google signin successful for user: ${userDetails.email}`,
       user: userDetails,
