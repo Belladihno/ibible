@@ -48,7 +48,7 @@ export class EmailService {
     return {
       host,
       port,
-      secure: port === 465,
+      secure: false,
       auth: {
         user,
         pass,
