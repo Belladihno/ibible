@@ -48,7 +48,7 @@ export class EmailService {
     return {
       host,
       port,
-      secure: false,
+      secure: port === 465,
       auth: {
         user,
         pass,
@@ -121,10 +121,24 @@ export class EmailService {
   }> {
     // Only add attachments for templates that require them
     if (templateId === EmailTemplateId.WAITLIST) {
-      return [];
+      return [
+        {
+          filename: 'rea.png',
+          path: join(process.cwd(), 'templates/images/rea.png'),
+          cid: 'logo',
+        },
+        {
+          filename: 'Ellipse 33.png',
+          path: join(process.cwd(), 'templates/images/Ellipse 33.png'),
+          cid: 'ellipse-one',
+        },
+        {
+          filename: 'Ellipse 34.png',
+          path: join(process.cwd(), 'templates/images/Ellipse 34.png'),
+          cid: 'ellipse-two',
+        },
+      ];
     }
-
-    // Add attachments for other templates as needed
     return [];
   }
 

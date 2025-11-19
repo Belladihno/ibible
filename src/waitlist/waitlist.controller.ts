@@ -1,7 +1,21 @@
-import { Controller, Post, Body, Get } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBody } from '@nestjs/swagger';
+import {
+  Controller,
+  Post,
+  Body,
+  Get,
+  Query,
+  ParseIntPipe,
+} from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBody,
+  ApiQuery,
+} from '@nestjs/swagger';
 import { WaitlistService } from './waitlist.service';
 import { CreateWaitlistEntryDto } from './dto/create-waitlist-entry.dto';
+import { Throttle } from '@nestjs/throttler';
 
 @ApiTags('waitlist')
 @Controller('waitlist')
@@ -9,6 +23,8 @@ export class WaitlistController {
   constructor(private readonly waitlistService: WaitlistService) {}
 
   @Post()
+  @Throttle({ short: { limit: 1, ttl: 1000 } })
+  @Throttle({ long: { limit: 5, ttl: 60000 } })
   @ApiOperation({ summary: 'Add a new entry to the waitlist' })
   @ApiBody({ type: CreateWaitlistEntryDto })
   @ApiResponse({
@@ -16,8 +32,16 @@ export class WaitlistController {
     description: 'Success! You are on the waitlist.',
   })
   @ApiResponse({
+    status: 400,
+    description: 'Invalid email format or validation error.',
+  })
+  @ApiResponse({
     status: 409,
     description: 'This email is already on the waitlist.',
+  })
+  @ApiResponse({
+    status: 429,
+    description: 'Too many requests. Please try again later.',
   })
   @ApiResponse({ status: 500, description: 'Internal server error.' })
   create(@Body() createWaitlistEntryDto: CreateWaitlistEntryDto) {
@@ -25,9 +49,35 @@ export class WaitlistController {
   }
 
   @Get()
-  @ApiOperation({ summary: 'Retrieve all waitlist entries' })
-  @ApiResponse({ status: 200, description: 'Array of waitlist entries.' })
-  findAll() {
-    return this.waitlistService.findAll();
+  @Throttle({ short: { limit: 10, ttl: 1000 } })
+  @Throttle({ long: { limit: 100, ttl: 60000 } })
+  @ApiOperation({ summary: 'Retrieve all waitlist entries with pagination' })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    type: Number,
+    description: 'Page number (default: 1)',
+    example: 1,
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    description: 'Number of entries per page (default: 10, max: 100)',
+    example: 10,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Paginated array of waitlist entries with metadata.',
+  })
+  @ApiResponse({
+    status: 429,
+    description: 'Too many requests. Please try again later.',
+  })
+  findAll(
+    @Query('page', new ParseIntPipe({ optional: true })) page?: number,
+    @Query('limit', new ParseIntPipe({ optional: true })) limit?: number,
+  ) {
+    return this.waitlistService.findAll(page, limit);
   }
 }

@@ -25,7 +25,6 @@ import { PasswordResetToken } from './entities/password-reset-token.entity';
 
 @Injectable()
 export class AuthService {
-
   constructor(
     private usersService: UsersService,
     private jwtService: JwtService,
@@ -167,12 +166,12 @@ export class AuthService {
     };
   }
 
-  async forgotPassword(email: string): Promise<{token: string}> {
+  async forgotPassword(email: string): Promise<{ token: string }> {
     const user = await this.usersService.findOneByEmail(email);
 
     if (!user) {
       // Don't reveal whether email exists or not
-      return {token: ''};
+      return { token: '' };
     }
     const token = randomBytes(32).toString('hex');
     const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
@@ -209,5 +208,4 @@ export class AuthService {
     resetToken.isUsed = true;
     await this.passwordResetTokenRepo.save(resetToken);
   }
-
 }

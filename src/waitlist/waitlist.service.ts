@@ -64,10 +64,38 @@ export class WaitlistService {
     }
   }
 
-  async findAll() {
-    const { payload } = await this.WaitlEntryModelAction.list({});
-    return {
-      data: payload,
-    };
+  async findAll(page: number = 1, limit: number = 10) {
+    const validPage = Math.max(1, page);
+    const validLimit = Math.min(100, Math.max(1, limit)); 
+
+    try {
+      const { payload, paginationMeta } = await this.WaitlEntryModelAction.list(
+        {
+          paginationPayload: {
+            page: validPage,
+            limit: validLimit,
+          },
+          order: {
+            createdAt: 'DESC',
+          },
+        },
+      );
+
+      return {
+        data: payload,
+        meta: {
+          page: paginationMeta.page || validPage,
+          limit: paginationMeta.limit || validLimit,
+          total: paginationMeta.total || payload.length,
+          totalPages:
+            paginationMeta.total_pages ||
+            Math.ceil((paginationMeta.total || payload.length) / validLimit),
+        },
+      };
+    } catch (error) {
+      throw new InternalServerErrorException(
+        'Failed to retrieve waitlist entries',
+      );
+    }
   }
 }
