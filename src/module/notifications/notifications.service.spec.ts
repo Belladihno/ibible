@@ -15,4 +15,6 @@ describe('NotificationsService', () => {
   it('should be defined', () => {
     expect(service).toBeDefined();
   });
+
+  // Add more tests here to validate the logic
 });

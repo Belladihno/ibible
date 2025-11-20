@@ -1,5 +1,5 @@
 {
-  "name": "rea-interactive-bible-BE",
+  "name": "rea-interactive-bible-be",
   "version": "0.0.1",
   "description": "",
   "author": "",
@@ -98,6 +98,9 @@
       "**/*.(t|j)s"
     ],
     "coverageDirectory": "../coverage",
-    "testEnvironment": "node"
+    "testEnvironment": "node",
+    "moduleNameMapper": {
+      "^src/(.*)$": "<rootDir>/../src/$1"
+    }
   }
 }

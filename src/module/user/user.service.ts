@@ -1,6 +1,5 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
-
 import {
   Injectable,
   UnauthorizedException,
@@ -11,9 +10,9 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
-import { CreateUserDto } from 'src/module/users/dto/create-user.dto';
-import { AuthProvider } from 'src/module/users/enums/user.enums';
-import { UsersService } from 'src/module/users/users.service';
+import { CreateUserDto } from './dto/create-user.dto';
+import { UpdateUserDto } from './dto/update-user.dto';
+import { AuthProvider } from './enums/user.enums';
 import { LoginDto } from './dto/login-user.dto';
 import { TokenResponseDto } from './dto/token-response.dto';
 import { UserPayload } from './strategy/interface';
@@ -21,35 +20,82 @@ import { randomBytes } from 'crypto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { PasswordResetToken } from '../../entities/password-reset-token.entity';
+import { RefreshToken } from '../../entities/refresh-token.entity';
+import { AccessToken } from '../../entities/access-token.entity';
 import { User } from 'src/entities/user.entity';
 
 @Injectable()
-export class AuthService {
+export class UserService {
   constructor(
-    private usersService: UsersService,
+    @InjectRepository(User)
+    private repo: Repository<User>,
     private jwtService: JwtService,
     private configService: ConfigService,
     @InjectRepository(PasswordResetToken)
     private passwordResetTokenRepo: Repository<PasswordResetToken>,
+    @InjectRepository(RefreshToken)
+    private refreshTokenRepo: Repository<RefreshToken>,
+    @InjectRepository(AccessToken)
+    private accessTokenRepo: Repository<AccessToken>,
   ) {}
 
+  // --- UsersService logic ---
+  async create(data: CreateUserDto) {
+    const user = this.repo.create(data);
+    if (data.password) {
+      user.passwordHash = await bcrypt.hash(data.password, 10);
+    }
+    try {
+      return await this.repo.save(user);
+    } catch (error: any) {
+      if (error.code === '23505' && error.detail.includes('email')) {
+        throw new ConflictException('Email already exists.');
+      }
+      throw error;
+    }
+  }
+
+  findAll() {
+    return this.repo.find();
+  }
+
+  async findOne(id: string) {
+    const user = await this.repo.findOne({ where: { id } });
+    if (!user) throw new NotFoundException(`User with ID ${id} not found`);
+    return user;
+  }
+
+  async update(id: string, changes: UpdateUserDto) {
+    const user = await this.findOne(id);
+    if (changes.password) {
+      changes['passwordHash'] = await bcrypt.hash(changes.password, 10);
+      delete changes.password;
+    }
+    Object.assign(user, changes);
+    return this.repo.save(user);
+  }
+
+  async remove(id: string) {
+    const user = await this.findOne(id);
+    user.deletedAt = new Date();
+    user.isActive = false;
+    return this.repo.save(user);
+  }
+
+  async findOneByEmail(email: string) {
+    return this.repo.findOne({ where: { email } });
+  }
+
+  // --- AuthService logic ---
   async register(
     registerDto: CreateUserDto,
   ): Promise<{ user: Partial<User>; tokens: TokenResponseDto }> {
     const { email, password, fullName = AuthProvider.EMAIL } = registerDto;
-
-    const existingUser = await this.usersService.findOneByEmail(email);
-
+    const existingUser = await this.findOneByEmail(email);
     if (existingUser) {
       throw new ConflictException('User with this email already exists');
     }
-
-    const user = await this.usersService.create({
-      email,
-      password,
-      fullName,
-    });
-
+    const user = await this.create({ email, password, fullName } as any);
     const tokens = await this.generateTokens(user);
     return {
       user: {
@@ -68,12 +114,10 @@ export class AuthService {
     loginDto: LoginDto,
   ): Promise<{ user: Partial<User>; tokens: TokenResponseDto }> {
     const { email, password } = loginDto;
-    const user = await this.usersService.findOneByEmail(email);
-
+    const user = await this.findOneByEmail(email);
     if (!user) {
       throw new UnauthorizedException('Invalid credentials');
     }
-
     if (!user.isActive) {
       throw new UnauthorizedException('Account is deactivated');
     }
@@ -81,7 +125,6 @@ export class AuthService {
       if (!user.passwordHash) {
         throw new UnauthorizedException('Invalid authentication method');
       }
-
       const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
       if (!isPasswordValid) {
         throw new UnauthorizedException('Invalid credentials');
@@ -91,14 +134,8 @@ export class AuthService {
         'Please use the correct authentication method',
       );
     }
-
-    // Generate tokens
     const tokens = await this.generateTokens(user);
-
-    await this.usersService.update(user.id, {
-      lastActiveAt: new Date(),
-    } as any);
-
+    await this.update(user.id, { lastActiveAt: new Date() } as any);
     return {
       user: {
         id: user.id,
@@ -113,59 +150,121 @@ export class AuthService {
   }
 
   private async generateTokens(user: User): Promise<TokenResponseDto> {
-    const payload = {
+    const payloadBase = {
       sub: user.id,
       email: user.email,
       authProvider: user.authProvider,
-    };
+    } as any;
+
+    // Determine expirations (in seconds)
+    const accessExpiresInStr = this.configService.get<string>('JWT_EXPIRES_IN');
+    const refreshExpiresInStr = this.configService.get<string>(
+      'JWT_REFRESH_EXPIRES_IN',
+    );
+    const accessExpiresIn = accessExpiresInStr
+      ? parseInt(accessExpiresInStr)
+      : 15 * 60; // default 900s
+    const refreshExpiresIn = refreshExpiresInStr
+      ? parseInt(refreshExpiresInStr)
+      : 7 * 24 * 60 * 60; // default 7 days
+
+    // Create a unique identifier for the access token (jti)
+    const jti = randomBytes(16).toString('hex');
 
     const [accessToken, refreshToken] = await Promise.all([
-      this.jwtService.signAsync(payload, {
-        expiresIn: (this.configService.get<string>('JWT_EXPIRES_IN') ||
-          '15m') as any,
-        secret:
-          this.configService.get<string>('JWT_SECRET') || 'fallback-secret',
-      }),
-      this.jwtService.signAsync(payload, {
-        expiresIn: (this.configService.get<string>('JWT_REFRESH_EXPIRES_IN') ||
-          '7d') as any,
+      this.jwtService.signAsync(
+        { ...payloadBase, jti },
+        {
+          expiresIn: accessExpiresIn as any,
+          secret:
+            this.configService.get<string>('JWT_SECRET') || 'fallback-secret',
+        },
+      ),
+      this.jwtService.signAsync(payloadBase, {
+        expiresIn: refreshExpiresIn as any,
         secret:
           this.configService.get<string>('JWT_REFRESH_SECRET') ||
           'fallback-refresh-secret',
       }),
     ]);
 
+    // Save access token record
+    const accessExpiresAt = new Date(Date.now() + accessExpiresIn * 1000);
+    await this.accessTokenRepo.save(
+      this.accessTokenRepo.create({
+        userId: user.id,
+        jti,
+        expiresAt: accessExpiresAt,
+        revoked: false,
+      }),
+    );
+
+    // Save refresh token
+    const refreshExpiresAt = new Date(Date.now() + refreshExpiresIn * 1000);
+    await this.refreshTokenRepo.save(
+      this.refreshTokenRepo.create({
+        userId: user.id,
+        token: refreshToken,
+        expiresAt: refreshExpiresAt,
+        revoked: false,
+      }),
+    );
+
     return {
       accessToken,
       refreshToken,
-      expiresIn: 15 * 60,
+      expiresIn: accessExpiresIn,
       tokenType: 'Bearer',
     };
   }
 
-  async validateGoogleUser(userDetails: UserPayload) {
-    const user = await this.usersService.findOneByEmail(userDetails.email);
+  async logoutByAccessToken(jti: string, userId: string): Promise<void> {
+    const token = await this.accessTokenRepo.findOne({ where: { jti } });
+    if (!token || token.revoked) {
+      throw new UnauthorizedException('Invalid access token');
+    }
+    if (token.userId !== userId) {
+      throw new UnauthorizedException('Token does not belong to user');
+    }
+    token.revoked = true;
+    await this.accessTokenRepo.save(token);
 
+    // Revoke all refresh tokens for the user for safety
+    await this.refreshTokenRepo.update(
+      { userId, revoked: false },
+      { revoked: true },
+    );
+  }
+  async logout(refreshToken: string): Promise<void> {
+    const token = await this.refreshTokenRepo.findOne({
+      where: { token: refreshToken },
+    });
+    if (!token || token.revoked) {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+    token.revoked = true;
+    await this.refreshTokenRepo.save(token);
+  }
+
+  async validateGoogleUser(userDetails: UserPayload) {
+    const user = await this.findOneByEmail(userDetails.email);
     if (user) {
       if (user.authProvider === AuthProvider.EMAIL) {
         throw new BadRequestException(
           'An account with this email already exists. Please sign in using your email and password.',
         );
       }
-
-      return this.googleSignIn(user);
+      return this.googleSignIn(userDetails);
     } else {
       return this.googleSignUp(userDetails);
     }
   }
 
   async googleSignIn(userDetails: UserPayload) {
-    const user = await this.usersService.findOneByEmail(userDetails.email);
-
+    const user = await this.findOneByEmail(userDetails.email);
     if (!user) {
       throw new UnauthorizedException('Invalid credentials');
     }
-
     return {
       msg: `Google signin successful for user: ${userDetails.email}`,
       user: userDetails,
@@ -179,8 +278,7 @@ export class AuthService {
       profilePicture: userDetails.picture,
       authProvider: AuthProvider.GOOGLE,
     };
-
-    const newUser = await this.usersService.create(payload);
+    const newUser = await this.create(payload as any);
     return {
       msg: `Google signup successful. New user created: ${newUser.email}`,
       user: newUser,
@@ -194,13 +292,10 @@ export class AuthService {
           this.configService.get<string>('JWT_REFRESH_SECRET') ||
           'fallback-refresh-secret',
       });
-
-      const user = await this.usersService.findOne(payload.sub);
-
+      const user = await this.findOne(payload.sub);
       if (!user.isActive) {
         throw new UnauthorizedException('User account is deactivated');
       }
-
       return this.generateTokens(user);
     } catch {
       throw new UnauthorizedException('Invalid refresh token');
@@ -208,22 +303,18 @@ export class AuthService {
   }
 
   async forgotPassword(email: string): Promise<{ token: string }> {
-    const user = await this.usersService.findOneByEmail(email);
-
+    const user = await this.findOneByEmail(email);
     if (!user) {
       return { token: '' };
     }
     const token = randomBytes(32).toString('hex');
     const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
-
     const resetToken = this.passwordResetTokenRepo.create({
       userId: user.id,
       token,
       expiresAt,
     });
-
     await this.passwordResetTokenRepo.save(resetToken);
-
     return { token };
   }
 
@@ -232,19 +323,13 @@ export class AuthService {
       where: { token, isUsed: false },
       relations: ['user'],
     });
-
     if (!resetToken) {
       throw new NotFoundException('Invalid or expired reset token');
     }
-
     if (resetToken.expiresAt < new Date()) {
       throw new BadRequestException('Reset token has expired');
     }
-
-    await this.usersService.update(resetToken.user.id, {
-      password: newPassword,
-    });
-
+    await this.update(resetToken.user.id, { password: newPassword } as any);
     resetToken.isUsed = true;
     await this.passwordResetTokenRepo.save(resetToken);
   }

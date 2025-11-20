@@ -3,10 +3,6 @@ export interface UserPayload {
   firstName?: string;
   lastName?: string;
   picture?: string;
-  accessToken?: string;
-}
-
-interface JwtPayload {
-  sub: string;
-  email: string;
+  sub?: string;
+  authProvider?: string;
 }

@@ -7,12 +7,11 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { HealthModule } from './health/health.module';
 import { WaitlistModule } from './module/waitlist/waitlist.module';
-import { UsersModule } from './module/users/users.module';
 import { EmailModule } from './module/email';
 import { SwaggerSyncModule } from 'nestjs-swagger-sync';
 import { BibleModule } from './module/bible/bible.module';
 import { NotificationsModule } from './module/notifications/notifications.module';
-import { AuthModule } from 'src/module/auth/auth.module';
+import { UserModule } from 'src/module/user/user.module';
 
 @Module({
   imports: [
@@ -59,8 +58,7 @@ import { AuthModule } from 'src/module/auth/auth.module';
     HealthModule,
     WaitlistModule,
     EmailModule,
-    UsersModule,
-    AuthModule,
+    UserModule,
     BibleModule,
     NotificationsModule,
   ],

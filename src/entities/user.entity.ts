@@ -5,7 +5,7 @@ import {
   PreferredLanguages,
   PreferredBibleVersion,
   PreferredAIVoice,
-} from 'src/module/users/enums/user.enums';
+} from 'src/module/user/enums/user.enums';
 import {
   Entity,
   Column,
