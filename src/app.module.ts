@@ -5,13 +5,13 @@ import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { HealthModule } from './health/health.module';
-import { WaitlistModule } from './module/waitlist/waitlist.module';
-import { EmailModule } from './module/email';
+import { HealthModule } from './modules/health/health.module';
+import { WaitlistModule } from './modules/waitlist/waitlist.module';
+import { EmailModule } from './modules/email';
 import { SwaggerSyncModule } from 'nestjs-swagger-sync';
-import { BibleModule } from './module/bible/bible.module';
-import { NotificationsModule } from './module/notifications/notifications.module';
-import { UserModule } from 'src/module/user/user.module';
+import { BibleModule } from './modules/bible/bible.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
+import { UserModule } from 'src/modules/user/user.module';
 
 @Module({
   imports: [

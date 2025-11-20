@@ -27,7 +27,6 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UserService } from './user.service';
 import { LoginDto } from './dto/login-user.dto';
-import { TokenResponseDto } from './dto/token-response.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 
@@ -45,7 +44,17 @@ export class UserController {
   @ApiOperation({
     summary: 'Logout user (invalidate access and refresh tokens)',
   })
-  @ApiResponse({ status: 200, description: 'User logged out successfully' })
+  @ApiResponse({
+    status: 200,
+    description: 'User logged out successfully',
+    schema: {
+      example: {
+        status: 'success',
+        message: 'User logged out and tokens revoked',
+        timestamp: '2025-11-20T00:00:00.000Z',
+      },
+    },
+  })
   @ApiResponse({ status: 401, description: 'Unauthorized or token invalid' })
   async logout(
     @Req()
@@ -74,7 +83,17 @@ export class UserController {
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Deactivate (soft delete) current user' })
-  @ApiResponse({ status: 200, description: 'User deactivated successfully' })
+  @ApiResponse({
+    status: 200,
+    description: 'User deactivated successfully',
+    schema: {
+      example: {
+        status: 'success',
+        message: 'User account deleted successfully',
+        timestamp: '2025-11-20T00:00:00.000Z',
+      },
+    },
+  })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async deactivateMe(
     @Req() req: Request & { user: { userId: string; id?: string } },
@@ -93,7 +112,24 @@ export class UserController {
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update current user info' })
-  @ApiResponse({ status: 200, description: 'User updated successfully' })
+  @ApiResponse({
+    status: 200,
+    description: 'User updated successfully',
+    schema: {
+      example: {
+        status: 'success',
+        message: 'User updated successfully',
+        data: {
+          id: 'uuid-1234',
+          email: 'jane.doe@example.com',
+          fullName: 'Jane Doe',
+          authProvider: 'EMAIL',
+          profilePicture: null,
+          phoneNumber: null,
+        },
+      },
+    },
+  })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async updateMe(
     @Req() req: Request & { user: { userId: string; id?: string } },
@@ -111,7 +147,28 @@ export class UserController {
 
   @Post('register')
   @ApiOperation({ summary: 'Register a new user' })
-  @ApiResponse({ status: 201, description: 'User successfully registered' })
+  @ApiResponse({
+    status: 201,
+    description: 'User successfully registered',
+    schema: {
+      example: {
+        user: {
+          id: 'uuid-1234',
+          email: 'jane.doe@example.com',
+          fullName: 'Jane Doe',
+          authProvider: 'EMAIL',
+          profilePicture: null,
+          phoneNumber: null,
+        },
+        tokens: {
+          accessToken: 'eyJhbGci...',
+          refreshToken: 'eyJhbGci.refresh...',
+          expiresIn: 900,
+          tokenType: 'Bearer',
+        },
+      },
+    },
+  })
   @ApiResponse({
     status: 409,
     description: 'User with this email already exists',
@@ -126,7 +183,22 @@ export class UserController {
   @ApiResponse({
     status: 200,
     description: 'User successfully logged in',
-    type: TokenResponseDto,
+    schema: {
+      example: {
+        user: {
+          id: 'uuid-1234',
+          email: 'jane.doe@example.com',
+          fullName: 'Jane Doe',
+          authProvider: 'EMAIL',
+        },
+        tokens: {
+          accessToken: 'eyJhbGci...',
+          refreshToken: 'eyJhbGci.refresh...',
+          expiresIn: 900,
+          tokenType: 'Bearer',
+        },
+      },
+    },
   })
   @ApiResponse({ status: 401, description: 'Invalid credentials' })
   async login(@Body() loginDto: LoginDto) {
@@ -163,7 +235,14 @@ export class UserController {
   @ApiResponse({
     status: 200,
     description: 'Token successfully refreshed',
-    type: TokenResponseDto,
+    schema: {
+      example: {
+        accessToken: 'eyJhbGci...',
+        refreshToken: 'eyJhbGci.refresh...',
+        expiresIn: 900,
+        tokenType: 'Bearer',
+      },
+    },
   })
   @ApiResponse({ status: 401, description: 'Invalid refresh token' })
   async refreshToken(@Body('refreshToken') refreshToken: string) {
@@ -176,6 +255,14 @@ export class UserController {
   @ApiResponse({
     status: 200,
     description: 'Password reset email sent if user exists',
+    schema: {
+      example: {
+        success: true,
+        message: 'Request successful',
+        token: 'reset-token-or-empty',
+        timestamp: '2025-11-20T00:00:00.000Z',
+      },
+    },
   })
   async forgotPassword(@Body() forgotPasswordDto: ForgotPasswordDto) {
     const { token } = await this.users.forgotPassword(forgotPasswordDto.email);
@@ -203,7 +290,18 @@ export class UserController {
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get current user info' })
-  @ApiResponse({ status: 200, description: 'Current user information' })
+  @ApiResponse({
+    status: 200,
+    description: 'Current user information',
+    schema: {
+      example: {
+        id: 'uuid-1234',
+        email: 'jane.doe@example.com',
+        fullName: 'Jane Doe',
+        authProvider: 'EMAIL',
+      },
+    },
+  })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   getCurrentUser(
     @Req() req: Request & { user: UserPayload & { jti?: string } },

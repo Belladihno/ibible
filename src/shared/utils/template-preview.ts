@@ -1,8 +1,7 @@
 import * as nunjucks from 'nunjucks';
 import { join, dirname } from 'path';
 import { writeFileSync, existsSync, mkdirSync } from 'fs';
-import { EmailTemplateId } from '../module/email/constants/email-template.enum';
-import { validateTemplateData } from '../module/email/constants/email-template.registry';
+import { EmailTemplateId, validateTemplateData } from 'src/modules/email';
 
 export class TemplatePreviewUtil {
   private static nunjucksEnv: nunjucks.Environment;

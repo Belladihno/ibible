@@ -6,8 +6,8 @@ import {
 
 import { CreateWaitlistEntryDto } from './dto/create-waitlist-entry.dto';
 import { WaitListEntryModelAction } from 'src/actions/model-actions';
-import { EmailService } from 'src/module/email/email.service';
-import { EmailTemplateId } from 'src/module/email/constants/email-template.enum';
+import { EmailService } from 'src/modules/email/email.service';
+import { EmailTemplateId } from 'src/modules/email/constants/email-template.enum';
 import { EmailPayload } from 'src/shared/types/email.types';
 
 @Injectable()

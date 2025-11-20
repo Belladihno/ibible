@@ -16,6 +16,20 @@ export class AppController {
   @ApiResponse({
     status: 200,
     description: 'Returns the welcome message from the service',
+    schema: {
+      example: {
+        message: 'Welcome to REA - Interactive Bible App API',
+        data: {
+          description: 'A friend that brings you closer to God',
+          version: '1.0.0',
+          status: 'active',
+          docs: {
+            scalar: 'http://localhost:3000/api/v1/reference',
+            swagger: 'http://localhost:3000/api/v1/docs',
+          },
+        },
+      },
+    },
   })
   @Get()
   getHome(@Req() req: Request) {
@@ -26,6 +40,9 @@ export class AppController {
   @ApiResponse({
     status: 200,
     description: 'Swagger documentation successfully synced with Postman',
+    schema: {
+      example: { message: 'Swagger documentation synced with Postman' },
+    },
   })
   @Post('sync')
   async syncSwagger() {

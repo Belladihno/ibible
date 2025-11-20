@@ -1,4 +1,4 @@
-import { EmailTemplateId } from 'src/module/email';
+import { EmailTemplateId } from 'src/modules/email';
 
 export interface EmailRecipient {
   email: string;

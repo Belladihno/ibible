@@ -69,6 +69,11 @@ Documentation endpoints:
 - **Scalar:** `http://localhost:3000/api/v1/reference`
 - **Swagger UI:** `http://localhost:3000/api/v1/docs`
 
+### Linting 
+
+```bash
+npm run lint
+```
 
 ### Testing
 

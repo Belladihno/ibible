@@ -15,14 +15,12 @@ Thank you for your interest in contributing! Please read the following guideline
 
 ---
 
-## Commit Message Guidelines
+## Pre-Commit Guidelines
 
+-  **Enforced by Husky & Commitlint:**
 - **Conventional Commits:** All commit messages must follow the [Conventional Commit](https://www.conventionalcommits.org/en/v1.0.0/) specification.
-  - Example: `feat(waitlist): add email validation`
-  - This helps automate changelogs and maintain a clear project history.
-- **Enforced by Husky & Commitlint:**
-  - The repository uses Husky and Commitlint to automatically check commit messages.
-  - Commits that do not follow the Conventional Commit format will be rejected.
+  - All commits must pass tests and linting checks before being accepted.
+  - Commits that do not follow the Conventional Commit format and commits that fail tests and linting check will be rejected.
 
 ---
 
@@ -34,6 +32,7 @@ Thank you for your interest in contributing! Please read the following guideline
 - **Documentation**
   - Update or add swagger documentation for any endpoint modified or added.
 - **Tests:**
+  - Run `npm run test` to ensure all tests pass. 
   - Add or update tests for any new features or bug fixes.
   - PRs without adequate test coverage may be rejected.
 
