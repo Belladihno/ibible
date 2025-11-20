@@ -3,11 +3,7 @@ import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { ConfigService } from '@nestjs/config';
 import { UsersService } from '../../users/users.service';
-
-interface JwtPayload {
-  sub: string;
-  email: string;
-}
+import { JwtPayload } from './interface';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
@@ -18,7 +14,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey: (configService.get<string>('JWT_SECRET') || 'fallback-secret'),
+      secretOrKey: configService.get<string>('JWT_SECRET') || 'fallback-secret',
     });
   }
 
@@ -31,7 +27,6 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       throw new UnauthorizedException('User account is deactivated');
     }
 
-    // Update last active timestamp
     // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
     await this.usersService.update(user.id, {
       lastActiveAt: new Date(),

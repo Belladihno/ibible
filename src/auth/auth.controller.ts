@@ -9,7 +9,13 @@ import {
   Res,
   UseGuards,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBody,
+  ApiBearerAuth,
+} from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
 import { UserPayload } from './strategy/interface';
 import { ConfigService } from '@nestjs/config';
@@ -79,6 +85,30 @@ export class AuthController {
     return res.redirect(redirectUrl);
   }
 
+  @Post('refresh')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Refresh JWT token' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        refreshToken: { type: 'string' },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Token successfully refreshed',
+    type: TokenResponseDto,
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Invalid refresh token',
+  })
+  async refreshToken(@Body('refreshToken') refreshToken: string) {
+    return this.authService.refreshToken(refreshToken);
+  }
+
   @Post('forgot-password')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Request password reset' })
@@ -115,5 +145,21 @@ export class AuthController {
       resetPasswordDto.token,
       resetPasswordDto.password,
     );
+  }
+
+  @Get('me')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get current user info' })
+  @ApiResponse({
+    status: 200,
+    description: 'Current user information',
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized',
+  })
+  async getCurrentUser(@Req() req: Request & { user: UserPayload }) {
+    return req.user;
   }
 }

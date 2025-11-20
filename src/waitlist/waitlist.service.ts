@@ -66,7 +66,7 @@ export class WaitlistService {
 
   async findAll(page: number = 1, limit: number = 10) {
     const validPage = Math.max(1, page);
-    const validLimit = Math.min(100, Math.max(1, limit)); 
+    const validLimit = Math.min(100, Math.max(1, limit));
 
     try {
       const { payload, paginationMeta } = await this.WaitlEntryModelAction.list(

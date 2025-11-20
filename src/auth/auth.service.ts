@@ -35,7 +35,7 @@ export class AuthService {
 
   async register(
     registerDto: CreateUserDto,
-  ): Promise<{ user: User; tokens: TokenResponseDto }> {
+  ): Promise<{ user: Partial<User>; tokens: TokenResponseDto }> {
     const { email, password, fullName = AuthProvider.EMAIL } = registerDto;
 
     const existingUser = await this.usersService.findOneByEmail(email);
@@ -51,13 +51,22 @@ export class AuthService {
     });
 
     const tokens = await this.generateTokens(user);
-
-    return { user, tokens };
+    return {
+      user: {
+        id: user.id,
+        email: user.email,
+        fullName: user.fullName,
+        authProvider: user.authProvider,
+        profilePicture: user.profilePicture,
+        phoneNumber: user.phoneNumber,
+      },
+      tokens,
+    };
   }
 
   async login(
     loginDto: LoginDto,
-  ): Promise<{ user: User; tokens: TokenResponseDto }> {
+  ): Promise<{ user: Partial<User>; tokens: TokenResponseDto }> {
     const { email, password } = loginDto;
     const user = await this.usersService.findOneByEmail(email);
 
@@ -90,7 +99,17 @@ export class AuthService {
       lastActiveAt: new Date(),
     } as any);
 
-    return { user, tokens };
+    return {
+      user: {
+        id: user.id,
+        email: user.email,
+        fullName: user.fullName,
+        authProvider: user.authProvider,
+        profilePicture: user.profilePicture,
+        phoneNumber: user.phoneNumber,
+      },
+      tokens,
+    };
   }
 
   private async generateTokens(user: User): Promise<TokenResponseDto> {
@@ -166,6 +185,26 @@ export class AuthService {
       msg: `Google signup successful. New user created: ${newUser.email}`,
       user: newUser,
     };
+  }
+
+  async refreshToken(refreshToken: string): Promise<TokenResponseDto> {
+    try {
+      const payload = await this.jwtService.verifyAsync(refreshToken, {
+        secret:
+          this.configService.get<string>('JWT_REFRESH_SECRET') ||
+          'fallback-refresh-secret',
+      });
+
+      const user = await this.usersService.findOne(payload.sub);
+
+      if (!user.isActive) {
+        throw new UnauthorizedException('User account is deactivated');
+      }
+
+      return this.generateTokens(user);
+    } catch (error) {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
   }
 
   async forgotPassword(email: string): Promise<{ token: string }> {
