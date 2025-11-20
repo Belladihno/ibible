@@ -22,8 +22,10 @@ import { Repository } from 'typeorm';
 import { PasswordResetToken } from '../../entities/password-reset-token.entity';
 import { RefreshToken } from '../../entities/refresh-token.entity';
 import { AccessToken } from '../../entities/access-token.entity';
+import { EmailVerificationToken } from '../../entities/email-verification-token.entity';
+import { EmailService } from '../email';
+import { EmailTemplateId } from '../email';
 import { User } from 'src/entities/user.entity';
-
 @Injectable()
 export class UserService {
   constructor(
@@ -37,8 +39,31 @@ export class UserService {
     private refreshTokenRepo: Repository<RefreshToken>,
     @InjectRepository(AccessToken)
     private accessTokenRepo: Repository<AccessToken>,
+    @InjectRepository(EmailVerificationToken)
+    private emailVerificationTokenRepo: Repository<EmailVerificationToken>,
+    private emailService: EmailService,
   ) {}
 
+  private async sendVerificationEmail(
+    email: string,
+    otp: string,
+    fullName: string,
+  ): Promise<void> {
+    try {
+      await this.emailService.sendMail({
+        to: [{ email, name: fullName }],
+        subject: 'Verify Your Email Address',
+        templateId: EmailTemplateId.EMAIL_VERIFICATION,
+        templateData: {
+          userName: fullName,
+          otp: otp,
+          expirationMinutes: '15',
+        },
+      });
+    } catch (error) {
+      console.error(`Failed to send verification email to ${email}:`, error);
+    }
+  }
   // --- UsersService logic ---
   async create(data: CreateUserDto) {
     const user = this.repo.create(data);
@@ -96,6 +121,8 @@ export class UserService {
       throw new ConflictException('User with this email already exists');
     }
     const user = await this.create({ email, password, fullName } as any);
+    const otp = await this.generateEmailVerificationToken(user.id);
+    await this.sendVerificationEmail(user.email, otp, user.fullName);
     const tokens = await this.generateTokens(user);
     return {
       user: {
@@ -332,5 +359,65 @@ export class UserService {
     await this.update(resetToken.user.id, { password: newPassword } as any);
     resetToken.isUsed = true;
     await this.passwordResetTokenRepo.save(resetToken);
+  }
+
+  async generateEmailVerificationToken(userId: string): Promise<string> {
+    // Invalidate old unverified tokens
+    await this.emailVerificationTokenRepo.delete({
+      userId,
+      verifiedAt: null as any,
+    });
+
+    // Generate 6-digit OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+
+    const verificationToken = this.emailVerificationTokenRepo.create({
+      userId,
+      otp,
+      expiresAt,
+      verifiedAt: null,
+    });
+
+    await this.emailVerificationTokenRepo.save(verificationToken);
+    return otp;
+  }
+
+  async verifyEmail(email: string, otp: string): Promise<void> {
+    const verificationToken = await this.emailVerificationTokenRepo.findOne({
+      where: {
+        otp,
+        verifiedAt: null as any,
+      },
+    });
+
+    if (!verificationToken) {
+      throw new NotFoundException('Invalid or already used OTP');
+    }
+
+    // Manually fetch the user
+    const user = await this.repo.findOne({
+      where: { id: verificationToken.userId },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    // Verify the email matches
+    if (user.email !== email) {
+      throw new UnauthorizedException('OTP does not match the provided email');
+    }
+
+    if (verificationToken.expiresAt < new Date()) {
+      throw new BadRequestException('Email verification OTP has expired');
+    }
+
+    await this.repo.update(user.id, {
+      emailVerified: true,
+    });
+
+    verificationToken.verifiedAt = new Date();
+    await this.emailVerificationTokenRepo.save(verificationToken);
   }
 }

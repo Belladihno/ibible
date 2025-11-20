@@ -29,6 +29,7 @@ import { UserService } from './user.service';
 import { LoginDto } from './dto/login-user.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+import { VerifyEmailDto } from './dto/verify-email.dto';
 
 @ApiTags('User')
 @Controller('user')
@@ -309,5 +310,41 @@ export class UserController {
     // Hide internal JWT fields like jti
     const { ...user } = req.user || {};
     return user;
+  }
+
+  @Post('verify-email')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Verify user email',
+    description: 'Verify user email with token sent to email address',
+  })
+  @ApiBody({ type: VerifyEmailDto })
+  @ApiResponse({
+    status: 200,
+    description: 'Email verified successfully',
+    schema: {
+      example: {
+        status: 'success',
+        message: 'Email verified successfully',
+        timestamp: '2025-11-20T12:00:00.000Z',
+      },
+    },
+  })
+  @ApiResponse({
+    status: 400,
+    description:
+      'Invalid or expired token | Email verification token has expired',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Invalid or already used verification token',
+  })
+  async verifyEmail(@Body() verifyEmailDto: VerifyEmailDto) {
+    await this.users.verifyEmail(verifyEmailDto.email, verifyEmailDto.otp);
+    return {
+      status: 'success',
+      message: 'Email verified successfully',
+      timestamp: new Date().toISOString(),
+    };
   }
 }

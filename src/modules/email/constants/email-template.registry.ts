@@ -26,7 +26,7 @@ export const EMAIL_TEMPLATE_REGISTRY: Record<
     id: EmailTemplateId.EMAIL_VERIFICATION,
     name: 'Email Verification',
     description: 'Email sent to users to verify their email address',
-    requiredFields: ['verificationLink', 'userName', 'expirationHours'],
+    requiredFields: ['otp', 'userName', 'expirationMinutes'],
   },
 };
 

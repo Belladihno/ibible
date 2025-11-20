@@ -41,15 +41,22 @@
         line-height: 24px;
       }
 
-      .button {
-        display: inline-block;
-        padding: 14px 32px;
-        margin: 20px 0;
-        background: #7d52f4;
-        color: #ffffff;
-        text-decoration: none;
-        border-radius: 4px;
+      .otp-box {
+        background: #f7f7f7;
+        border: 2px dashed #7d52f4;
+        border-radius: 8px;
+        padding: 20px;
+        text-align: center;
+        margin: 30px 0;
+      }
+
+      .otp-code {
+        font-size: 36px;
         font-weight: bold;
+        letter-spacing: 8px;
+        color: #7d52f4;
+        margin: 10px 0;
+        font-family: 'Courier New', monospace;
       }
 
       .footer {
@@ -74,21 +81,24 @@
         <p>Hi {{ userName }},</p>
 
         <p>
-          Thank you for signing up! Please verify your email address to complete
-          your registration and unlock all features.
+          Thank you for signing up! Please verify your email address by entering
+          the verification code below in your application.
         </p>
 
-        <div style="text-align: center;">
-          <a href="{{ verificationLink }}" class="button">Verify Email Address</a>
+        <div class="otp-box">
+          <p style="margin: 0; font-size: 14px; color: #666;">Your verification code is:</p>
+          <div class="otp-code">{{ otp }}</div>
+          <p style="margin: 10px 0 0 0; font-size: 12px; color: #999;">
+            Enter this code to verify your email
+          </p>
         </div>
 
-        <p style="color: #666; font-size: 14px; margin-top: 30px;">
-          If the button doesn't work, copy and paste this link into your browser:<br />
-          <a href="{{ verificationLink }}" style="color: #7d52f4; word-break: break-all;">{{ verificationLink }}</a>
+        <p style="color: #666; font-size: 14px;">
+          This code will expire in {{ expirationMinutes }} minutes.
         </p>
 
-        <p style="color: #666; font-size: 14px;">
-          This link will expire in {{ expirationHours }} hours.
+        <p style="color: #999; font-size: 13px; margin-top: 30px;">
+          <strong>Security tip:</strong> Never share this code with anyone. Rea will never ask you for this code.
         </p>
 
         <p>

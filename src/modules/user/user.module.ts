@@ -1,6 +1,7 @@
 import { User } from 'src/entities/user.entity';
 import { RefreshToken } from '../../entities/refresh-token.entity';
 import { AccessToken } from '../../entities/access-token.entity';
+import { EmailVerificationToken } from '../../entities/email-verification-token.entity';
 import { UserController } from './user.controller';
 import { UserService } from './user.service';
 import { JwtStrategy } from './strategy/jwt.strategy';
@@ -20,6 +21,7 @@ import { PasswordResetToken } from '../../entities/password-reset-token.entity';
       PasswordResetToken,
       RefreshToken,
       AccessToken,
+      EmailVerificationToken,
     ]),
     PassportModule,
     JwtModule.registerAsync({
