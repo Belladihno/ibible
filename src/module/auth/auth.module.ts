@@ -9,7 +9,7 @@ import { JwtStrategy } from './strategy/jwt.strategy';
 import { AuthService } from './auth.service';
 import { GoogleStrategy } from './strategy/google.strategy';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { PasswordResetToken } from './entities/password-reset-token.entity';
+import { PasswordResetToken } from '../../entities/password-reset-token.entity';
 
 @Module({
   imports: [

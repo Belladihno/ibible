@@ -1,4 +1,12 @@
 import {
+  AuthProvider,
+  SubscriptionStatus,
+  SubscriptionTier,
+  PreferredLanguages,
+  PreferredBibleVersion,
+  PreferredAIVoice,
+} from 'src/module/users/enums/user.enums';
+import {
   Entity,
   Column,
   PrimaryGeneratedColumn,
@@ -6,14 +14,6 @@ import {
   UpdateDateColumn,
   Index,
 } from 'typeorm';
-import {
-  AuthProvider,
-  PreferredAIVoice,
-  PreferredBibleVersion,
-  PreferredLanguages,
-  SubscriptionStatus,
-  SubscriptionTier,
-} from '../enums/user.enums';
 
 @Entity('users')
 export class User {

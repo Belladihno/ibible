@@ -6,9 +6,9 @@ import {
 
 import { CreateWaitlistEntryDto } from './dto/create-waitlist-entry.dto';
 import { WaitListEntryModelAction } from 'src/actions/model-actions';
-import { EmailService } from 'src/email/email.service';
-import { EmailTemplateId } from 'src/email/constants/email-template.enum';
-import { EmailPayload } from 'src/email/types/email.types';
+import { EmailService } from 'src/module/email/email.service';
+import { EmailTemplateId } from 'src/module/email/constants/email-template.enum';
+import { EmailPayload } from 'src/shared/types/email.types';
 
 @Injectable()
 export class WaitlistService {
@@ -92,7 +92,7 @@ export class WaitlistService {
             Math.ceil((paginationMeta.total || payload.length) / validLimit),
         },
       };
-    } catch (error) {
+    } catch {
       throw new InternalServerErrorException(
         'Failed to retrieve waitlist entries',
       );

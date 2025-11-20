@@ -21,7 +21,7 @@ import { UserPayload } from './strategy/interface';
 import { ConfigService } from '@nestjs/config';
 import type { Response } from 'express';
 import type { Request } from 'express';
-import { CreateUserDto } from 'src/users/dto/create-user.dto';
+import { CreateUserDto } from 'src/module/users/dto/create-user.dto';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login-user.dto';
 import { TokenResponseDto } from './dto/token-response.dto';

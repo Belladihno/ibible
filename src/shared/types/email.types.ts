@@ -1,4 +1,4 @@
-import { EmailTemplateId } from '../constants/email-template.enum';
+import { EmailTemplateId } from 'src/module/email';
 
 export interface EmailRecipient {
   email: string;

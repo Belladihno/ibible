@@ -1,10 +1,10 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { WaitlistEntry } from './schemas/waitlist-entry.entity';
 import { WaitlistService } from './waitlist.service';
 import { WaitlistController } from './waitlist.controller';
 import { WaitListEntryModelAction } from 'src/actions/model-actions';
-import { EmailModule } from 'src/email/email.module';
+import { EmailModule } from 'src/module/email/email.module';
+import { WaitlistEntry } from 'src/waitlist/schemas/waitlist-entry.entity';
 
 @Module({
   imports: [TypeOrmModule.forFeature([WaitlistEntry]), EmailModule],

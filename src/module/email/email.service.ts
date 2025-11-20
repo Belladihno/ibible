@@ -4,14 +4,20 @@ import * as nodemailer from 'nodemailer';
 import * as nunjucks from 'nunjucks';
 
 import { join } from 'path';
-import {
-  EmailPayload,
-  EmailSendResult,
-  EmailServiceConfig,
-  EmailRecipient,
-} from './types/email.types';
+// import {
+//   EmailPayload,
+//   EmailSendResult,
+//   EmailServiceConfig,
+//   EmailRecipient,
+// } from './types/email.types';
 import { EmailTemplateId } from './constants/email-template.enum';
 import { validateTemplateData } from './constants/email-template.registry';
+import {
+  EmailPayload,
+  EmailRecipient,
+  EmailSendResult,
+  EmailServiceConfig,
+} from 'src/shared/types/email.types';
 
 @Injectable()
 export class EmailService {
