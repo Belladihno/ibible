@@ -5,3 +5,8 @@ export interface UserPayload {
   picture?: string;
   accessToken?: string;
 }
+
+interface JwtPayload {
+  sub: string;
+  email: string;
+}
