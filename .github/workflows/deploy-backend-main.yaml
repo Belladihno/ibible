@@ -1,0 +1,185 @@
+name: Deploy Backend to Staging Evironment
+
+on:
+  push:
+    branches:
+    - staging
+    - prod
+
+  pull_request:
+    branches:
+    - staging
+    - prod
+    types: [ closed ]
+
+jobs:
+
+  build-test:
+    name: CI - Build, Lint, Test
+    runs-on: [ self-hosted, linux, x64 ]
+    if: github.event_name == 'push' || github.event.pull_request.merged == true
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    # - name: Run lint
+    #   run: npm run lint
+    #   continue-on-error: false
+
+    # - name: Run tests
+    #   run: npm test
+    #   continue-on-error: false
+
+    # - name: Run security audit
+    #   run: npm audit --audit-level=high
+    #   continue-on-error: true
+
+    - name: Build NestJS app
+      run: npm run build
+
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: build-artifacts-dist
+        path: dist/
+        retention-days: 7
+
+  deploy:
+    name: CD - Deploy to server
+    needs: build-test
+    runs-on: ubuntu-latest
+    # environment: //we will update this when we ask for permission to create environments
+    #   name: staging
+    #   # url: ${{ secrets.STAGING_URL }}
+
+
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+    - name: Download build artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: build-artifacts-dist
+        path: dist/
+
+    - name: Determine Environment Secrets
+      id: envselect
+      run: |
+        echo "Branch: ${{ github.ref_name }}"
+        if [ "${{ github.ref_name }}" == "staging" ]; then
+          echo "SERVER_HOST=${{ secrets.STAGING_SERVER_HOST }}" >> $GITHUB_OUTPUT
+          echo "SERVER_USER=${{ secrets.STAGING_SERVER_USER }}" >> $GITHUB_OUTPUT
+          echo "SERVER_PASSWORD=${{ secrets.STAGING_SERVER_PASSWORD }}" >> $GITHUB_OUTPUT
+          echo "SERVER_APP_DIR=${{ secrets.STAGING_SERVER_APP_DIR }}" >> $GITHUB_OUTPUT
+          echo "DATABASE_URI=${{ secrets.STAGING_DATABASE_URI }}" >> $GITHUB_OUTPUT
+          echo "FRONTEND_URL=${{ secrets.STAGING_FRONTEND_URL }}" >> $GITHUB_OUTPUT
+          echo "PORT=${{ secrets.STAGING_PORT }}" >> $GITHUB_OUTPUT
+          echo "GOOGLE_CALLBACK_URL=${{ secrets.STAGING_GOOGLE_CALLBACK_URL }}" >> $GITHUB_OUTPUT
+          echo "PM2_APP_NAME=backend-staging" >> $GITHUB_OUTPUT
+          echo "ENV_NAME=staging" >> $GITHUB_OUTPUT
+          echo "HEALTH_CHECK_URL=http://127.0.0.1:${{ secrets.STAGING_PORT }}/api/v1/health" >> $GITHUB_OUTPUT
+          echo "JWT_ACCESS_SECRET=${{ secrets.STAGING_JWT_ACCESS_SECRET }}" >> $GITHUB_OUTPUT
+          echo "JWT_REFRESH_SECRET=${{ secrets.STAGING_JWT_REFRESH_SECRET }}" >> $GITHUB_OUTPUT
+          echo "Environment set to Staging"
+        elif [ "${{ github.ref_name }}" == "prod" ]; then
+          echo "SERVER_HOST=${{ secrets.PROD_SERVER_HOST }}" >> $GITHUB_OUTPUT
+          echo "SERVER_USER=${{ secrets.PROD_SERVER_USER }}" >> $GITHUB_OUTPUT
+          echo "SERVER_PASSWORD=${{ secrets.PROD_SERVER_PASSWORD }}" >> $GITHUB_OUTPUT
+          echo "SERVER_APP_DIR=${{ secrets.PROD_SERVER_APP_DIR }}" >> $GITHUB_OUTPUT
+          echo "DATABASE_URI=${{ secrets.PROD_DATABASE_URI }}" >> $GITHUB_OUTPUT
+          echo "FRONTEND_URL=${{ secrets.PROD_FRONTEND_URL }}" >> $GITHUB_OUTPUT
+          echo "PORT=${{ secrets.PROD_PORT }}" >> $GITHUB_OUTPUT
+          echo "GOOGLE_CALLBACK_URL=${{ secrets.PROD_GOOGLE_CALLBACK_URL }}" >> $GITHUB_OUTPUT
+          echo "PM2_APP_NAME=backend-production" >> $GITHUB_OUTPUT
+          echo "ENV_NAME=production" >> $GITHUB_OUTPUT
+          echo "HEALTH_CHECK_URL=http://127.0.0.1:${{ secrets.PROD_PORT }}/api/v1/health" >> $GITHUB_OUTPUT
+          echo "JWT_REFRESH_SECRET=${{ secrets.PROD_JWT_REFRESH_SECRET }}" >> $GITHUB_OUTPUT
+          echo "JWT_ACCESS_SECRET=${{ secrets.PROD_JWT_ACCESS_SECRET }}" >> $GITHUB_OUTPUT
+          echo "Environment set to Production"
+        else
+          echo "Unknown branch!"
+          exit 1
+        fi
+
+    - name: Deploy via SSH
+      run: |
+        sshpass -p "${{ steps.envselect.outputs.SERVER_PASSWORD }}" ssh -o StrictHostKeyChecking=no \
+          ${{ steps.envselect.outputs.SERVER_USER }}@${{ steps.envselect.outputs.SERVER_HOST }} << 'ENDSSH'
+          set -e
+          echo "📦 Navigating to application directory..."
+          cd ${{ steps.envselect.outputs.SERVER_APP_DIR }}
+          echo "🔄 Fetching latest code..."
+          git fetch --all
+          git reset --hard origin/${{ github.ref_name }}
+          echo "📥 Installing dependencies..."
+          npm ci --production --legacy-peer-deps
+          echo "⚙️ Writing .env file..."
+          cat << EOF > .env
+          API_VERSION=${{ secrets.API_VERSION }}
+          PORT=${{ steps.envselect.outputs.PORT }}
+          DATABASE_URI=${{ steps.envselect.outputs.DATABASE_URI }}
+          FRONTEND_URL=${{ steps.envselect.outputs.FRONTEND_URL }}
+          PM2_APP_NAME=${{ steps.envselect.outputs.PM2_APP_NAME }}"
+          EMAIL_MAILER=smtp
+          EMAIL_HOST=${{ secrets.MAIL_HOST }}
+          EMAIL_PORT=${{ secrets.MAIL_PORT }}
+          EMAIL_USERNAME=${{ secrets.MAIL_USERNAME }}
+          EMAIL_PASSWORD=${{ secrets.MAIL_PASSWORD }}
+          EMAIL_ENCRYPTION=${{ secrets.MAIL_ENCRYPTION }}
+          EMAIL_FROM_ADDRESS=${{ secrets.MAIL_FROM_ADDRESS }}
+          EMAIL_FROM_NAME="${{ secrets.MAIL_FROM_NAME }}"
+          GOOGLE_CLIENT_ID="${{ secrets.GOOGLE_CLIENT_ID }}"
+          GOOGLE_CLIENT_SECRET="${{ secrets.GOOGLE_CLIENT_SECRET }}"
+          GOOGLE_CALLBACK_URL=http://localhost:3600/api/v1/auth/google/callback
+          POSTMAN_API_KEY="${{ secrets.POSTMAN_API_KEY }}"
+          JWT_ACCESS_SECRET="${{ steps.envselect.outputs.JWT_ACCESS_SECRET }}"
+          JWT_REFRESH_SECRET="${{ steps.envselect.outputs.JWT_REFRESH_SECRET }}"
+          EOF
+          echo "🔨 Building app..."
+          npm run build
+          echo "🚀 Restarting application with PM2..."
+          pm2 reload ${{ steps.envselect.outputs.PM2_APP_NAME }} || pm2 start dist/main.js --name ${{ steps.envselect.outputs.PM2_APP_NAME }}
+          pm2 save
+          pm2 list
+        ENDSSH
+
+    - name: Health Check
+      run: |
+        sshpass -p "${{ steps.envselect.outputs.SERVER_PASSWORD }}" ssh -o StrictHostKeyChecking=no \
+          ${{ steps.envselect.outputs.SERVER_USER }}@${{ steps.envselect.outputs.SERVER_HOST }} << 'ENDSSH'
+          echo "Waiting for app to start..."
+          sleep 15
+          echo "🏥 Performing health check on ${{ steps.envselect.outputs.ENV_NAME }}..."
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" ${{ steps.envselect.outputs.HEALTH_CHECK_URL }} || echo "000")
+          if [ "$HTTP_STATUS" -eq 200 ]; then
+            echo "Health check passed!"
+          else
+            echo "Health check failed with code $HTTP_STATUS"
+            pm2 logs backend --lines 50
+            exit 1
+          fi
+        ENDSSH
+
+    - name: Deployment Summary
+      if: success()
+      run: |
+        echo "## 🎉 Deployment Successful!" >> $GITHUB_STEP_SUMMARY
+        echo "**Environment:** ${{ steps.envselect.outputs.ENV_NAME }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Branch:** ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+
+    - name: Deployment Failed
+      if: failure()
+      run: |
+        echo "## ❌ Deployment Failed!" >> $GITHUB_STEP_SUMMARY
+        echo "**Environment:** ${{ steps.envselect.outputs.ENV_NAME }}" >> $GITHUB_STEP_SUMMARY
