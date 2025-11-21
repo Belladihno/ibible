@@ -10,8 +10,8 @@ import {
 import { User } from './user.entity';
 
 @Entity('email_verification_tokens')
-@Index('idx_otp', { synchronize: false })
-@Index('idx_user_id', { synchronize: false })
+// @Index('idx_otp', { synchronize: false })
+// @Index('idx_user_id', { synchronize: false })
 export class EmailVerificationToken {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -24,7 +24,7 @@ export class EmailVerificationToken {
   @JoinColumn({ name: 'user_id' })
   user: User;
 
-  @Column({ unique: true })
+  @Column()
   @Index('idx_otp')
   otp: string;
 

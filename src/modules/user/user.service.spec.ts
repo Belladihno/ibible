@@ -473,10 +473,7 @@ describe('UserService', () => {
         emailVerificationTokenRepo.findOne.mockResolvedValue(null);
 
         await expect(service.verifyEmail(email, otp)).rejects.toThrow(
-          NotFoundException,
-        );
-        await expect(service.verifyEmail(email, otp)).rejects.toThrow(
-          'Invalid or already used OTP',
+          new NotFoundException('Invalid or already used OTP'),
         );
       });
 

@@ -62,6 +62,7 @@ export class UserService {
       });
     } catch (error) {
       console.error(`Failed to send verification email to ${email}:`, error);
+      throw error
     }
   }
   // --- UsersService logic ---
@@ -369,8 +370,11 @@ export class UserService {
     });
 
     // Generate 6-digit OTP
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+ const otp = (
+      (parseInt(randomBytes(3).toString('hex'), 16) % 900000) +
+      100000
+    ).toString();
+ const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
 
     const verificationToken = this.emailVerificationTokenRepo.create({
       userId,
@@ -402,6 +406,10 @@ export class UserService {
 
     if (!user) {
       throw new NotFoundException('User not found');
+    }
+
+    if (user.emailVerified === true) {
+      throw new BadRequestException('Email is already verified');
     }
 
     // Verify the email matches
