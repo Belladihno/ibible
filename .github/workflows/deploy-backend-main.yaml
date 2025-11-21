@@ -57,7 +57,7 @@ jobs:
   deploy:
     name: CD - Deploy to server
     needs: build-test
-    runs-on: ubuntu-latest
+    runs-on: [ self-hosted, linux, x64 ]
     # environment: //we will update this when we ask for permission to create environments
     #   name: staging
     #   # url: ${{ secrets.STAGING_URL }}
