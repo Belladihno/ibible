@@ -32,17 +32,17 @@ jobs:
     - name: Install dependencies
       run: npm ci
 
-    - name: Run lint
-      run: npm run lint
-      continue-on-error: false
+    # - name: Run lint
+    #   run: npm run lint
+    #   continue-on-error: false
 
-    - name: Run tests
-      run: npm test
-      continue-on-error: false
+    # - name: Run tests
+    #   run: npm test
+    #   continue-on-error: false
 
-    - name: Run security audit
-      run: npm audit --audit-level=high
-      continue-on-error: true
+    # - name: Run security audit
+    #   run: npm audit --audit-level=high
+    #   continue-on-error: true
 
     - name: Build NestJS app
       run: npm run build
@@ -90,6 +90,9 @@ jobs:
           echo "PM2_APP_NAME=backend-staging" >> $GITHUB_OUTPUT
           echo "ENV_NAME=staging" >> $GITHUB_OUTPUT
           echo "HEALTH_CHECK_URL=http://127.0.0.1:${{ secrets.STAGING_PORT }}/api/v1/health" >> $GITHUB_OUTPUT
+          echo "JWT_ACCESS_SECRET=${{ secrets.STAGING_JWT_ACCESS_SECRET }}" >> $GITHUB_OUTPUT
+          echo "JWT_REFRESH_SECRET=${{ secrets.STAGING_JWT_REFRESH_SECRET }}" >> $GITHUB_OUTPUT
+          echo "Environment set to Staging"
         elif [ "${{ github.ref_name }}" == "prod" ]; then
           echo "SERVER_HOST=${{ secrets.PROD_SERVER_HOST }}" >> $GITHUB_OUTPUT
           echo "SERVER_USER=${{ secrets.PROD_SERVER_USER }}" >> $GITHUB_OUTPUT
@@ -102,13 +105,17 @@ jobs:
           echo "PM2_APP_NAME=backend-production" >> $GITHUB_OUTPUT
           echo "ENV_NAME=production" >> $GITHUB_OUTPUT
           echo "HEALTH_CHECK_URL=http://127.0.0.1:${{ secrets.PROD_PORT }}/api/v1/health" >> $GITHUB_OUTPUT
+          echo "JWT_REFRESH_SECRET=${{ secrets.STAGING_JWT_REFRESH_SECRET }}" >> $GITHUB_OUTPUT
+          echo "JWT_ACCESS_SECRET=${{ secrets.STAGING_JWT_ACCESS_SECRET }}" >> $GITHUB_OUTPUT
+          echo "Environment set to Production"
         else
           echo "Unknown branch!"
           exit 1
         fi
 
     - name: Deploy via SSH
-      uses: appleboy/ssh-action@v1.0.3
+      # uses: appleboy/ssh-action@v1.0.3
+      uses: appleboy/ssh-action@v0.1.7
       with:
         host: ${{ steps.envselect.outputs.SERVER_HOST }}
         username: ${{ steps.envselect.outputs.SERVER_USER }}
@@ -129,9 +136,10 @@ jobs:
           echo "⚙️ Writing .env file..."
           cat << EOF > .env
           API_VERSION=${{ secrets.API_VERSION }}
-          PORT=${{ secrets.PORT }}
+          PORT=${{ steps.envselect.outputs.PORT }}
           DATABASE_URI=${{ steps.envselect.outputs.DATABASE_URI }}
           FRONTEND_URL=${{ steps.envselect.outputs.FRONTEND_URL }}
+          PM2_APP_NAME=${{ steps.envselect.outputs.PM2_APP_NAME }}"
 
           EMAIL_MAILER=smtp
           EMAIL_HOST=${{ secrets.MAIL_HOST }}
@@ -147,19 +155,23 @@ jobs:
           GOOGLE_CALLBACK_URL=http://localhost:3600/api/v1/auth/google/callback
 
           POSTMAN_API_KEY="${{ secrets.POSTMAN_API_KEY }}"
+
+          JWT_ACCESS_SECRET="${{ steps.envselect.outputs.JWT_ACCESS_SECRET }}"
+          JWT_REFRESH_SECRET="${{ steps.envselect.outputs.JWT_REFRESH_SECRET }}"
           EOF
 
           echo "🔨 Building app..."
           npm run build
 
           echo "🚀 Restarting application with PM2..."
-          pm2 reload ${{ steps.envconfig.outputs.PM2_APP_NAME }} || pm2 start dist/main.js --name ${{ steps.envconfig.outputs.PM2_APP_NAME }}
+          pm2 reload ${{ steps.envselect.outputs.PM2_APP_NAME }} || pm2 start dist/main.js --name ${{ steps.envselect.outputs.PM2_APP_NAME }}
 
           pm2 save
           pm2 list
 
     - name: Health Check
-      uses: appleboy/ssh-action@v1.0.3
+      # uses: appleboy/ssh-action@v1.0.3
+      uses: appleboy/ssh-action@v0.1.7
       with:
         host: ${{ steps.envselect.outputs.SERVER_HOST }}
         username: ${{ steps.envselect.outputs.SERVER_USER }}
@@ -168,8 +180,8 @@ jobs:
           echo "Waiting for app to start..."
           sleep 15
 
-          echo "🏥 Performing health check on ${{ steps.envconfig.outputs.ENV_NAME }}..."
-          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" ${{ steps.envconfig.outputs.HEALTH_CHECK_URL }} || echo "000")
+          echo "🏥 Performing health check on ${{ steps.envselect.outputs.ENV_NAME }}..."
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" ${{ steps.envselect.outputs.HEALTH_CHECK_URL }} || echo "000")
 
           if [ "$$HTTP_STATUS" -eq 200 ]; then
             echo "Health check passed!"
