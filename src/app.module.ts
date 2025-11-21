@@ -52,7 +52,7 @@ import { UserModule } from 'src/modules/user/user.module';
       baseUrl: `http://localhost:${process.env.PORT || 3000}`,
       collectionName: 'REA Interactive Bible API',
       runTest: true,
-      ignorePathWithBearerToken: ['api/v1/auth/login', 'api/v1/auth/register'],
+      ignorePathWithBearerToken: ['api/v1/user/login', 'api/v1/user/signup'],
     }),
 
     HealthModule,

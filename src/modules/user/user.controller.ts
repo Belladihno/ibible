@@ -23,13 +23,13 @@ import { AuthGuard } from '@nestjs/passport';
 import { UserPayload } from './strategy/interface.d';
 import { ConfigService } from '@nestjs/config';
 import type { Response, Request } from 'express';
-import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UserService } from './user.service';
 import { LoginDto } from './dto/login-user.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { VerifyEmailDto } from './dto/verify-email.dto';
+import { SignupUserDto } from './dto/signup-user.dto';
 
 @ApiTags('User')
 @Controller('user')
@@ -101,7 +101,7 @@ export class UserController {
   ) {
     const userId = req.user.userId || req.user.id;
     if (!userId) throw new BadRequestException('Invalid user id');
-    await this.users.remove(userId);
+    await this.users.delete(userId);
     return {
       status: 'success',
       message: 'User account deleted successfully',
@@ -127,6 +127,7 @@ export class UserController {
           authProvider: 'EMAIL',
           profilePicture: null,
           phoneNumber: null,
+          about: 'I love reading the Bible daily.',
         },
       },
     },
@@ -146,11 +147,11 @@ export class UserController {
     };
   }
 
-  @Post('register')
-  @ApiOperation({ summary: 'Register a new user' })
+  @Post('signup')
+  @ApiOperation({ summary: 'Sign up a new user' })
   @ApiResponse({
     status: 201,
-    description: 'User successfully registered',
+    description: 'User successfully signed up',
     schema: {
       example: {
         user: {
@@ -160,6 +161,7 @@ export class UserController {
           authProvider: 'EMAIL',
           profilePicture: null,
           phoneNumber: null,
+          about: null,
         },
         tokens: {
           accessToken: 'eyJhbGci...',
@@ -172,10 +174,10 @@ export class UserController {
   })
   @ApiResponse({
     status: 409,
-    description: 'User with this email already exists',
+    description: 'User with this email or phone number already exists',
   })
-  async register(@Body() registerDto: CreateUserDto) {
-    return this.users.register(registerDto);
+  async signup(@Body() signupDto: SignupUserDto) {
+    return this.users.signup(signupDto);
   }
 
   @Post('login')
@@ -191,6 +193,9 @@ export class UserController {
           email: 'jane.doe@example.com',
           fullName: 'Jane Doe',
           authProvider: 'EMAIL',
+          profilePicture: null,
+          phoneNumber: null,
+          about: null,
         },
         tokens: {
           accessToken: 'eyJhbGci...',

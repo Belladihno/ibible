@@ -33,7 +33,16 @@ export class User {
   @Column({ name: 'profile_picture', type: 'text', nullable: true })
   profilePicture: string | null;
 
-  @Column({ name: 'phone_number', type: 'varchar', nullable: true })
+  @Column({ name: 'about', type: 'text', nullable: true })
+  about: string | null;
+
+  @Column({
+    name: 'phone_number',
+    type: 'varchar',
+    nullable: true,
+    unique: true,
+  })
+  @Index('idx_users_phone_number')
   phoneNumber: string | null;
 
   @Column({

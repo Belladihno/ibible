@@ -69,6 +69,11 @@ export class TemplatePreviewUtil {
         verificationLink: 'https://rea.com/email-verify?token=abc123',
         expirationHours: 24,
       },
+      [EmailTemplateId.PASSWORD_RESET]: {
+        userName: 'Aba Nicaisse',
+        otp: '123456',
+        expirationHours: 1,
+      },
     };
 
     for (const [templateId, data] of Object.entries(sampleData)) {

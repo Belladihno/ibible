@@ -30,8 +30,16 @@ export class CreateUserDto {
   profilePicture?: string | null;
 
   @ApiProperty({
+    example: 'I am a passionate Bible reader who loves studying scripture.',
+    description: 'About section for the user profile',
+  })
+  @IsOptional()
+  @IsString()
+  about?: string | null;
+
+  @ApiProperty({
     example: '+1234567890',
-    description: 'Phone number of the user',
+    description: 'Phone number of the user (must be unique)',
   })
   @IsOptional()
   @IsString()

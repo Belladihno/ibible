@@ -28,6 +28,12 @@ export const EMAIL_TEMPLATE_REGISTRY: Record<
     description: 'Email sent to users to verify their email address',
     requiredFields: ['otp', 'userName', 'expirationMinutes'],
   },
+  [EmailTemplateId.PASSWORD_RESET]: {
+    id: EmailTemplateId.PASSWORD_RESET,
+    name: 'Password Reset',
+    description: 'Email sent to users to reset their password using an OTP',
+    requiredFields: ['userName', 'otp', 'expirationHours'],
+  },
 };
 
 export function getTemplateMetadata(

@@ -14,6 +14,7 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { AuthProvider } from './enums/user.enums';
 import { LoginDto } from './dto/login-user.dto';
+import { SignupUserDto } from './dto/signup-user.dto';
 import { TokenResponseDto } from './dto/token-response.dto';
 import { UserPayload } from './strategy/interface';
 import { randomBytes } from 'crypto';
@@ -62,7 +63,29 @@ export class UserService {
       });
     } catch (error) {
       console.error(`Failed to send verification email to ${email}:`, error);
-      throw error
+      throw error;
+    }
+  }
+
+  private async sendPasswordResetEmail(
+    email: string,
+    otp: string,
+    fullName: string,
+  ): Promise<void> {
+    try {
+      await this.emailService.sendMail({
+        to: [{ email, name: fullName }],
+        subject: 'Reset Your Password',
+        templateId: EmailTemplateId.PASSWORD_RESET,
+        templateData: {
+          userName: fullName,
+          otp: otp,
+          expirationHours: '1',
+        },
+      });
+    } catch (error) {
+      console.error(`Failed to send password reset email to ${email}:`, error);
+      throw error;
     }
   }
   // --- UsersService logic ---
@@ -97,11 +120,37 @@ export class UserService {
       changes['passwordHash'] = await bcrypt.hash(changes.password, 10);
       delete changes.password;
     }
+
+    // Check for phone number uniqueness if being updated
+    if (changes.phoneNumber && changes.phoneNumber !== user.phoneNumber) {
+      const existingUserByPhone = await this.findOneByPhoneNumber(
+        changes.phoneNumber,
+      );
+      if (existingUserByPhone) {
+        throw new ConflictException(
+          'User with this phone number already exists',
+        );
+      }
+    }
+
+    // Prevent updating authProvider via profile update
+    const changesWithAuth = changes as UpdateUserDto & {
+      authProvider?: string;
+    };
+    if (
+      changesWithAuth.authProvider &&
+      (changesWithAuth.authProvider as AuthProvider) !== user.authProvider
+    ) {
+      throw new BadRequestException(
+        'Authentication provider cannot be changed',
+      );
+    }
+
     Object.assign(user, changes);
     return this.repo.save(user);
   }
 
-  async remove(id: string) {
+  async delete(id: string) {
     const user = await this.findOne(id);
     user.deletedAt = new Date();
     user.isActive = false;
@@ -112,16 +161,38 @@ export class UserService {
     return this.repo.findOne({ where: { email } });
   }
 
+  async findOneByPhoneNumber(phoneNumber: string) {
+    return this.repo.findOne({ where: { phoneNumber } });
+  }
+
   // --- AuthService logic ---
-  async register(
-    registerDto: CreateUserDto,
+  async signup(
+    signupDto: SignupUserDto,
   ): Promise<{ user: Partial<User>; tokens: TokenResponseDto }> {
-    const { email, password, fullName = AuthProvider.EMAIL } = registerDto;
-    const existingUser = await this.findOneByEmail(email);
-    if (existingUser) {
+    const { email, password, fullName, phoneNumber } = signupDto;
+
+    // Check for existing user by email
+    const existingUserByEmail = await this.findOneByEmail(email);
+    if (existingUserByEmail) {
       throw new ConflictException('User with this email already exists');
     }
-    const user = await this.create({ email, password, fullName } as any);
+
+    // Check for existing user by phone number if provided
+    if (phoneNumber) {
+      const existingUserByPhone = await this.findOneByPhoneNumber(phoneNumber);
+      if (existingUserByPhone) {
+        throw new ConflictException(
+          'User with this phone number already exists',
+        );
+      }
+    }
+
+    const user = await this.create({
+      email,
+      password,
+      fullName: fullName || null,
+      phoneNumber,
+    } as any);
     const otp = await this.generateEmailVerificationToken(user.id);
     await this.sendVerificationEmail(user.email, otp, user.fullName);
     const tokens = await this.generateTokens(user);
@@ -133,6 +204,7 @@ export class UserService {
         authProvider: user.authProvider,
         profilePicture: user.profilePicture,
         phoneNumber: user.phoneNumber,
+        about: user.about,
       },
       tokens,
     };
@@ -172,6 +244,7 @@ export class UserService {
         authProvider: user.authProvider,
         profilePicture: user.profilePicture,
         phoneNumber: user.phoneNumber,
+        about: user.about,
       },
       tokens,
     };
@@ -335,15 +408,26 @@ export class UserService {
     if (!user) {
       return { token: '' };
     }
-    const token = randomBytes(32).toString('hex');
-    const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+
+    // Generate 6-digit numeric OTP
+    const otp = (
+      (parseInt(randomBytes(3).toString('hex'), 16) % 900000) +
+      100000
+    ).toString();
+
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
     const resetToken = this.passwordResetTokenRepo.create({
       userId: user.id,
-      token,
+      token: otp,
       expiresAt,
+      isUsed: false,
     });
     await this.passwordResetTokenRepo.save(resetToken);
-    return { token };
+
+    // Send password reset OTP email
+    await this.sendPasswordResetEmail(user.email, otp, user.fullName);
+
+    return { token: otp };
   }
 
   async resetPassword(token: string, newPassword: string): Promise<void> {
@@ -370,11 +454,11 @@ export class UserService {
     });
 
     // Generate 6-digit OTP
- const otp = (
+    const otp = (
       (parseInt(randomBytes(3).toString('hex'), 16) % 900000) +
       100000
     ).toString();
- const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
 
     const verificationToken = this.emailVerificationTokenRepo.create({
       userId,

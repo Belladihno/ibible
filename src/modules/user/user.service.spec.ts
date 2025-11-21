@@ -23,9 +23,12 @@ import {
 import { EmailVerificationToken } from 'src/entities/email-verification-token.entity';
 import { EmailService } from '../email/email.service';
 import { AuthProvider } from './enums/user.enums';
-jest.mock('bcrypt');
-
 import * as bcrypt from 'bcrypt';
+
+jest.mock('bcrypt', () => ({
+  hash: jest.fn(),
+  compare: jest.fn(),
+}));
 
 describe('UserService', () => {
   let service: UserService;
@@ -102,8 +105,6 @@ describe('UserService', () => {
       findOne: jest.fn(),
       update: jest.fn(),
     };
-
-    
 
     const mockAccessTokenRepo = {
       create: jest.fn(),
@@ -229,9 +230,9 @@ describe('UserService', () => {
     });
   });
 
-  describe('register', () => {
+  describe('signup', () => {
     it('should register a new user and send verification email', async () => {
-      const registerDto = {
+      const signupDto = {
         email: 'newuser@example.com',
         password: 'password123',
         fullName: 'New User',
@@ -255,10 +256,10 @@ describe('UserService', () => {
       emailVerificationTokenRepo.save.mockResolvedValue({} as any);
       emailService.sendMail.mockResolvedValue({ success: true } as any);
 
-      const result = await service.register(registerDto as any);
+      const result = await service.signup(signupDto as any);
 
       expect(userRepo.findOne).toHaveBeenCalledWith({
-        where: { email: registerDto.email },
+        where: { email: signupDto.email },
       });
       expect(emailVerificationTokenRepo.delete).toHaveBeenCalled();
       expect(emailVerificationTokenRepo.save).toHaveBeenCalled();
@@ -268,15 +269,41 @@ describe('UserService', () => {
     });
 
     it('should throw ConflictException if user already exists', async () => {
-      const registerDto = {
+      const signupDto = {
         email: 'existing@example.com',
         password: 'password123',
       };
 
       userRepo.findOne.mockResolvedValue(mockUser);
 
-      await expect(service.register(registerDto as any)).rejects.toThrow(
+      await expect(service.signup(signupDto as any)).rejects.toThrow(
         ConflictException,
+      );
+    });
+
+    it('should throw ConflictException if phone number already exists', async () => {
+      const signupDto = {
+        email: 'newuser@example.com',
+        password: 'password123',
+        phoneNumber: '+1234567890',
+      };
+
+      // Mock findOne to return different values based on query
+      userRepo.findOne.mockImplementation((options: any) => {
+        if (options.where.email === 'newuser@example.com') {
+          return Promise.resolve(null); // No existing user by email
+        }
+        if (options.where.phoneNumber === '+1234567890') {
+          return Promise.resolve(mockUser); // Existing user by phone number
+        }
+        return Promise.resolve(null);
+      });
+
+      await expect(service.signup(signupDto as any)).rejects.toThrow(
+        ConflictException,
+      );
+      await expect(service.signup(signupDto as any)).rejects.toThrow(
+        'User with this phone number already exists',
       );
     });
   });

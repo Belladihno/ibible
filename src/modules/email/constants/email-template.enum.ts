@@ -6,4 +6,5 @@
 export enum EmailTemplateId {
   WAITLIST = 'waitlist.njk',
   EMAIL_VERIFICATION = 'email-verification.njk',
+  PASSWORD_RESET = 'password-reset.njk',
 }
