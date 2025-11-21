@@ -116,10 +116,6 @@ export class UserService {
 
   async update(id: string, changes: UpdateUserDto) {
     const user = await this.findOne(id);
-    if (changes.password) {
-      changes['passwordHash'] = await bcrypt.hash(changes.password, 10);
-      delete changes.password;
-    }
 
     // Check for phone number uniqueness if being updated
     if (changes.phoneNumber && changes.phoneNumber !== user.phoneNumber) {
@@ -147,13 +143,28 @@ export class UserService {
     }
 
     Object.assign(user, changes);
-    return this.repo.save(user);
+    try {
+      return await this.repo.save(user);
+    } catch (error: any) {
+      if (
+        error.code === '23505' &&
+        error.detail &&
+        error.detail.includes('email')
+      ) {
+        throw new ConflictException('A user with this email already exists.');
+      }
+      throw error;
+    }
   }
 
   async delete(id: string) {
     // Hard delete: actually remove user from DB
     await this.repo.delete(id);
-    return { status: 'success', message: 'User deleted from database' };
+    return {
+      statusCode: 200,
+      message: 'User deleted from database',
+      data: { timestamp: new Date().toISOString() },
+    };
   }
 
   async findOneByEmail(email: string) {

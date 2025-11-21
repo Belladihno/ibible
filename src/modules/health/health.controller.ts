@@ -24,6 +24,14 @@ export class HealthController {
     },
   })
   async check() {
-    return this.healthService.check();
+    const result = await this.healthService.check();
+    return {
+      statusCode: 200,
+      message: 'Health check successful',
+      data: {
+        ...result,
+        timestamp: new Date().toISOString(),
+      },
+    };
   }
 }

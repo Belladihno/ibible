@@ -33,7 +33,15 @@ export class AppController {
   })
   @Get()
   getHome(@Req() req: Request) {
-    return this.appService.getWelcomeMessage(req);
+    const result = this.appService.getWelcomeMessage(req);
+    return {
+      statusCode: 200,
+      message: 'Welcome to REA - Interactive Bible App API',
+      data: {
+        ...result.data,
+        timestamp: new Date().toISOString(),
+      },
+    };
   }
 
   @ApiOperation({ summary: 'Sync Swagger documentation with Postman' })
@@ -47,6 +55,12 @@ export class AppController {
   @Post('sync')
   async syncSwagger() {
     await this.swaggerSyncService.syncSwagger();
-    return { message: 'Swagger documentation synced with Postman' };
+    return {
+      statusCode: 200,
+      message: 'Swagger documentation synced with Postman',
+      data: {
+        timestamp: new Date().toISOString(),
+      },
+    };
   }
 }

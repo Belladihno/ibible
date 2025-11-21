@@ -33,23 +33,24 @@ describe('AppController', () => {
   });
 
   it('should return welcome message', () => {
-    const mockRequest = { headers: {} } as Request;
-    const mockResponse = {
-      message: 'Welcome!',
-      data: {
-        description: 'API for REA Interactive Bible',
-        version: '1.0.0',
-        status: 'running',
-        docs: {
-          scalar: '/api/v1/reference',
-          swagger: '/api/v1/docs',
-        },
-      },
-    };
-    jest.spyOn(appService, 'getWelcomeMessage').mockReturnValue(mockResponse);
-
+    const mockRequest = {
+      protocol: 'http',
+      get: () => 'localhost:3000',
+    } as unknown as Request;
     const result = appController.getHome(mockRequest);
-    expect(result).toEqual(mockResponse);
+    // Check all fields except timestamp for equality
+    expect(result.statusCode).toBe(200);
+    expect(result.message).toBe('Welcome to REA - Interactive Bible App API');
+    expect(result.data.description).toBe(
+      'A friend that brings you closer to God',
+    );
+    expect(result.data.version).toBe('1.0.0');
+    expect(result.data.status).toBe('active');
+    expect(result.data.docs).toEqual({
+      scalar: 'http://localhost:3000/api/v1/reference',
+      swagger: 'http://localhost:3000/api/v1/docs',
+    });
+    expect(typeof result.data.timestamp).toBe('string');
   });
 
   // Add more tests here to validate the logic

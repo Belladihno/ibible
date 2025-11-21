@@ -53,7 +53,6 @@ export class HealthService {
     return {
       status: overallStatus,
       checks: results,
-      timestamp: new Date().toISOString(),
     };
   }
 }

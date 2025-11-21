@@ -11,6 +11,9 @@ import { CreateUserDto } from './create-user.dto';
 export class SignupUserDto extends OmitType(CreateUserDto, [
   'password',
   'fullName',
+  'about',
+  'profilePicture',
+  'authProvider',
 ] as const) {
   @ApiProperty({
     example: 'user@example.com',

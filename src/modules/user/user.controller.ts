@@ -76,9 +76,11 @@ export class UserController {
     }
     await this.users.logoutByAccessToken(jti, userId);
     return {
-      status: 'success',
+      statusCode: 200,
       message: 'User logged out and tokens revoked',
-      timestamp: new Date().toISOString(),
+      data: {
+        timestamp: new Date().toISOString(),
+      },
     };
   }
 
@@ -105,9 +107,11 @@ export class UserController {
     if (!userId) throw new BadRequestException('Invalid user id');
     await this.users.delete(userId);
     return {
-      status: 'success',
+      statusCode: 200,
       message: 'User deleted from database',
-      timestamp: new Date().toISOString(),
+      data: {
+        timestamp: new Date().toISOString(),
+      },
     };
   }
 
@@ -142,10 +146,20 @@ export class UserController {
     const userId = req.user.userId || req.user.id;
     if (!userId) throw new BadRequestException('Invalid user id');
     const user = await this.users.update(userId, data);
+    // Only return safe, user-facing fields
+    const filtered = {
+      id: user.id,
+      email: user.email,
+      fullName: user.fullName,
+      about: user.about,
+      phoneNumber: user.phoneNumber,
+      profilePicture: user.profilePicture,
+      timestamp: new Date().toISOString(),
+    };
     return {
-      status: 'success',
+      statusCode: 200,
       message: `User updated successfully`,
-      data: { ...user },
+      data: filtered,
     };
   }
 
@@ -179,7 +193,15 @@ export class UserController {
     description: 'User with this email or phone number already exists',
   })
   async signup(@Body() signupDto: SignupUserDto) {
-    return this.users.signup(signupDto);
+    const result = await this.users.signup(signupDto);
+    return {
+      statusCode: 201,
+      message: 'User successfully signed up',
+      data: {
+        ...result,
+        timestamp: new Date().toISOString(),
+      },
+    };
   }
 
   @Post('login')
@@ -210,7 +232,15 @@ export class UserController {
   })
   @ApiResponse({ status: 401, description: 'Invalid credentials' })
   async login(@Body() loginDto: LoginDto) {
-    return this.users.login(loginDto);
+    const result = await this.users.login(loginDto);
+    return {
+      statusCode: 200,
+      message: 'User successfully logged in',
+      data: {
+        ...result,
+        timestamp: new Date().toISOString(),
+      },
+    };
   }
 
   @Get('google')
@@ -279,10 +309,12 @@ export class UserController {
   async forgotPassword(@Body() forgotPasswordDto: ForgotPasswordDto) {
     const { token } = await this.users.forgotPassword(forgotPasswordDto.email);
     return {
-      success: true,
+      statusCode: 200,
       message: 'Request successful',
-      token,
-      timestamp: new Date().toISOString(),
+      data: {
+        token,
+        timestamp: new Date().toISOString(),
+      },
     };
   }
 
@@ -292,10 +324,17 @@ export class UserController {
   @ApiResponse({ status: 200, description: 'Password successfully reset' })
   @ApiResponse({ status: 404, description: 'Invalid or expired reset token' })
   async resetPassword(@Body() resetPasswordDto: ResetPasswordDto) {
-    return this.users.resetPassword(
+    await this.users.resetPassword(
       resetPasswordDto.token,
       resetPasswordDto.password,
     );
+    return {
+      statusCode: 200,
+      message: 'Password successfully reset',
+      data: {
+        timestamp: new Date().toISOString(),
+      },
+    };
   }
 
   @Get('me')
@@ -343,17 +382,17 @@ export class UserController {
 
     // Return only safe, useful profile fields
     return {
-      id: user.id,
-      email: user.email,
-      fullName: user.fullName,
-      about: user.about,
-      phoneNumber: user.phoneNumber,
-      profilePicture: user.profilePicture,
-      authProvider: user.authProvider,
-      emailVerified: user.emailVerified,
-      isActive: user.isActive,
-      createdAt: user.createdAt,
-      updatedAt: user.updatedAt,
+      statusCode: 200,
+      message: 'Current user information',
+      data: {
+        id: user.id,
+        email: user.email,
+        fullName: user.fullName,
+        about: user.about,
+        phoneNumber: user.phoneNumber,
+        profilePicture: user.profilePicture,
+        timestamp: new Date().toISOString(),
+      },
     };
   }
 
@@ -387,9 +426,11 @@ export class UserController {
   async verifyEmail(@Body() verifyEmailDto: VerifyEmailDto) {
     await this.users.verifyEmail(verifyEmailDto.email, verifyEmailDto.otp);
     return {
-      status: 'success',
+      statusCode: 200,
       message: 'Email verified successfully',
-      timestamp: new Date().toISOString(),
+      data: {
+        timestamp: new Date().toISOString(),
+      },
     };
   }
 }
