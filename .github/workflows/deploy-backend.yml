@@ -43,6 +43,18 @@
 #     # - name: Run security audit
 #     #   run: npm audit --audit-level=high
 #     #   continue-on-error: true
+    # - name: Run lint
+    #   run: npm run lint
+    #   continue-on-error: false
+
+    # - name: Run tests
+    #   run: npm test
+    #   continue-on-error: false
+
+    # - name: Run security audit
+    #   run: npm audit --audit-level=high
+    #   continue-on-error: true
+
 
 #     - name: Build NestJS app
 #       run: npm run build
@@ -155,6 +167,7 @@
 #           GOOGLE_CALLBACK_URL=http://localhost:3600/api/v1/auth/google/callback
 
 #           POSTMAN_API_KEY="${{ secrets.POSTMAN_API_KEY }}"
+
 
 #           JWT_ACCESS_SECRET="${{ steps.envselect.outputs.JWT_ACCESS_SECRET }}"
 #           JWT_REFRESH_SECRET="${{ steps.envselect.outputs.JWT_REFRESH_SECRET }}"
