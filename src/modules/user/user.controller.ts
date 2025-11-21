@@ -11,6 +11,7 @@ import {
   Patch,
   Delete,
   BadRequestException,
+  Headers as HeadersDecorator,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -18,6 +19,7 @@ import {
   ApiResponse,
   ApiBody,
   ApiBearerAuth,
+  ApiHeader,
 } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
 import { UserPayload } from './strategy/interface.d';
@@ -83,20 +85,20 @@ export class UserController {
   @Delete('me')
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Deactivate (soft delete) current user' })
+  @ApiOperation({ summary: 'Delete current user (hard delete from database)' })
   @ApiResponse({
     status: 200,
-    description: 'User deactivated successfully',
+    description: 'User deleted from database',
     schema: {
       example: {
         status: 'success',
-        message: 'User account deleted successfully',
+        message: 'User deleted from database',
         timestamp: '2025-11-20T00:00:00.000Z',
       },
     },
   })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  async deactivateMe(
+  async deleteMe(
     @Req() req: Request & { user: { userId: string; id?: string } },
   ) {
     const userId = req.user.userId || req.user.id;
@@ -104,7 +106,7 @@ export class UserController {
     await this.users.delete(userId);
     return {
       status: 'success',
-      message: 'User account deleted successfully',
+      message: 'User deleted from database',
       timestamp: new Date().toISOString(),
     };
   }
@@ -232,12 +234,7 @@ export class UserController {
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Refresh JWT token' })
-  @ApiBody({
-    schema: {
-      type: 'object',
-      properties: { refreshToken: { type: 'string' } },
-    },
-  })
+  @ApiHeader({ name: 'Authorization', description: 'Bearer <refreshToken>' })
   @ApiResponse({
     status: 200,
     description: 'Token successfully refreshed',
@@ -251,8 +248,17 @@ export class UserController {
     },
   })
   @ApiResponse({ status: 401, description: 'Invalid refresh token' })
-  async refreshToken(@Body('refreshToken') refreshToken: string) {
-    return this.users.refreshToken(refreshToken);
+  async refreshToken(@HeadersDecorator('authorization') authorization: string) {
+    if (!authorization) {
+      throw new BadRequestException('Missing Authorization header');
+    }
+    const [scheme, token] = authorization.split(' ');
+    if (!token || scheme.toLowerCase() !== 'bearer') {
+      throw new BadRequestException(
+        'Invalid Authorization header format. Expected: Bearer <token>',
+      );
+    }
+    return this.users.refreshToken(token);
   }
 
   @Post('forgot-password')
@@ -304,17 +310,51 @@ export class UserController {
         id: 'uuid-1234',
         email: 'jane.doe@example.com',
         fullName: 'Jane Doe',
+        about: 'I love reading the Bible daily.',
+        phoneNumber: '+1234567890',
+        profilePicture: 'https://example.com/profile.jpg',
         authProvider: 'EMAIL',
+        emailVerified: true,
+        isActive: true,
+        createdAt: '2025-11-20T10:00:00.000Z',
+        updatedAt: '2025-11-20T10:00:00.000Z',
       },
     },
   })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  getCurrentUser(
-    @Req() req: Request & { user: UserPayload & { jti?: string } },
+  async getCurrentUser(
+    @Req() req: Request & { user: UserPayload & { jti?: string; id?: string } },
   ) {
-    // Hide internal JWT fields like jti
-    const { ...user } = req.user || {};
-    return user;
+    // Safely extract userId from possible JWT payload keys
+    type JwtPayload = {
+      userId?: string;
+      sub?: string;
+      id?: string;
+      [key: string]: unknown;
+    };
+    const payload = req.user as unknown as JwtPayload;
+    const userId = payload.userId ?? payload.sub ?? payload.id;
+    if (!userId || typeof userId !== 'string') {
+      throw new BadRequestException('Invalid user id');
+    }
+
+    // Load full user from DB to return up-to-date profile fields
+    const user = await this.users.findOne(userId);
+
+    // Return only safe, useful profile fields
+    return {
+      id: user.id,
+      email: user.email,
+      fullName: user.fullName,
+      about: user.about,
+      phoneNumber: user.phoneNumber,
+      profilePicture: user.profilePicture,
+      authProvider: user.authProvider,
+      emailVerified: user.emailVerified,
+      isActive: user.isActive,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+    };
   }
 
   @Post('verify-email')

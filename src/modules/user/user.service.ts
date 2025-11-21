@@ -151,10 +151,9 @@ export class UserService {
   }
 
   async delete(id: string) {
-    const user = await this.findOne(id);
-    user.deletedAt = new Date();
-    user.isActive = false;
-    return this.repo.save(user);
+    // Hard delete: actually remove user from DB
+    await this.repo.delete(id);
+    return { status: 'success', message: 'User deleted from database' };
   }
 
   async findOneByEmail(email: string) {
