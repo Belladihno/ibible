@@ -1,4 +1,4 @@
-import { Controller, Post, Body } from '@nestjs/common';
+import { Controller, Post, Body, HttpStatus } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBody } from '@nestjs/swagger';
 import { WaitlistService } from './waitlist.service';
 import { CreateWaitlistEntryDto } from './dto/create-waitlist-entry.dto';
@@ -15,7 +15,7 @@ export class WaitlistController {
   @ApiOperation({ summary: 'Add a new entry to the waitlist' })
   @ApiBody({ type: CreateWaitlistEntryDto })
   @ApiResponse({
-    status: 201,
+    status: HttpStatus.CREATED,
     description: 'Success! You are on the waitlist.',
     schema: {
       example: {
@@ -26,22 +26,22 @@ export class WaitlistController {
     },
   })
   @ApiResponse({
-    status: 400,
+    status: HttpStatus.BAD_REQUEST,
     description: 'Invalid email format or validation error.',
     schema: { example: { status: 'error', message: 'Invalid email format' } },
   })
   @ApiResponse({
-    status: 409,
+    status: HttpStatus.BAD_REQUEST,
     description: 'This email is already on the waitlist.',
     schema: {
       example: {
-        statusCode: 409,
+        statusCode: HttpStatus.CONFLICT,
         message: 'This email is already on the waitlist.',
       },
     },
   })
   @ApiResponse({
-    status: 429,
+    status: HttpStatus.TOO_MANY_REQUESTS,
     description: 'Too many requests. Please try again later.',
     schema: {
       example: {
@@ -50,7 +50,10 @@ export class WaitlistController {
       },
     },
   })
-  @ApiResponse({ status: 500, description: 'Internal server error.' })
+  @ApiResponse({
+    status: HttpStatus.INTERNAL_SERVER_ERROR,
+    description: 'Internal server error.',
+  })
   create(@Body() createWaitlistEntryDto: CreateWaitlistEntryDto) {
     return this.waitlistService.create(createWaitlistEntryDto);
   }
