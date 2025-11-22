@@ -125,12 +125,12 @@ jobs:
           echo "📥 Installing dependencies..."
           npm ci --legacy-peer-deps
           echo "⚙️ Writing .env file..."
-          cat << EOF > .env
+          cat << 'EOF' > .env
           API_VERSION=${{ secrets.API_VERSION }}
           PORT=${{ steps.envselect.outputs.PORT }}
           DATABASE_URI=${{ steps.envselect.outputs.DATABASE_URI }}
           FRONTEND_URL=${{ steps.envselect.outputs.FRONTEND_URL }}
-          PM2_APP_NAME=${{ steps.envselect.outputs.PM2_APP_NAME }}"
+          PM2_APP_NAME=${{ steps.envselect.outputs.PM2_APP_NAME }}
           EMAIL_MAILER=smtp
           EMAIL_HOST=${{ secrets.MAIL_HOST }}
           EMAIL_PORT=${{ secrets.MAIL_PORT }}
