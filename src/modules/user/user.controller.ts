@@ -32,7 +32,6 @@ import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { VerifyEmailDto } from './dto/verify-email.dto';
 import { SignupUserDto } from './dto/signup-user.dto';
-import * as SYM from 'src/shared/constant/systemMessages';
 
 @ApiTags('User')
 @Controller('user')
@@ -49,20 +48,17 @@ export class UserController {
     summary: 'Logout user (invalidate access and refresh tokens)',
   })
   @ApiResponse({
-    status: HttpStatus.OK,
+    status: 200,
     description: 'User logged out successfully',
     schema: {
       example: {
-        statusCode: HttpStatus.OK,
-        message: SYM.LOGOUT,
+        statusCode: 200,
+        message: 'User logged out and tokens revoked',
         data: { timestamp: '2025-11-20T00:00:00.000Z' },
       },
     },
   })
-  @ApiResponse({
-    status: HttpStatus.UNAUTHORIZED,
-    description: 'Unauthorized or token invalid',
-  })
+  @ApiResponse({ status: 401, description: 'Unauthorized or token invalid' })
   async logout(
     @Req()
     req: Request & {
@@ -74,14 +70,14 @@ export class UserController {
     const userId = user.userId || user.sub || user.id;
     if (!jti || !userId) {
       return {
-        statusCode: HttpStatus.BAD_REQUEST,
-        message: SYM.INVALID_TOKEN,
+        statusCode: 400,
+        message: 'Invalid token payload',
         data: { timestamp: new Date().toISOString() },
       };
     }
     await this.users.logoutByAccessToken(jti, userId);
     return {
-      statusCode: HttpStatus.OK,
+      statusCode: 200,
       message: 'User logged out and tokens revoked',
       data: { timestamp: new Date().toISOString() },
     };
@@ -96,13 +92,13 @@ export class UserController {
     description: 'User deleted from database',
     schema: {
       example: {
-        statusCode: HttpStatus.OK,
-        message: SYM.USER_DELETED,
+        statusCode: 200,
+        message: 'User deleted from database',
         data: { timestamp: '2025-11-20T00:00:00.000Z' },
       },
     },
   })
-  @ApiResponse({ status: HttpStatus.UNAUTHORIZED, description: 'Unauthorized' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
   async deleteMe(
     @Req() req: Request & { user: { userId: string; id?: string } },
   ) {
@@ -110,7 +106,7 @@ export class UserController {
     if (!userId) throw new BadRequestException('Invalid user id');
     await this.users.delete(userId);
     return {
-      statusCode: HttpStatus.OK,
+      statusCode: 200,
       message: 'User deleted from database',
       data: { timestamp: new Date().toISOString() },
     };
@@ -121,12 +117,12 @@ export class UserController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update current user info' })
   @ApiResponse({
-    status: HttpStatus.OK,
+    status: 200,
     description: 'User updated successfully',
     schema: {
       example: {
-        statusCode: HttpStatus.OK,
-        message: SYM.USER_UPDATED,
+        statusCode: 200,
+        message: 'User updated successfully',
         data: {
           id: 'uuid-1234',
           email: 'jane.doe@example.com',
@@ -139,7 +135,7 @@ export class UserController {
       },
     },
   })
-  @ApiResponse({ status: HttpStatus.UNAUTHORIZED, description: 'Unauthorized' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
   async updateMe(
     @Req() req: Request & { user: { userId: string; id?: string } },
     @Body() data: UpdateUserDto,
@@ -166,12 +162,12 @@ export class UserController {
   @Post('signup')
   @ApiOperation({ summary: 'Sign up a new user' })
   @ApiResponse({
-    status: HttpStatus.CREATED,
+    status: 201,
     description: 'User successfully signed up',
     schema: {
       example: {
-        statusCode: HttpStatus.CREATED,
-        message: SYM.USER_SIGNUP,
+        statusCode: 201,
+        message: 'User successfully signed up',
         data: {
           user: {
             id: 'uuid-1234',
@@ -193,14 +189,14 @@ export class UserController {
     },
   })
   @ApiResponse({
-    status: HttpStatus.CONFLICT,
+    status: 409,
     description: 'User with this email or phone number already exists',
   })
   async signup(@Body() signupDto: SignupUserDto) {
     const result = await this.users.signup(signupDto);
     return {
-      statusCode: HttpStatus.CREATED,
-      message: SYM.USER_SIGNUP,
+      statusCode: 201,
+      message: 'User successfully signed up',
       data: { ...result, timestamp: new Date().toISOString() },
     };
   }
@@ -209,12 +205,12 @@ export class UserController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Login user' })
   @ApiResponse({
-    status: HttpStatus.OK,
+    status: 200,
     description: 'User successfully logged in',
     schema: {
       example: {
-        statusCode: HttpStatus.OK,
-        message: SYM.USER_LOGIN,
+        statusCode: 200,
+        message: 'User successfully logged in',
         data: {
           user: {
             id: 'uuid-1234',
@@ -235,15 +231,12 @@ export class UserController {
       },
     },
   })
-  @ApiResponse({
-    status: HttpStatus.UNAUTHORIZED,
-    description: 'Invalid credentials',
-  })
+  @ApiResponse({ status: 401, description: 'Invalid credentials' })
   async login(@Body() loginDto: LoginDto) {
     const result = await this.users.login(loginDto);
     return {
-      statusCode: HttpStatus.OK,
-      message: SYM.USER_LOGIN,
+      statusCode: 200,
+      message: 'User successfully logged in',
       data: { ...result, timestamp: new Date().toISOString() },
     };
   }
@@ -271,7 +264,7 @@ export class UserController {
   @ApiOperation({ summary: 'Refresh JWT token' })
   @ApiHeader({ name: 'Authorization', description: 'Bearer <refreshToken>' })
   @ApiResponse({
-    status: HttpStatus.OK,
+    status: 200,
     description: 'Token successfully refreshed',
     schema: {
       example: {
@@ -282,10 +275,7 @@ export class UserController {
       },
     },
   })
-  @ApiResponse({
-    status: HttpStatus.UNAUTHORIZED,
-    description: 'Invalid refresh token',
-  })
+  @ApiResponse({ status: 401, description: 'Invalid refresh token' })
   async refreshToken(@HeadersDecorator('authorization') authorization: string) {
     if (!authorization) {
       throw new BadRequestException('Missing Authorization header');
@@ -303,12 +293,12 @@ export class UserController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Request password reset' })
   @ApiResponse({
-    status: HttpStatus.OK,
+    status: 200,
     description: 'Password reset email sent if user exists',
     schema: {
       example: {
-        statusCode: HttpStatus.OK,
-        message: SYM.SUCCESSFUL_REQUEST,
+        statusCode: 200,
+        message: 'Request successful',
         data: {
           token: 'reset-token-or-empty',
           timestamp: '2025-11-20T00:00:00.000Z',
@@ -319,8 +309,8 @@ export class UserController {
   async forgotPassword(@Body() forgotPasswordDto: ForgotPasswordDto) {
     const { token } = await this.users.forgotPassword(forgotPasswordDto.email);
     return {
-      statusCode: HttpStatus.OK,
-      message: SYM.SUCCESSFUL_REQUEST,
+      statusCode: 200,
+      message: 'Request successful',
       data: { token, timestamp: new Date().toISOString() },
     };
   }
@@ -328,22 +318,16 @@ export class UserController {
   @Post('reset-password')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Reset password with token' })
-  @ApiResponse({
-    status: HttpStatus.OK,
-    description: 'Password successfully reset',
-  })
-  @ApiResponse({
-    status: HttpStatus.NOT_FOUND,
-    description: 'Invalid or expired reset token',
-  })
+  @ApiResponse({ status: 200, description: 'Password successfully reset' })
+  @ApiResponse({ status: 404, description: 'Invalid or expired reset token' })
   async resetPassword(@Body() resetPasswordDto: ResetPasswordDto) {
     await this.users.resetPassword(
       resetPasswordDto.token,
       resetPasswordDto.password,
     );
     return {
-      statusCode: HttpStatus.OK,
-      message: SYM.PASSWORD_RESET,
+      statusCode: 200,
+      message: 'Password successfully reset',
       data: { timestamp: new Date().toISOString() },
     };
   }
@@ -353,7 +337,7 @@ export class UserController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get current user info' })
   @ApiResponse({
-    status: HttpStatus.OK,
+    status: 200,
     description: 'Current user information',
     schema: {
       example: {
@@ -371,7 +355,7 @@ export class UserController {
       },
     },
   })
-  @ApiResponse({ status: HttpStatus.UNAUTHORIZED, description: 'Unauthorized' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
   async getCurrentUser(
     @Req() req: Request & { user: UserPayload & { jti?: string; id?: string } },
   ) {
@@ -393,8 +377,8 @@ export class UserController {
 
     // Return only safe, useful profile fields
     return {
-      statusCode: HttpStatus.OK,
-      message: SYM.USER_INFORMATION,
+      statusCode: 200,
+      message: 'Current user information',
       data: {
         id: user.id,
         email: user.email,
@@ -419,26 +403,26 @@ export class UserController {
     description: 'Email verified successfully',
     schema: {
       example: {
-        statusCode: HttpStatus.OK,
-        message: SYM.EMAIL_VERIFICATION,
+        statusCode: 200,
+        message: 'Email verified successfully',
         data: { timestamp: '2025-11-20T12:00:00.000Z' },
       },
     },
   })
   @ApiResponse({
-    status: HttpStatus.BAD_REQUEST,
+    status: 400,
     description:
       'Invalid or expired token | Email verification token has expired',
   })
   @ApiResponse({
-    status: HttpStatus.NOT_FOUND,
+    status: 404,
     description: 'Invalid or already used verification token',
   })
   async verifyEmail(@Body() verifyEmailDto: VerifyEmailDto) {
     await this.users.verifyEmail(verifyEmailDto.email, verifyEmailDto.otp);
     return {
-      statusCode: HttpStatus.OK,
-      message: SYM.EMAIL_VERIFICATION,
+      statusCode: 200,
+      message: 'Email verified successfully',
       data: { timestamp: new Date().toISOString() },
     };
   }

@@ -1,7 +1,6 @@
-import { Controller, Get, HttpStatus } from '@nestjs/common';
+import { Controller, Get } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { HealthService } from './health.service';
-import * as SYM from 'src/shared/constant/systemMessages';
 
 @ApiTags('health')
 @Controller('health')
@@ -11,11 +10,11 @@ export class HealthController {
   @Get()
   @ApiOperation({ summary: 'Health check endpoint' })
   @ApiResponse({
-    status: HttpStatus.OK,
+    status: 200,
     description: 'Returns the health status of the application',
     schema: {
       example: {
-        statusCode: HttpStatus.OK,
+        statusCode: 200,
         message: 'Health check successful',
         data: {
           status: 'ok',
@@ -31,8 +30,8 @@ export class HealthController {
   async check() {
     const result = await this.healthService.check();
     return {
-      statusCode: HttpStatus.OK,
-      message: SYM.HEALTH_SUCCESS,
+      statusCode: 200,
+      message: 'Health check successful',
       data: { ...result, timestamp: new Date().toISOString() },
     };
   }
