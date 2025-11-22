@@ -123,7 +123,7 @@ jobs:
           git fetch --all
           git reset --hard origin/${{ github.ref_name }}
           echo "📥 Installing dependencies..."
-          npm ci --production --legacy-peer-deps
+          npm ci --legacy-peer-deps
           echo "⚙️ Writing .env file..."
           cat << EOF > .env
           API_VERSION=${{ secrets.API_VERSION }}
