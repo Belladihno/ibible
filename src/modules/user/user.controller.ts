@@ -52,9 +52,9 @@ export class UserController {
     description: 'User logged out successfully',
     schema: {
       example: {
-        status: 'success',
+        statusCode: 200,
         message: 'User logged out and tokens revoked',
-        timestamp: '2025-11-20T00:00:00.000Z',
+        data: { timestamp: '2025-11-20T00:00:00.000Z' },
       },
     },
   })
@@ -70,17 +70,16 @@ export class UserController {
     const userId = user.userId || user.sub || user.id;
     if (!jti || !userId) {
       return {
-        status: 'error',
+        statusCode: 400,
         message: 'Invalid token payload',
+        data: { timestamp: new Date().toISOString() },
       };
     }
     await this.users.logoutByAccessToken(jti, userId);
     return {
       statusCode: 200,
       message: 'User logged out and tokens revoked',
-      data: {
-        timestamp: new Date().toISOString(),
-      },
+      data: { timestamp: new Date().toISOString() },
     };
   }
 
@@ -93,9 +92,9 @@ export class UserController {
     description: 'User deleted from database',
     schema: {
       example: {
-        status: 'success',
+        statusCode: 200,
         message: 'User deleted from database',
-        timestamp: '2025-11-20T00:00:00.000Z',
+        data: { timestamp: '2025-11-20T00:00:00.000Z' },
       },
     },
   })
@@ -109,9 +108,7 @@ export class UserController {
     return {
       statusCode: 200,
       message: 'User deleted from database',
-      data: {
-        timestamp: new Date().toISOString(),
-      },
+      data: { timestamp: new Date().toISOString() },
     };
   }
 
@@ -124,16 +121,16 @@ export class UserController {
     description: 'User updated successfully',
     schema: {
       example: {
-        status: 'success',
+        statusCode: 200,
         message: 'User updated successfully',
         data: {
           id: 'uuid-1234',
           email: 'jane.doe@example.com',
           fullName: 'Jane Doe',
-          authProvider: 'EMAIL',
           profilePicture: null,
           phoneNumber: null,
           about: 'I love reading the Bible daily.',
+          timestamp: '2025-11-20T00:00:00.000Z',
         },
       },
     },
@@ -146,7 +143,6 @@ export class UserController {
     const userId = req.user.userId || req.user.id;
     if (!userId) throw new BadRequestException('Invalid user id');
     const user = await this.users.update(userId, data);
-    // Only return safe, user-facing fields
     const filtered = {
       id: user.id,
       email: user.email,
@@ -170,20 +166,24 @@ export class UserController {
     description: 'User successfully signed up',
     schema: {
       example: {
-        user: {
-          id: 'uuid-1234',
-          email: 'jane.doe@example.com',
-          fullName: 'Jane Doe',
-          authProvider: 'EMAIL',
-          profilePicture: null,
-          phoneNumber: null,
-          about: null,
-        },
-        tokens: {
-          accessToken: 'eyJhbGci...',
-          refreshToken: 'eyJhbGci.refresh...',
-          expiresIn: 900,
-          tokenType: 'Bearer',
+        statusCode: 201,
+        message: 'User successfully signed up',
+        data: {
+          user: {
+            id: 'uuid-1234',
+            email: 'jane.doe@example.com',
+            fullName: 'Jane Doe',
+            profilePicture: null,
+            phoneNumber: null,
+            about: null,
+          },
+          tokens: {
+            accessToken: 'eyJhbGci...',
+            refreshToken: 'eyJhbGci.refresh...',
+            expiresIn: 900,
+            tokenType: 'Bearer',
+          },
+          timestamp: '2025-11-20T00:00:00.000Z',
         },
       },
     },
@@ -197,10 +197,7 @@ export class UserController {
     return {
       statusCode: 201,
       message: 'User successfully signed up',
-      data: {
-        ...result,
-        timestamp: new Date().toISOString(),
-      },
+      data: { ...result, timestamp: new Date().toISOString() },
     };
   }
 
@@ -212,20 +209,24 @@ export class UserController {
     description: 'User successfully logged in',
     schema: {
       example: {
-        user: {
-          id: 'uuid-1234',
-          email: 'jane.doe@example.com',
-          fullName: 'Jane Doe',
-          authProvider: 'EMAIL',
-          profilePicture: null,
-          phoneNumber: null,
-          about: null,
-        },
-        tokens: {
-          accessToken: 'eyJhbGci...',
-          refreshToken: 'eyJhbGci.refresh...',
-          expiresIn: 900,
-          tokenType: 'Bearer',
+        statusCode: 200,
+        message: 'User successfully logged in',
+        data: {
+          user: {
+            id: 'uuid-1234',
+            email: 'jane.doe@example.com',
+            fullName: 'Jane Doe',
+            profilePicture: null,
+            phoneNumber: null,
+            about: null,
+          },
+          tokens: {
+            accessToken: 'eyJhbGci...',
+            refreshToken: 'eyJhbGci.refresh...',
+            expiresIn: 900,
+            tokenType: 'Bearer',
+          },
+          timestamp: '2025-11-20T00:00:00.000Z',
         },
       },
     },
@@ -236,10 +237,7 @@ export class UserController {
     return {
       statusCode: 200,
       message: 'User successfully logged in',
-      data: {
-        ...result,
-        timestamp: new Date().toISOString(),
-      },
+      data: { ...result, timestamp: new Date().toISOString() },
     };
   }
 
@@ -299,10 +297,12 @@ export class UserController {
     description: 'Password reset email sent if user exists',
     schema: {
       example: {
-        success: true,
+        statusCode: 200,
         message: 'Request successful',
-        token: 'reset-token-or-empty',
-        timestamp: '2025-11-20T00:00:00.000Z',
+        data: {
+          token: 'reset-token-or-empty',
+          timestamp: '2025-11-20T00:00:00.000Z',
+        },
       },
     },
   })
@@ -311,10 +311,7 @@ export class UserController {
     return {
       statusCode: 200,
       message: 'Request successful',
-      data: {
-        token,
-        timestamp: new Date().toISOString(),
-      },
+      data: { token, timestamp: new Date().toISOString() },
     };
   }
 
@@ -331,9 +328,7 @@ export class UserController {
     return {
       statusCode: 200,
       message: 'Password successfully reset',
-      data: {
-        timestamp: new Date().toISOString(),
-      },
+      data: { timestamp: new Date().toISOString() },
     };
   }
 
@@ -408,9 +403,9 @@ export class UserController {
     description: 'Email verified successfully',
     schema: {
       example: {
-        status: 'success',
+        statusCode: 200,
         message: 'Email verified successfully',
-        timestamp: '2025-11-20T12:00:00.000Z',
+        data: { timestamp: '2025-11-20T12:00:00.000Z' },
       },
     },
   })
@@ -428,9 +423,7 @@ export class UserController {
     return {
       statusCode: 200,
       message: 'Email verified successfully',
-      data: {
-        timestamp: new Date().toISOString(),
-      },
+      data: { timestamp: new Date().toISOString() },
     };
   }
 }

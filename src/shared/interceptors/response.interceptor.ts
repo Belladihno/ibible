@@ -8,10 +8,9 @@ import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 
 export interface ApiResponse<T> {
-  success: boolean;
+  statusCode: number;
   message: string;
-  data: T;
-  timestamp: string;
+  data: T & { timestamp: string };
 }
 
 interface MessageDataShape {
@@ -37,24 +36,49 @@ export class ResponseInterceptor<T>
         let responseMessage = 'Request successful';
 
         // Extracted data (default to whatever controller returned)
-        let responseData: T = result;
+        let responseData: unknown = result;
 
-        // If controller returned an object, extract message + data safely
-        if (hasMessageOrData(result)) {
-          if (typeof result.message === 'string') {
-            responseMessage = result.message;
-          }
-
-          if ('data' in result) {
-            responseData = result.data as T;
+        // Determine statusCode if controller provided one
+        let statusCode = 200;
+        if (
+          hasMessageOrData(result) &&
+          'statusCode' in (result as Record<string, unknown>)
+        ) {
+          const sc = (result as Record<string, unknown>).statusCode;
+          if (typeof sc === 'number') {
+            statusCode = sc;
           }
         }
 
+        // If controller returned an object, extract message + data safely
+        if (hasMessageOrData(result)) {
+          const resObj = result as Record<string, unknown>;
+          if (typeof resObj.message === 'string') {
+            responseMessage = resObj.message;
+          }
+
+          if ('data' in resObj) {
+            responseData = resObj.data;
+          }
+        }
+
+        // Build a safe data object to return (always an object with timestamp)
+        let dataObj: Record<string, unknown>;
+        if (responseData === undefined || responseData === null) {
+          dataObj = {};
+        } else if (typeof responseData === 'object') {
+          dataObj = { ...(responseData as Record<string, unknown>) };
+        } else {
+          // Primitive data — put it under `value`
+          dataObj = { value: responseData };
+        }
+
+        dataObj.timestamp = new Date().toISOString();
+
         return {
-          success: true,
+          statusCode,
           message: responseMessage,
-          data: responseData,
-          timestamp: new Date().toISOString(),
+          data: dataObj as T & { timestamp: string },
         };
       }),
     );

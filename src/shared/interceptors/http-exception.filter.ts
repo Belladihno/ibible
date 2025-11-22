@@ -8,11 +8,12 @@ import {
 import { Response } from 'express';
 
 export interface ErrorResponse {
-  success: boolean;
-  message: string;
-  error?: string;
   statusCode: number;
-  timestamp: string;
+  message: string;
+  data: {
+    error?: string;
+    timestamp: string;
+  };
 }
 
 @Catch()
@@ -41,11 +42,12 @@ export class HttpExceptionFilter implements ExceptionFilter {
     }
 
     const errorResponse: ErrorResponse = {
-      success: false,
-      message,
-      error,
       statusCode: status,
-      timestamp: new Date().toISOString(),
+      message,
+      data: {
+        error,
+        timestamp: new Date().toISOString(),
+      },
     };
 
     response.status(status).json(errorResponse);

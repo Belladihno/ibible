@@ -14,12 +14,16 @@ export class HealthController {
     description: 'Returns the health status of the application',
     schema: {
       example: {
-        status: 'ok',
-        checks: {
-          database: { status: 'up', detail: 'Connection successful' },
-          smtp: { status: 'up', detail: 'SMTP verified' },
+        statusCode: 200,
+        message: 'Health check successful',
+        data: {
+          status: 'ok',
+          checks: {
+            database: { status: 'up', detail: 'Connection successful' },
+            smtp: { status: 'up', detail: 'SMTP verified' },
+          },
+          timestamp: '2025-11-20T00:00:00.000Z',
         },
-        timestamp: '2025-11-20T00:00:00.000Z',
       },
     },
   })
@@ -28,10 +32,7 @@ export class HealthController {
     return {
       statusCode: 200,
       message: 'Health check successful',
-      data: {
-        ...result,
-        timestamp: new Date().toISOString(),
-      },
+      data: { ...result, timestamp: new Date().toISOString() },
     };
   }
 }
