@@ -125,27 +125,27 @@ jobs:
           echo "📥 Installing dependencies..."
           npm ci --legacy-peer-deps
           echo "⚙️ Writing .env file..."
-          cat > .env <<ENVEOF
-          API_VERSION=${{ secrets.API_VERSION }}
-          PORT=${{ steps.envselect.outputs.PORT }}
-          DATABASE_URI=${{ steps.envselect.outputs.DATABASE_URI }}
-          FRONTEND_URL=${{ steps.envselect.outputs.FRONTEND_URL }}
-          PM2_APP_NAME=${{ steps.envselect.outputs.PM2_APP_NAME }}
-          EMAIL_MAILER=smtp
-          EMAIL_HOST=${{ secrets.MAIL_HOST }}
-          EMAIL_PORT=${{ secrets.MAIL_PORT }}
-          EMAIL_USERNAME=${{ secrets.MAIL_USERNAME }}
-          EMAIL_PASSWORD=${{ secrets.MAIL_PASSWORD }}
-          EMAIL_ENCRYPTION=${{ secrets.MAIL_ENCRYPTION }}
-          EMAIL_FROM_ADDRESS=${{ secrets.MAIL_FROM_ADDRESS }}
-          EMAIL_FROM_NAME="${{ secrets.MAIL_FROM_NAME }}"
-          GOOGLE_CLIENT_ID="${{ secrets.GOOGLE_CLIENT_ID }}"
-          GOOGLE_CLIENT_SECRET="${{ secrets.GOOGLE_CLIENT_SECRET }}"
-          GOOGLE_CALLBACK_URL=http://localhost:3600/api/v1/auth/google/callback
-          POSTMAN_API_KEY="${{ secrets.POSTMAN_API_KEY }}"
-          JWT_ACCESS_SECRET="${{ steps.envselect.outputs.JWT_ACCESS_SECRET }}"
-          JWT_REFRESH_SECRET="${{ steps.envselect.outputs.JWT_REFRESH_SECRET }}"
-          ENVEOF
+          set +x 
+          echo "API_VERSION=${{ secrets.API_VERSION }}" > .env
+          echo "PORT=${{ steps.envselect.outputs.PORT }}" >> .env
+          echo "DATABASE_URI=${{ steps.envselect.outputs.DATABASE_URI }}" >> .env
+          echo "FRONTEND_URL=${{ steps.envselect.outputs.FRONTEND_URL }}" >> .env
+          echo "PM2_APP_NAME=${{ steps.envselect.outputs.PM2_APP_NAME }}" >> .env
+          echo "EMAIL_MAILER=smtp" >> .env
+          echo "EMAIL_HOST=${{ secrets.MAIL_HOST }}" >> .env
+          echo "EMAIL_PORT=${{ secrets.MAIL_PORT }}" >> .env
+          echo "EMAIL_USERNAME=${{ secrets.MAIL_USERNAME }}" >> .env
+          echo "EMAIL_PASSWORD=${{ secrets.MAIL_PASSWORD }}" >> .env
+          echo "EMAIL_ENCRYPTION=${{ secrets.MAIL_ENCRYPTION }}" >> .env
+          echo "EMAIL_FROM_ADDRESS=${{ secrets.MAIL_FROM_ADDRESS }}" >> .env
+          echo "EMAIL_FROM_NAME=${{ secrets.MAIL_FROM_NAME }}" >> .env
+          echo "GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}" >> .env
+          echo "GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}" >> .env
+          echo "GOOGLE_CALLBACK_URL=http://localhost:3600/api/v1/auth/google/callback" >> .env
+          echo "POSTMAN_API_KEY=${{ secrets.POSTMAN_API_KEY }}" >> .env
+          echo "JWT_ACCESS_SECRET=${{ steps.envselect.outputs.JWT_ACCESS_SECRET }}" >> .env
+          echo "JWT_REFRESH_SECRET=${{ steps.envselect.outputs.JWT_REFRESH_SECRET }}" >> .env
+          set -x
           echo "🔨 Building app..."
           npm run build
           echo "🚀 Restarting application with PM2..."
