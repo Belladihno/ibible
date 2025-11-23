@@ -32,6 +32,7 @@ import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { VerifyEmailDto } from './dto/verify-email.dto';
 import { SignupUserDto } from './dto/signup-user.dto';
+import { SystemMessages } from 'src/shared/constsnts/sharedmessages';
 
 @ApiTags('User')
 @Controller('user')
@@ -48,17 +49,17 @@ export class UserController {
     summary: 'Logout user (invalidate access and refresh tokens)',
   })
   @ApiResponse({
-    status: 200,
+    status: HttpStatus.OK,
     description: 'User logged out successfully',
     schema: {
       example: {
-        statusCode: 200,
-        message: 'User logged out and tokens revoked',
+        statusCode: HttpStatus.OK,
+        message: SystemMessages.USER_LOGOUT_SUCCESS,
         data: { timestamp: '2025-11-20T00:00:00.000Z' },
       },
     },
   })
-  @ApiResponse({ status: 401, description: 'Unauthorized or token invalid' })
+  @ApiResponse({ status: HttpStatus.UNAUTHORIZED, description: 'Unauthorized or token invalid' })
   async logout(
     @Req()
     req: Request & {
@@ -70,15 +71,15 @@ export class UserController {
     const userId = user.userId || user.sub || user.id;
     if (!jti || !userId) {
       return {
-        statusCode: 400,
-        message: 'Invalid token payload',
+        statusCode: HttpStatus.BAD_REQUEST,
+        message: SystemMessages.INVALID_TOKEN_PAYLOAD,
         data: { timestamp: new Date().toISOString() },
       };
     }
     await this.users.logoutByAccessToken(jti, userId);
     return {
-      statusCode: 200,
-      message: 'User logged out and tokens revoked',
+      statusCode: HttpStatus.OK,
+      message: SystemMessages.USER_LOGOUT_SUCCESS,
       data: { timestamp: new Date().toISOString() },
     };
   }
@@ -92,13 +93,13 @@ export class UserController {
     description: 'User deleted from database',
     schema: {
       example: {
-        statusCode: 200,
-        message: 'User deleted from database',
+        statusCode: HttpStatus.OK,
+        message: SystemMessages.USER_DELETED,
         data: { timestamp: '2025-11-20T00:00:00.000Z' },
       },
     },
   })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: HttpStatus.UNAUTHORIZED, description: 'Unauthorized' })
   async deleteMe(
     @Req() req: Request & { user: { userId: string; id?: string } },
   ) {
@@ -106,8 +107,8 @@ export class UserController {
     if (!userId) throw new BadRequestException('Invalid user id');
     await this.users.delete(userId);
     return {
-      statusCode: 200,
-      message: 'User deleted from database',
+      statusCode: HttpStatus.OK,
+      message: SystemMessages.USER_DELETED,
       data: { timestamp: new Date().toISOString() },
     };
   }
@@ -135,7 +136,7 @@ export class UserController {
       },
     },
   })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: HttpStatus.UNAUTHORIZED, description: 'Unauthorized' })
   async updateMe(
     @Req() req: Request & { user: { userId: string; id?: string } },
     @Body() data: UpdateUserDto,
@@ -153,8 +154,8 @@ export class UserController {
       timestamp: new Date().toISOString(),
     };
     return {
-      statusCode: 200,
-      message: `User updated successfully`,
+      statusCode: HttpStatus.OK,
+      message: SystemMessages.USER_UPDATED,
       data: filtered,
     };
   }
@@ -162,12 +163,12 @@ export class UserController {
   @Post('signup')
   @ApiOperation({ summary: 'Sign up a new user' })
   @ApiResponse({
-    status: 201,
+    status: HttpStatus.CREATED,
     description: 'User successfully signed up',
     schema: {
       example: {
-        statusCode: 201,
-        message: 'User successfully signed up',
+        statusCode: HttpStatus.CREATED,
+        message: SystemMessages.USER_SIGNUP_SUCCESS,
         data: {
           user: {
             id: 'uuid-1234',
@@ -189,14 +190,14 @@ export class UserController {
     },
   })
   @ApiResponse({
-    status: 409,
-    description: 'User with this email or phone number already exists',
+    status: HttpStatus.CONFLICT,
+    description: SystemMessages.USER_ALREADY_EXISTS,
   })
   async signup(@Body() signupDto: SignupUserDto) {
     const result = await this.users.signup(signupDto);
     return {
-      statusCode: 201,
-      message: 'User successfully signed up',
+      statusCode: HttpStatus.CREATED,
+      message: SystemMessages.USER_SIGNUP_SUCCESS,
       data: { ...result, timestamp: new Date().toISOString() },
     };
   }
@@ -209,8 +210,8 @@ export class UserController {
     description: 'User successfully logged in',
     schema: {
       example: {
-        statusCode: 200,
-        message: 'User successfully logged in',
+        statusCode: HttpStatus.OK,
+        message: SystemMessages.USER_LOGIN_SUCCESS,
         data: {
           user: {
             id: 'uuid-1234',
@@ -231,12 +232,12 @@ export class UserController {
       },
     },
   })
-  @ApiResponse({ status: 401, description: 'Invalid credentials' })
+  @ApiResponse({ status: HttpStatus.UNAUTHORIZED, description: 'Invalid credentials' })
   async login(@Body() loginDto: LoginDto) {
     const result = await this.users.login(loginDto);
     return {
-      statusCode: 200,
-      message: 'User successfully logged in',
+      statusCode: HttpStatus.OK,
+      message: SystemMessages.USER_LOGIN_SUCCESS,
       data: { ...result, timestamp: new Date().toISOString() },
     };
   }
@@ -275,7 +276,7 @@ export class UserController {
       },
     },
   })
-  @ApiResponse({ status: 401, description: 'Invalid refresh token' })
+  @ApiResponse({ status: HttpStatus.UNAUTHORIZED, description: 'Invalid refresh token' })
   async refreshToken(@HeadersDecorator('authorization') authorization: string) {
     if (!authorization) {
       throw new BadRequestException('Missing Authorization header');
@@ -293,11 +294,11 @@ export class UserController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Request password reset' })
   @ApiResponse({
-    status: 200,
+    status: HttpStatus.OK,
     description: 'Password reset email sent if user exists',
     schema: {
       example: {
-        statusCode: 200,
+        statusCode: HttpStatus.OK,
         message: 'Request successful',
         data: {
           token: 'reset-token-or-empty',
@@ -309,8 +310,8 @@ export class UserController {
   async forgotPassword(@Body() forgotPasswordDto: ForgotPasswordDto) {
     const { token } = await this.users.forgotPassword(forgotPasswordDto.email);
     return {
-      statusCode: 200,
-      message: 'Request successful',
+      statusCode: HttpStatus.OK,
+      message: SystemMessages.SUCCESSFUL_REQUEST,
       data: { token, timestamp: new Date().toISOString() },
     };
   }
@@ -318,16 +319,16 @@ export class UserController {
   @Post('reset-password')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Reset password with token' })
-  @ApiResponse({ status: 200, description: 'Password successfully reset' })
-  @ApiResponse({ status: 404, description: 'Invalid or expired reset token' })
+  @ApiResponse({ status: HttpStatus.OK, description: 'Password successfully reset' })
+  @ApiResponse({ status: HttpStatus.NOT_FOUND, description: 'Invalid or expired reset token' })
   async resetPassword(@Body() resetPasswordDto: ResetPasswordDto) {
     await this.users.resetPassword(
       resetPasswordDto.token,
       resetPasswordDto.password,
     );
     return {
-      statusCode: 200,
-      message: 'Password successfully reset',
+      statusCode: SystemMessages,
+      message: SystemMessages.PASSWORD_RESET_SUCCESS,
       data: { timestamp: new Date().toISOString() },
     };
   }
@@ -337,7 +338,7 @@ export class UserController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get current user info' })
   @ApiResponse({
-    status: 200,
+    status: HttpStatus.OK,
     description: 'Current user information',
     schema: {
       example: {
@@ -355,7 +356,7 @@ export class UserController {
       },
     },
   })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: HttpStatus.UNAUTHORIZED, description: 'Unauthorized' })
   async getCurrentUser(
     @Req() req: Request & { user: UserPayload & { jti?: string; id?: string } },
   ) {
@@ -377,8 +378,8 @@ export class UserController {
 
     // Return only safe, useful profile fields
     return {
-      statusCode: 200,
-      message: 'Current user information',
+      statusCode: HttpStatus.OK,
+      message: SystemMessages.CURRENT_USER_INFO,
       data: {
         id: user.id,
         email: user.email,
@@ -399,30 +400,30 @@ export class UserController {
   })
   @ApiBody({ type: VerifyEmailDto })
   @ApiResponse({
-    status: 200,
+    status: HttpStatus.OK,
     description: 'Email verified successfully',
     schema: {
       example: {
-        statusCode: 200,
-        message: 'Email verified successfully',
+        statusCode: HttpStatus.OK,
+        message: SystemMessages.EMAIL_VERIFIED,
         data: { timestamp: '2025-11-20T12:00:00.000Z' },
       },
     },
   })
   @ApiResponse({
-    status: 400,
+    status: HttpStatus.BAD_REQUEST,
     description:
       'Invalid or expired token | Email verification token has expired',
   })
   @ApiResponse({
-    status: 404,
+    status: HttpStatus.NOT_FOUND,
     description: 'Invalid or already used verification token',
   })
   async verifyEmail(@Body() verifyEmailDto: VerifyEmailDto) {
     await this.users.verifyEmail(verifyEmailDto.email, verifyEmailDto.otp);
     return {
-      statusCode: 200,
-      message: 'Email verified successfully',
+      statusCode: HttpStatus.OK,
+      message: SystemMessages.EMAIL_VERIFIED,
       data: { timestamp: new Date().toISOString() },
     };
   }
