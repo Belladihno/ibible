@@ -362,4 +362,40 @@ export class BibleController {
   async getAudioBibles(): Promise<Record<string, unknown>> {
     return this.bibleService.getAudioBibles();
   }
+
+  // GET /bible/read-logs
+  @ApiOperation({ summary: 'Get all reading session logs' })
+  @ApiOkResponse({
+    description: 'Array of reading session logs',
+    schema: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          id: { type: 'string' },
+          userId: { type: 'string' },
+          bibleId: { type: 'string' },
+          book: { type: 'string' },
+          chapter: { type: 'string' },
+          verse: { type: 'string' },
+          version: { type: 'string' },
+          timestamp: { type: 'string', format: 'date-time' },
+        },
+        example: {
+          id: 'log-1',
+          userId: 'user-123',
+          bibleId: 'de4e12af7f28f599-02',
+          book: 'GEN',
+          chapter: '1',
+          verse: '1',
+          version: 'ESV',
+          timestamp: '2025-11-24T12:00:00Z',
+        },
+      },
+    },
+  })
+  @Get('read-logs')
+  async getReadingLogs() {
+    return this.bibleService.getReadingLogs();
+  }
 }

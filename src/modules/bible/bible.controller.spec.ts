@@ -33,5 +33,22 @@ describe('BibleController', () => {
     expect(service).toBeDefined();
   });
 
-  // Add more tests here to validate the logic
+  it('should return reading logs from the service', async () => {
+    const logs = [
+      {
+        id: 'log-1',
+        userId: 'user-123',
+        bibleId: 'de4e12af7f28f599-02',
+        book: 'GEN',
+        chapter: '1',
+        verse: '1',
+        version: 'ESV',
+        timestamp: '2025-11-24T12:00:00Z',
+      },
+    ];
+    jest.spyOn(service, 'getReadingLogs').mockResolvedValueOnce(logs as any);
+    const result = await controller.getReadingLogs();
+    expect(result).toEqual(logs);
+    expect(service.getReadingLogs).toHaveBeenCalled();
+  });
 });

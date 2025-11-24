@@ -1,3 +1,4 @@
+// ...existing code removed (duplicate class and imports)...
 import {
   Injectable,
   Logger,
@@ -254,6 +255,18 @@ export class BibleService {
     } catch (err) {
       this.logger.error('logReadingSession error', err);
       throw new InternalServerErrorException('Could not log reading session');
+    }
+  }
+
+  /**
+   * Retrieve all reading logs
+   */
+  async getReadingLogs(): Promise<ReadingLog[]> {
+    try {
+      return await this.readingLogRepo.find();
+    } catch (err) {
+      this.logger.error('getReadingLogs error', err);
+      throw new InternalServerErrorException('Could not fetch reading logs');
     }
   }
 }
