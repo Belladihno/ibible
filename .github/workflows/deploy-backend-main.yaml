@@ -10,9 +10,71 @@ on:
     branches:
     - staging
     - prod
-    types: [ closed ]
+    types: [ opened, synchronize, reopened ]
 
 jobs:
+
+  pr-validation:
+    name: PR Validation - Build, Lint, Test
+    runs-on: [ self-hosted, linux, x64 ]
+    if: github.event_name == 'pull_request'
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    # - name: Secret Scanning with Gitleaks
+    #   uses: gitleaks/gitleaks-action@v2
+    #   env:
+    #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    #     GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}  # Only needed for commercial use
+
+    # - name: TruffleHog Secret Scan
+    #   uses: trufflesecurity/trufflehog@main
+    #   with:
+    #     path: ./
+    #     base: ${{ github.event.repository.default_branch }}
+    #     head: HEAD
+    #     extra_args: --only-verified
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Run lint
+      run: npm run lint
+      continue-on-error: true
+
+    - name: Run tests
+      run: npm test
+      continue-on-error: true
+
+    - name: Run security audit
+      run: npm audit --audit-level=high
+      continue-on-error: false
+
+    - name: Build NestJS app
+      run: npm run build
+
+    - name: PR Validation Summary
+      if: success()
+      run: |
+        echo "## ✅ PR Validation Passed!" >> $GITHUB_STEP_SUMMARY
+        echo "**Branch:** ${{ github.head_ref }} → ${{ github.base_ref }}" >> $GITHUB_STEP_SUMMARY
+        echo "This PR is safe to merge." >> $GITHUB_STEP_SUMMARY
+
+    - name: PR Validation Failed
+      if: failure()
+      run: |
+        echo "## ❌ PR Validation Failed!" >> $GITHUB_STEP_SUMMARY
+        echo "**Branch:** ${{ github.head_ref }} → ${{ github.base_ref }}" >> $GITHUB_STEP_SUMMARY
+        echo "This PR cannot be merged until all checks pass." >> $GITHUB_STEP_SUMMARY
+        exit 1
 
   build-test:
     name: CI - Build, Lint, Test
@@ -40,9 +102,9 @@ jobs:
     #   run: npm test
     #   continue-on-error: false
 
-    # - name: Run security audit
-    #   run: npm audit --audit-level=high
-    #   continue-on-error: true
+    - name: Run security audit
+      run: npm audit --audit-level=high
+      continue-on-error: true
 
     - name: Build NestJS app
       run: npm run build
@@ -163,7 +225,8 @@ jobs:
           echo "🔨 Building app..."
           npm run build
           echo "🛠️ Running database migrations..."
-          # npm run migration:generate --we should not generate migrations on staging or prod. it is gotten from the script
+          echo "#--we should not generate migrations on staging or prod. it is gotten from the script"
+          npm run migration:generate 
           npm run migration:run
           echo "🚀 Restarting application with PM2..."
           pm2 reload ${{ steps.envselect.outputs.PM2_APP_NAME }} || pm2 start dist/main.js --name ${{ steps.envselect.outputs.PM2_APP_NAME }}
