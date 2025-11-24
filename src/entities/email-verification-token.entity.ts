@@ -1,21 +1,11 @@
-import {
-  Entity,
-  Column,
-  PrimaryGeneratedColumn,
-  CreateDateColumn,
-  ManyToOne,
-  JoinColumn,
-  Index,
-} from 'typeorm';
+import { Entity, Column, ManyToOne, JoinColumn, Index } from 'typeorm';
 import { User } from './user.entity';
+import { BaseEntity } from './base.entity';
 
 @Entity('email_verification_tokens')
 // @Index('idx_otp', { synchronize: false })
 // @Index('idx_user_id', { synchronize: false })
-export class EmailVerificationToken {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
-
+export class EmailVerificationToken extends BaseEntity {
   @Column()
   @Index('idx_user_id')
   userId: string;
@@ -38,7 +28,4 @@ export class EmailVerificationToken {
     default: null,
   })
   verifiedAt: Date;
-
-  @CreateDateColumn({ name: 'created_at' })
-  createdAt: Date;
 }

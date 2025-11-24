@@ -6,20 +6,11 @@ import {
   PreferredBibleVersion,
   PreferredAIVoice,
 } from 'src/modules/user/enums/user.enums';
-import {
-  Entity,
-  Column,
-  PrimaryGeneratedColumn,
-  CreateDateColumn,
-  UpdateDateColumn,
-  Index,
-} from 'typeorm';
+import { Entity, Column, Index } from 'typeorm';
+import { BaseEntity } from './base.entity';
 
 @Entity('users')
-export class User {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
-
+export class User extends BaseEntity {
   @Column({ unique: true })
   @Index('idx_users_email')
   email: string;
@@ -148,12 +139,6 @@ export class User {
     default: true,
   })
   isActive: boolean;
-
-  @CreateDateColumn({ name: 'created_at' })
-  createdAt: Date;
-
-  @UpdateDateColumn({ name: 'updated_at' })
-  updatedAt: Date;
 
   @Column({ name: 'last_active_at', type: 'timestamp', nullable: true })
   lastActiveAt: Date;

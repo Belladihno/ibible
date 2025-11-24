@@ -1,29 +1,13 @@
-import {
-  Entity,
-  Column,
-  PrimaryGeneratedColumn,
-  CreateDateColumn,
-  UpdateDateColumn,
-  BeforeInsert,
-  BeforeUpdate,
-} from 'typeorm';
+import { Entity, Column, BeforeInsert, BeforeUpdate } from 'typeorm';
+import { BaseEntity } from './base.entity';
 
 @Entity('waitlist_entries')
-export class WaitlistEntry {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
-
+export class WaitlistEntry extends BaseEntity {
   @Column({ unique: true })
   email: string;
 
   @Column({ nullable: true })
   name: string;
-
-  @CreateDateColumn()
-  createdAt: Date;
-
-  @UpdateDateColumn()
-  updatedAt: Date;
 
   @BeforeInsert()
   @BeforeUpdate()

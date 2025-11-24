@@ -1,19 +1,9 @@
 import { User } from 'src/entities/user.entity';
-import {
-  Entity,
-  Column,
-  PrimaryGeneratedColumn,
-  CreateDateColumn,
-  Index,
-  ManyToOne,
-  JoinColumn,
-} from 'typeorm';
+import { Entity, Column, Index, ManyToOne, JoinColumn } from 'typeorm';
+import { BaseEntity } from './base.entity';
 
 @Entity('password_reset_tokens')
-export class PasswordResetToken {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
-
+export class PasswordResetToken extends BaseEntity {
   @Column({ name: 'user_id' })
   userId: string;
 
@@ -30,7 +20,4 @@ export class PasswordResetToken {
 
   @Column({ name: 'is_used', default: false })
   isUsed: boolean;
-
-  @CreateDateColumn({ name: 'created_at' })
-  createdAt: Date;
 }
