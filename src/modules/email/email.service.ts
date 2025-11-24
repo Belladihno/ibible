@@ -168,7 +168,6 @@ export class EmailService {
         ? [...inlineAttachments, ...payload.attachments]
         : inlineAttachments;
 
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       const result: nodemailer.SentMessageInfo =
         await this.transporter.sendMail({
           from,

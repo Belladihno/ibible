@@ -37,7 +37,7 @@ export class EmailVerificationToken {
     nullable: true,
     default: null,
   })
-  verifiedAt: Date | null;
+  verifiedAt: Date;
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;

@@ -30,7 +30,7 @@ export class HealthService {
       results.database.status = 'down';
       results.database.detail =
         error instanceof Error ? error.message : 'Unknown error';
-      this.logger.error('Database health check failed', error as any);
+      this.logger.error('Database health check failed', error);
     }
 
     // Check SMTP
@@ -42,7 +42,7 @@ export class HealthService {
       results.smtp.status = 'down';
       results.smtp.detail =
         error instanceof Error ? error.message : 'Unknown error';
-      this.logger.error('SMTP health check failed', error as any);
+      this.logger.error('SMTP health check failed', error);
     }
 
     const overallStatus =

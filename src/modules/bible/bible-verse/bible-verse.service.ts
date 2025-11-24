@@ -32,7 +32,6 @@ export class BibleVerseService implements OnModuleInit {
     await this.fetchAndCacheVerse();
   }
 
-
   async getDailyVerse(): Promise<BibleVerse> {
     await this.ensureDailyVerse();
     const today = this.getToday();

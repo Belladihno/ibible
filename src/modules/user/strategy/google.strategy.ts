@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
-import { Strategy, VerifyCallback } from 'passport-google-oauth20';
+import { Strategy, Profile, VerifyCallback } from 'passport-google-oauth20';
 import { ConfigService } from '@nestjs/config';
 
 @Injectable()
@@ -19,24 +19,24 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
     req: unknown,
     accessToken: string,
     refreshToken: string,
-    profile: unknown,
+    profile: Profile,
     done: VerifyCallback,
-  ) {
+  ): void {
     const email =
-      Array.isArray((profile as any)?.emails) &&
-      (profile as any).emails[0]?.value
-        ? String((profile as any).emails[0].value)
+      Array.isArray(profile.emails) && profile.emails[0]?.value
+        ? String(profile.emails[0].value)
         : '';
-    const firstName = (profile as any)?.name?.givenName
-      ? String((profile as any).name.givenName)
+
+    const firstName = profile.name?.givenName
+      ? String(profile.name.givenName)
       : '';
-    const lastName = (profile as any)?.name?.familyName
-      ? String((profile as any).name.familyName)
+    const lastName = profile.name?.familyName
+      ? String(profile.name.familyName)
       : '';
+
     const picture =
-      Array.isArray((profile as any)?.photos) &&
-      (profile as any).photos[0]?.value
-        ? String((profile as any).photos[0].value)
+      Array.isArray(profile.photos) && profile.photos[0]?.value
+        ? String(profile.photos[0].value)
         : '';
 
     const user = {
@@ -45,6 +45,7 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
       lastName,
       picture,
     };
+
     done(null, user);
   }
 }

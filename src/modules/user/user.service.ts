@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-/* eslint-disable @typescript-eslint/no-unsafe-argument */
 import {
   Injectable,
   UnauthorizedException,
@@ -96,11 +94,8 @@ export class UserService {
     }
     try {
       return await this.repo.save(user);
-    } catch (error: any) {
-      if (error.code === '23505' && error.detail.includes('email')) {
-        throw new ConflictException('Email already exists.');
-      }
-      throw error;
+    } catch {
+      throw new ConflictException('A user with this email already exists.');
     }
   }
 
@@ -145,15 +140,8 @@ export class UserService {
     Object.assign(user, changes);
     try {
       return await this.repo.save(user);
-    } catch (error: any) {
-      if (
-        error.code === '23505' &&
-        error.detail &&
-        error.detail.includes('email')
-      ) {
-        throw new ConflictException('A user with this email already exists.');
-      }
-      throw error;
+    } catch {
+      throw new ConflictException('Update failed due to conflicting data.');
     }
   }
 
@@ -200,9 +188,9 @@ export class UserService {
     const user = await this.create({
       email,
       password,
-      fullName: fullName || null,
+      fullName,
       phoneNumber,
-    } as any);
+    });
     const otp = await this.generateEmailVerificationToken(user.id);
     await this.sendVerificationEmail(user.email, otp, user.fullName);
     const tokens = await this.generateTokens(user);
@@ -245,7 +233,7 @@ export class UserService {
       );
     }
     const tokens = await this.generateTokens(user);
-    await this.update(user.id, { lastActiveAt: new Date() } as any);
+    await this.update(user.id, { lastActiveAt: new Date() } as UpdateUserDto);
     return {
       user: {
         id: user.id,
@@ -265,7 +253,7 @@ export class UserService {
       sub: user.id,
       email: user.email,
       authProvider: user.authProvider,
-    } as any;
+    };
 
     // Determine expirations (in seconds)
     const accessExpiresInStr = this.configService.get<string>('JWT_EXPIRES_IN');
@@ -286,13 +274,13 @@ export class UserService {
       this.jwtService.signAsync(
         { ...payloadBase, jti },
         {
-          expiresIn: accessExpiresIn as any,
+          expiresIn: accessExpiresIn,
           secret:
             this.configService.get<string>('JWT_SECRET') || 'fallback-secret',
         },
       ),
       this.jwtService.signAsync(payloadBase, {
-        expiresIn: refreshExpiresIn as any,
+        expiresIn: refreshExpiresIn,
         secret:
           this.configService.get<string>('JWT_REFRESH_SECRET') ||
           'fallback-refresh-secret',
@@ -389,7 +377,7 @@ export class UserService {
       profilePicture: userDetails.picture,
       authProvider: AuthProvider.GOOGLE,
     };
-    const newUser = await this.create(payload as any);
+    const newUser = await this.create(payload);
     return {
       msg: `Google signup successful. New user created: ${newUser.email}`,
       user: newUser,
@@ -451,7 +439,9 @@ export class UserService {
     if (resetToken.expiresAt < new Date()) {
       throw new BadRequestException('Reset token has expired');
     }
-    await this.update(resetToken.user.id, { password: newPassword } as any);
+    await this.update(resetToken.user.id, {
+      password: newPassword,
+    } as UpdateUserDto);
     resetToken.isUsed = true;
     await this.passwordResetTokenRepo.save(resetToken);
   }
@@ -460,7 +450,7 @@ export class UserService {
     // Invalidate old unverified tokens
     await this.emailVerificationTokenRepo.delete({
       userId,
-      verifiedAt: null as any,
+      verifiedAt: null as unknown as Date,
     });
 
     // Generate 6-digit OTP
@@ -474,7 +464,7 @@ export class UserService {
       userId,
       otp,
       expiresAt,
-      verifiedAt: null,
+      verifiedAt: null as unknown as Date,
     });
 
     await this.emailVerificationTokenRepo.save(verificationToken);
@@ -485,7 +475,7 @@ export class UserService {
     const verificationToken = await this.emailVerificationTokenRepo.findOne({
       where: {
         otp,
-        verifiedAt: null as any,
+        verifiedAt: null as unknown as Date,
       },
     });
 

@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule, ConfigService } from '@nestjs/config';
+import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
@@ -13,22 +13,20 @@ import { BibleModule } from './modules/bible/bible.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { UserModule } from 'src/modules/user/user.module';
 import { BibleVerseModule } from './modules/bible/bible-verse/bible-verse.module';
-
+import dataSource from './migrations/migration.config';
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
     }),
-
     TypeOrmModule.forRootAsync({
-      useFactory: (config: ConfigService) => ({
-        type: 'postgres',
-        url: config.get<string>('DATABASE_URI'),
+      useFactory: () => ({
+        ...dataSource.options,
         autoLoadEntities: true,
-        synchronize: true,
       }),
-      inject: [ConfigService],
+      dataSourceFactory: async () => dataSource,
     }),
+
     ThrottlerModule.forRoot([
       {
         name: 'short',
@@ -46,7 +44,6 @@ import { BibleVerseModule } from './modules/bible/bible-verse/bible-verse.module
         limit: 100, // 100 requests per minute
       },
     ]),
-
     SwaggerSyncModule.register({
       apiKey: process.env.POSTMAN_API_KEY || '',
       swaggerPath: `${process.env.API_VERSION || 'api/v1'}/docs`,
@@ -55,7 +52,6 @@ import { BibleVerseModule } from './modules/bible/bible-verse/bible-verse.module
       runTest: true,
       ignorePathWithBearerToken: ['api/v1/user/login', 'api/v1/user/signup'],
     }),
-
     HealthModule,
     WaitlistModule,
     EmailModule,

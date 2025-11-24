@@ -3,7 +3,7 @@ import { ApiTags, ApiOperation, ApiResponse, ApiBody } from '@nestjs/swagger';
 import { WaitlistService } from './waitlist.service';
 import { CreateWaitlistEntryDto } from './dto/create-waitlist-entry.dto';
 import { Throttle } from '@nestjs/throttler';
-import { SystemMessages } from 'src/shared/constsnts/sharedmessages';
+import * as SystemMessages from '../../shared/constants/systemMessages';
 
 @ApiTags('waitlist')
 @Controller('waitlist')
@@ -51,7 +51,10 @@ export class WaitlistController {
       },
     },
   })
-  @ApiResponse({ status: HttpStatus.INTERNAL_SERVER_ERROR, description: 'Internal server error.' })
+  @ApiResponse({
+    status: HttpStatus.INTERNAL_SERVER_ERROR,
+    description: 'Internal server error.',
+  })
   create(@Body() createWaitlistEntryDto: CreateWaitlistEntryDto) {
     return this.waitlistService.create(createWaitlistEntryDto);
   }

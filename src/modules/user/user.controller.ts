@@ -32,7 +32,7 @@ import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { VerifyEmailDto } from './dto/verify-email.dto';
 import { SignupUserDto } from './dto/signup-user.dto';
-import { SystemMessages } from 'src/shared/constsnts/sharedmessages';
+import * as SystemMessages from 'src/shared/constants/systemMessages';
 
 @ApiTags('User')
 @Controller('user')
@@ -59,7 +59,10 @@ export class UserController {
       },
     },
   })
-  @ApiResponse({ status: HttpStatus.UNAUTHORIZED, description: 'Unauthorized or token invalid' })
+  @ApiResponse({
+    status: HttpStatus.UNAUTHORIZED,
+    description: 'Unauthorized or token invalid',
+  })
   async logout(
     @Req()
     req: Request & {
@@ -232,7 +235,10 @@ export class UserController {
       },
     },
   })
-  @ApiResponse({ status: HttpStatus.UNAUTHORIZED, description: 'Invalid credentials' })
+  @ApiResponse({
+    status: HttpStatus.UNAUTHORIZED,
+    description: 'Invalid credentials',
+  })
   async login(@Body() loginDto: LoginDto) {
     const result = await this.users.login(loginDto);
     return {
@@ -276,7 +282,10 @@ export class UserController {
       },
     },
   })
-  @ApiResponse({ status: HttpStatus.UNAUTHORIZED, description: 'Invalid refresh token' })
+  @ApiResponse({
+    status: HttpStatus.UNAUTHORIZED,
+    description: 'Invalid refresh token',
+  })
   async refreshToken(@HeadersDecorator('authorization') authorization: string) {
     if (!authorization) {
       throw new BadRequestException('Missing Authorization header');
@@ -319,8 +328,14 @@ export class UserController {
   @Post('reset-password')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Reset password with token' })
-  @ApiResponse({ status: HttpStatus.OK, description: 'Password successfully reset' })
-  @ApiResponse({ status: HttpStatus.NOT_FOUND, description: 'Invalid or expired reset token' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Password successfully reset',
+  })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: 'Invalid or expired reset token',
+  })
   async resetPassword(@Body() resetPasswordDto: ResetPasswordDto) {
     await this.users.resetPassword(
       resetPasswordDto.token,
