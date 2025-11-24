@@ -231,7 +231,7 @@ jobs:
           npm run build
           echo "🛠️ Running database migrations..."
           echo "#--we should not generate migrations on staging or prod. it is gotten from the script"
-          npm run migration:run
+          # npm run migration:run
           echo "🚀 Restarting application with PM2..."
           pm2 reload ${{ steps.envselect.outputs.PM2_APP_NAME }} || pm2 start dist/main.js --name ${{ steps.envselect.outputs.PM2_APP_NAME }}
           pm2 save
