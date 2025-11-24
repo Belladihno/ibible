@@ -155,7 +155,7 @@ jobs:
           echo "BACKEND_URL=${{ secrets.STAGING_BACKEND_URL }}" >> $GITHUB_OUTPUT
           echo "PORT=${{ secrets.STAGING_PORT }}" >> $GITHUB_OUTPUT
           echo "GOOGLE_CALLBACK_URL=${{ secrets.STAGING_GOOGLE_CALLBACK_URL }}" >> $GITHUB_OUTPUT
-          echo "PM2_APP_NAME={{ secrets.STAGING_PM2_APP_NAME }}" >> $GITHUB_OUTPUT
+          echo "PM2_APP_NAME=seisho-backend-staging" >> $GITHUB_OUTPUT
           echo "ENV_NAME=staging" >> $GITHUB_OUTPUT
           echo "HEALTH_CHECK_URL=${{ secrets.STAGING_BACKEND_URL }}/api/v1/health" >> $GITHUB_OUTPUT
           echo "JWT_ACCESS_SECRET=${{ secrets.STAGING_JWT_ACCESS_SECRET }}" >> $GITHUB_OUTPUT
@@ -177,7 +177,7 @@ jobs:
           echo "FRONTEND_URL=${{ secrets.PROD_FRONTEND_URL }}" >> $GITHUB_OUTPUT
           echo "PORT=${{ secrets.PROD_PORT }}" >> $GITHUB_OUTPUT
           echo "GOOGLE_CALLBACK_URL=${{ secrets.PROD_GOOGLE_CALLBACK_URL }}" >> $GITHUB_OUTPUT
-          echo "PM2_APP_NAME={{ secrets.PROD_PM2_APP_NAME}}" >> $GITHUB_OUTPUT
+          echo "PM2_APP_NAME=seisho-backend-production" >> $GITHUB_OUTPUT
           echo "ENV_NAME=production" >> $GITHUB_OUTPUT
           echo "HEALTH_CHECK_URL=${{ secrets.PROD_BACKEND_URL }}/api/v1/health" >> $GITHUB_OUTPUT
           echo "JWT_REFRESH_SECRET=${{ secrets.PROD_JWT_REFRESH_SECRET }}" >> $GITHUB_OUTPUT
