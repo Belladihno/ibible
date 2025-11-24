@@ -157,7 +157,7 @@ jobs:
           echo "GOOGLE_CALLBACK_URL=${{ secrets.STAGING_GOOGLE_CALLBACK_URL }}" >> $GITHUB_OUTPUT
           echo "PM2_APP_NAME=seisho-backend-staging" >> $GITHUB_OUTPUT
           echo "ENV_NAME=staging" >> $GITHUB_OUTPUT
-          echo "HEALTH_CHECK_URL=${{ secrets.STAGING_BACKEND_URL }}/api/v1/health" >> $GITHUB_OUTPUT
+          echo "HEALTH_CHECK_URL=${{ secrets.STAGING_BACKEND_URL }}" >> $GITHUB_OUTPUT
           echo "JWT_ACCESS_SECRET=${{ secrets.STAGING_JWT_ACCESS_SECRET }}" >> $GITHUB_OUTPUT
           echo "JWT_REFRESH_SECRET=${{ secrets.STAGING_JWT_REFRESH_SECRET }}" >> $GITHUB_OUTPUT
           echo "Environment set to Staging"
@@ -179,7 +179,7 @@ jobs:
           echo "GOOGLE_CALLBACK_URL=${{ secrets.PROD_GOOGLE_CALLBACK_URL }}" >> $GITHUB_OUTPUT
           echo "PM2_APP_NAME=seisho-backend-production" >> $GITHUB_OUTPUT
           echo "ENV_NAME=production" >> $GITHUB_OUTPUT
-          echo "HEALTH_CHECK_URL=${{ secrets.PROD_BACKEND_URL }}/api/v1/health" >> $GITHUB_OUTPUT
+          echo "HEALTH_CHECK_URL=${{ secrets.PROD_BACKEND_URL }}" >> $GITHUB_OUTPUT
           echo "JWT_REFRESH_SECRET=${{ secrets.PROD_JWT_REFRESH_SECRET }}" >> $GITHUB_OUTPUT
           echo "JWT_ACCESS_SECRET=${{ secrets.PROD_JWT_ACCESS_SECRET }}" >> $GITHUB_OUTPUT
           echo "Environment set to Production"
@@ -203,6 +203,7 @@ jobs:
           echo "⚙️ Writing .env file..."
           set +x 
           echo "API_VERSION=${{ secrets.API_VERSION }}" > .env
+          echo "ENV_NAME=${{ steps.envselect.outputs.ENV_NAME }}" >> .env
           echo "PORT=${{ steps.envselect.outputs.PORT }}" >> .env
           echo "DATABASE_URI=${{ steps.envselect.outputs.DATABASE_URI }}" >> .env
           echo "DATABASE_NAME=${{ steps.envselect.outputs.DATABASE_NAME }}" >> .env
@@ -248,18 +249,26 @@ jobs:
         ENDSSH
 
     - name: Health Check
+      env:
+        SERVER_PASSWORD: ${{ steps.envselect.outputs.SERVER_PASSWORD }}
+        SERVER_USER: ${{ steps.envselect.outputs.SERVER_USER }}
+        SERVER_HOST: ${{ steps.envselect.outputs.SERVER_HOST }}
+        HEALTH_CHECK_URL: ${{ steps.envselect.outputs.HEALTH_CHECK_URL }}
+        PM2_APP_NAME: ${{ steps.envselect.outputs.PM2_APP_NAME }}
+        ENV_NAME: ${{ steps.envselect.outputs.ENV_NAME }}
       run: |
-        sshpass -p "${{ steps.envselect.outputs.SERVER_PASSWORD }}" ssh -o StrictHostKeyChecking=no \
-          ${{ steps.envselect.outputs.SERVER_USER }}@${{ steps.envselect.outputs.SERVER_HOST }} << 'ENDSSH'
+        sshpass -p "$SERVER_PASSWORD" ssh -o StrictHostKeyChecking=no \
+          $SERVER_USER@$SERVER_HOST << ENDSSH
           echo "Waiting for app to start..."
           sleep 15
-          echo "🏥 Performing health check on ${{ steps.envselect.outputs.ENV_NAME }}..."
-          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" ${{ steps.envselect.outputs.HEALTH_CHECK_URL }} || echo "000")
-          if [ "$HTTP_STATUS" -eq 200 ]; then
-            echo "Health check passed!"
+          echo "🏥 Performing health check on $ENV_NAME..."
+          HTTP_STATUS=\$(curl -s -o /dev/null -w "%{http_code}" $HEALTH_CHECK_URL || echo "000")
+          if [ "\$HTTP_STATUS" -eq 200 ]; then
+            echo "✅ Health check passed!"
           else
-            echo "Health check failed with code $HTTP_STATUS"
-            pm2 logs backend --lines 50
+            echo "❌ Health check failed with code \$HTTP_STATUS"
+            echo "📋 Showing logs for $PM2_APP_NAME..."
+            pm2 logs $PM2_APP_NAME --lines 50 --nostream
             exit 1
           fi
         ENDSSH
