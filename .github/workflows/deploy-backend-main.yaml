@@ -203,6 +203,11 @@ jobs:
           echo "API_VERSION=${{ secrets.API_VERSION }}" > .env
           echo "PORT=${{ steps.envselect.outputs.PORT }}" >> .env
           echo "DATABASE_URI=${{ steps.envselect.outputs.DATABASE_URI }}" >> .env
+          echo "DATABASE_NAME=${{ steps.envselect.outputs.DATABASE_NAME }}" >> .env
+          echo "DATABASE_HOST=${{ steps.envselect.outputs.DATABASE_HOST }}" >> .env
+          echo "DATABASE_PASSWORD=${{ steps.envselect.outputs.DATABASE_PASSWORD }}" >> .env
+          echo "DATABASE_USERNAME=${{ steps.envselect.outputs.DATABASE_USERNAME }}" >> .env
+          echo "DATABASE_PORT=${{ steps.envselect.outputs.DATABASE_PORT }}" >> .env
           echo "FRONTEND_URL=${{ steps.envselect.outputs.FRONTEND_URL }}" >> .env
           echo "BACKEND_URL=${{ steps.envselect.outputs.BACKEND_URL }}" >> .env
           echo "PM2_APP_NAME=${{ steps.envselect.outputs.PM2_APP_NAME }}" >> .env
