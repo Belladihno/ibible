@@ -262,10 +262,10 @@ export class UserService {
     );
     const accessExpiresIn = accessExpiresInStr
       ? parseInt(accessExpiresInStr)
-      : 15 * 60; // default 900s
+      : 7 * 24 * 60 * 60; // default 7 days
     const refreshExpiresIn = refreshExpiresInStr
       ? parseInt(refreshExpiresInStr)
-      : 7 * 24 * 60 * 60; // default 7 days
+      : 14 * 24 * 60 * 60; // default 14 days
 
     // Create a unique identifier for the access token (jti)
     const jti = randomBytes(16).toString('hex');

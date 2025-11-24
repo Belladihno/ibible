@@ -1,4 +1,365 @@
-import { Controller } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Param,
+  Query,
+  Post,
+  Body,
+  BadRequestException,
+  UseGuards,
+} from '@nestjs/common';
+import {
+  ApiQuery,
+  ApiOperation,
+  ApiTags,
+  ApiOkResponse,
+  ApiBadRequestResponse,
+  ApiBody,
+} from '@nestjs/swagger';
+import { AuthGuard } from '@nestjs/passport';
+import { ApiBearerAuth } from '@nestjs/swagger';
+import { BibleService } from './bible.service';
+import { LogReadingSessionDto } from './dto/log-reading-session.dto';
 
+@ApiTags('Bible')
+@ApiBearerAuth()
+@UseGuards(AuthGuard('jwt'))
 @Controller('bible')
-export class BibleController {}
+export class BibleController {
+  constructor(private readonly bibleService: BibleService) {}
+
+  // GET /bible/versions
+  @ApiOperation({ summary: 'List available Bible versions' })
+  @ApiOkResponse({
+    description: 'Available Bible versions',
+    schema: {
+      type: 'object',
+      properties: {
+        data: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              id: { type: 'string' },
+              name: { type: 'string' },
+              abbreviation: { type: 'string' },
+              language: { type: 'string' },
+              updatedAt: { type: 'string', format: 'date-time' },
+            },
+          },
+        },
+      },
+      example: {
+        data: [
+          {
+            id: 'de4e12af7f28f599-02',
+            name: 'English Standard Version',
+            abbreviation: 'ESV',
+            language: 'en',
+            updatedAt: '2025-01-01T00:00:00Z',
+          },
+        ],
+      },
+    },
+  })
+  @Get('versions')
+  async getVersions(): Promise<Record<string, unknown>> {
+    return this.bibleService.getBibleVersions();
+  }
+
+  // GET /bible/books
+  // Optional JSON body: { "bibleId": "<bible-id>" }
+  @ApiOperation({ summary: 'List books for a Bible (optional bibleId body)' })
+  @ApiBody({
+    required: false,
+    schema: {
+      type: 'object',
+      properties: {
+        bibleId: { type: 'string' },
+      },
+      example: {
+        bibleId: 'de4e12af7f28f599-02',
+      },
+    },
+  })
+  @ApiOkResponse({
+    description: 'Books list',
+    schema: {
+      type: 'object',
+      properties: {
+        data: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              id: { type: 'string' },
+              bibleId: { type: 'string' },
+              abbreviation: { type: 'string' },
+              name: { type: 'string' },
+              nameLong: { type: 'string' },
+              chapters: { type: 'array', items: { type: 'object' } },
+            },
+          },
+        },
+      },
+      example: {
+        data: [
+          {
+            id: 'GEN',
+            bibleId: 'de4e12af7f28f599-02',
+            abbreviation: 'Gen',
+            name: 'Genesis',
+            nameLong: 'The Book of Genesis',
+          },
+        ],
+      },
+    },
+  })
+  @Get('books')
+  async getBooks(
+    @Body() body?: { bibleId?: string },
+  ): Promise<Record<string, unknown>> {
+    const requestedBibleId = body?.bibleId;
+    return await this.bibleService.getBooks(requestedBibleId);
+  }
+
+  // GET /bible/:book/:chapter
+  @ApiOperation({ summary: 'Get a chapter (returns cleaned verse list)' })
+  @ApiOkResponse({
+    description: 'Chapter with verses',
+    schema: {
+      type: 'object',
+      properties: {
+        id: { type: 'string' },
+        orgId: { type: 'string' },
+        bibleId: { type: 'string' },
+        bookId: { type: 'string' },
+        chapterIds: { type: 'array', items: { type: 'string' } },
+        reference: { type: 'string' },
+        content: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              verseId: { type: 'string' },
+              verse: { type: 'string' },
+            },
+          },
+        },
+      },
+      example: {
+        id: 'GEN.1',
+        orgId: 'org-123',
+        bibleId: 'de4e12af7f28f599-02',
+        bookId: 'GEN',
+        chapterIds: ['GEN.1'],
+        reference: 'Genesis 1',
+        content: [
+          {
+            verseId: 'GEN.1.1',
+            verse: 'In the beginning God created the heavens and the earth.',
+          },
+          {
+            verseId: 'GEN.1.2',
+            verse: 'And the earth was without form...',
+          },
+        ],
+      },
+    },
+  })
+  @Get(':book/:chapter')
+  async getChapter(
+    @Param('book') book: string,
+    @Param('chapter') chapter: string,
+  ): Promise<Record<string, unknown>> {
+    const chapterId = `${book.toUpperCase()}.${chapter}`;
+    return this.bibleService.getChapter(chapterId);
+  }
+
+  // GET /bible/verse?verseId=GEN.1.1
+  @ApiOperation({ summary: 'Get a single verse (cleaned content)' })
+  @ApiQuery({
+    name: 'verseId',
+    required: true,
+    description: 'Verse id, e.g. GEN.1.1',
+  })
+  @ApiOkResponse({
+    description: 'Single verse response',
+    schema: {
+      type: 'object',
+      properties: {
+        id: { type: 'string' },
+        orgId: { type: 'string' },
+        bibleId: { type: 'string' },
+        bookId: { type: 'string' },
+        chapterId: { type: 'string' },
+        reference: { type: 'string' },
+        content: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              verseId: { type: 'string' },
+              verse: { type: 'string' },
+            },
+          },
+        },
+        verseCount: { type: 'integer' },
+        next: { type: 'object', nullable: true },
+        previous: { type: 'object', nullable: true },
+        timestamp: { type: 'string', format: 'date-time' },
+        copyright: { type: 'string' },
+      },
+      example: {
+        id: 'GEN.1.1',
+        orgId: 'org-123',
+        bibleId: 'de4e12af7f28f599-02',
+        bookId: 'GEN',
+        chapterId: 'GEN.1',
+        reference: 'Genesis 1:1',
+        content: [
+          {
+            verseId: 'GEN.1.1',
+            verse: 'In the beginning God created the heavens and the earth.',
+          },
+        ],
+        verseCount: 1,
+        next: null,
+        previous: null,
+        timestamp: '2025-11-24T00:00:00Z',
+        copyright: 'Public Domain',
+      },
+    },
+  })
+  @ApiBadRequestResponse({ description: 'Missing or invalid verseId' })
+  @Get('verse')
+  async getVerse(
+    @Query('verseId') verseId: string,
+  ): Promise<Record<string, unknown>> {
+    if (!verseId) throw new BadRequestException('verseId is required');
+    return this.bibleService.getVerse(verseId);
+  }
+
+  // GET /bible/search?query=xxx&limit=10&offset=0
+  @ApiOperation({ summary: 'Search the Bible text' })
+  @ApiQuery({ name: 'query', required: true, description: 'Search query' })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    description: 'Max results (default 10)',
+  })
+  @ApiQuery({
+    name: 'offset',
+    required: false,
+    description: 'Result offset (default 0)',
+  })
+  @ApiOkResponse({
+    description: 'Search results',
+    schema: {
+      example: {
+        total: 1,
+        data: [
+          {
+            reference: 'John 3:16',
+            passage: 'For God so loved the world...',
+          },
+        ],
+      },
+    },
+  })
+  @ApiBadRequestResponse({ description: 'Missing query parameter' })
+  @Get('search')
+  async search(
+    @Query('query') query: string,
+    @Query('limit') limit?: string,
+    @Query('offset') offset?: string,
+  ): Promise<Record<string, unknown>> {
+    if (!query) throw new BadRequestException('query is required');
+    return this.bibleService.search(
+      query,
+      Number(limit) || 10,
+      Number(offset) || 0,
+    );
+  }
+
+  // POST /bible/read
+  @ApiOperation({ summary: 'Log a reading session (demo-only)' })
+  @ApiBody({
+    schema: {
+      example: {
+        userId: 'user-123',
+        bibleId: 'de4e12af7f28f599-02',
+        book: 'GEN',
+        chapter: '1',
+        verse: '1',
+        version: 'ESV',
+        timestamp: '2025-11-24T12:00:00Z',
+      },
+    },
+  })
+  @ApiOkResponse({
+    description: 'Logging result',
+    schema: {
+      example: {
+        success: true,
+      },
+    },
+  })
+  @Post('read')
+  async logReadingSession(
+    @Body() body: LogReadingSessionDto,
+  ): Promise<{ success: boolean }> {
+    return this.bibleService.logReadingSession(
+      body as unknown as Record<string, unknown>,
+    );
+  }
+
+  // GET /bible/audio/:book/:chapter?audioBibleId=xxx
+  @Get('audio/:book/:chapter')
+  @ApiOperation({ summary: 'Get an audio chapter (audioBibleId optional)' })
+  @ApiQuery({
+    name: 'audioBibleId',
+    required: false,
+    description:
+      'Optional audioBibleId. If omitted the default `105a06b6146d11e7-01` (English - World English Bible 2013, Drama NT) will be used — NOTE: this default is New Testament only.',
+  })
+  @ApiOkResponse({
+    description: 'Audio chapter metadata',
+    schema: {
+      example: {
+        id: 'GEN.1',
+        audioUrl: 'https://cdn.example.org/audio/105a06b6/GEN.1.mp3',
+        title: 'Genesis 1',
+      },
+    },
+  })
+  async getAudioChapter(
+    @Param('book') book: string,
+    @Param('chapter') chapter: string,
+    @Query('audioBibleId') audioBibleId?: string,
+  ): Promise<Record<string, unknown>> {
+    const audioId = audioBibleId || '105a06b6146d11e7-01';
+    const chapterId = `${book.toUpperCase()}.${chapter}`;
+    return this.bibleService.getAudioChapter(audioId, chapterId);
+  }
+
+  // GET /bible/audio-bibles
+  @ApiOperation({ summary: 'List available audio Bible collections' })
+  @ApiOkResponse({
+    description: 'Audio bibles list',
+    schema: {
+      example: {
+        data: [
+          {
+            id: '105a06b6146d11e7-01',
+            name: 'World English Bible 2013 - Drama (NT)',
+          },
+        ],
+      },
+    },
+  })
+  @Get('audio-bibles')
+  async getAudioBibles(): Promise<Record<string, unknown>> {
+    return this.bibleService.getAudioBibles();
+  }
+}

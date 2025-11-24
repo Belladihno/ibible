@@ -28,7 +28,9 @@ import { PasswordResetToken } from '../../entities/password-reset-token.entity';
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => {
         const expiresIn = configService.get<string>('JWT_EXPIRES_IN');
-        const expiresInSeconds = expiresIn ? parseInt(expiresIn) : 900;
+        const expiresInSeconds = expiresIn
+          ? parseInt(expiresIn)
+          : 7 * 24 * 60 * 60;
         return {
           secret: configService.get<string>('JWT_SECRET') || 'fallback-secret',
           signOptions: {
