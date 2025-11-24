@@ -15,6 +15,7 @@ const dataSource = new DataSource({
   migrationsTableName: 'migrations',
   logging: true,
 });
+
 export async function initializeDataSource() {
   if (!dataSource.isInitialized) {
     await dataSource.initialize();

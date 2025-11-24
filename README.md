@@ -30,7 +30,6 @@ Create a local environment file from the example (if present) and edit your valu
 cp .env.example .env
 ```
 
-
 Edit the `.env` file with your database connection string, secrets and any other configuration values.
 
 Important: the application requires certain environment variables to run correctly. It is recommended that you set all .env variables. At minimum you should set:
@@ -50,7 +49,20 @@ docker compose up -d
 
 This will start the required Redis and Postgres services in the background.
 
-3. Run the project
+3. Database Setup
+
+Run migrations to create the database schema:
+
+```bash
+
+npm run migration:generate
+
+
+npm run migration:run
+npm run migration:revert
+```
+
+4. Run the project
 
 Development:
 
@@ -66,10 +78,11 @@ npm run start:prod
 
 The application will be available at `http://localhost:3000/api/v1`.
 Documentation endpoints:
+
 - **Scalar:** `http://localhost:3000/api/v1/reference`
 - **Swagger UI:** `http://localhost:3000/api/v1/docs`
 
-### Linting 
+### Linting
 
 ```bash
 npm run lint
@@ -96,6 +109,3 @@ npm run test:cov
 ```
 
 ---
-
-
-
