@@ -28,7 +28,11 @@ export class BibleService {
     @InjectRepository(ReadingLog)
     private readonly readingLogRepo: Repository<ReadingLog>,
   ) {
-    this.redis = new Redis(REDIS_URL);
+      const redisUrl =
+      this.config.get<string>('REDIS_URL') || 'redis://localhost:6379';
+
+      
+  this.redis = new Redis(redisUrl);
   }
 
   private getHeaders = () => {
