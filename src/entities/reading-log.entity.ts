@@ -1,15 +1,8 @@
-import {
-  Entity,
-  PrimaryGeneratedColumn,
-  Column,
-  CreateDateColumn,
-} from 'typeorm';
+import { Entity, Column } from 'typeorm';
+import { BaseEntity } from './base.entity';
 
 @Entity('reading_log')
-export class ReadingLog {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
-
+export class ReadingLog extends BaseEntity {
   @Column({ nullable: true })
   userId?: string;
 
@@ -30,7 +23,4 @@ export class ReadingLog {
 
   @Column({ nullable: true })
   timestamp?: string;
-
-  @CreateDateColumn()
-  createdAt: Date;
 }

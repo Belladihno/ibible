@@ -31,7 +31,7 @@ export class BibleService {
     this.redis = new Redis(REDIS_URL);
   }
 
-  private getHeaders() {
+  private getHeaders = () => {
     const apiKey =
       this.config.get<string>('BIBLE_API_KEY') ||
       process.env.BIBLE_API_KEY ||
@@ -40,9 +40,9 @@ export class BibleService {
       'api-key': apiKey,
       'Content-Type': 'application/json',
     };
-  }
+  };
 
-  async getChapter(chapterId: string): Promise<Record<string, unknown>> {
+  getChapter = async (chapterId: string): Promise<Record<string, unknown>> => {
     try {
       const cacheKey = `bible:chapter:${this.BIBLE_ID}:${chapterId}:content=json:clean`;
       const cached = await this.redis.get(cacheKey);
@@ -79,9 +79,9 @@ export class BibleService {
       this.logger.error('getChapter error', err);
       throw new InternalServerErrorException('Could not fetch chapter');
     }
-  }
+  };
 
-  async getVerse(verseId: string): Promise<Record<string, unknown>> {
+  getVerse = async (verseId: string): Promise<Record<string, unknown>> => {
     try {
       const cacheKey = `bible:verse:${this.BIBLE_ID}:${verseId}:content=json:clean`;
       const cached = await this.redis.get(cacheKey);
@@ -124,9 +124,9 @@ export class BibleService {
       this.logger.error('getVerse error', err);
       throw new InternalServerErrorException('Could not fetch verse');
     }
-  }
+  };
 
-  async getBooks(bibleId?: string): Promise<Record<string, unknown>> {
+  getBooks = async (bibleId?: string): Promise<Record<string, unknown>> => {
     try {
       const id = bibleId || this.BIBLE_ID;
       const cacheKey = `bible:books:${id}`;
@@ -148,9 +148,9 @@ export class BibleService {
       this.logger.error('getBooks error', err);
       throw new InternalServerErrorException('Could not fetch books');
     }
-  }
+  };
 
-  async getBibleVersions(): Promise<Record<string, unknown>> {
+  getBibleVersions = async (): Promise<Record<string, unknown>> => {
     try {
       const cacheKey = 'bible:versions';
       const cached = await this.redis.get(cacheKey);
@@ -171,13 +171,13 @@ export class BibleService {
       this.logger.error('getBibleVersions error', err);
       throw new InternalServerErrorException('Could not fetch Bible versions');
     }
-  }
+  };
 
-  async search(
+  search = async (
     query: string,
     limit = 10,
     offset = 0,
-  ): Promise<Record<string, unknown>> {
+  ): Promise<Record<string, unknown>> => {
     try {
       const cacheKey = `bible:search:${this.BIBLE_ID}:${query}:${limit}:${offset}`;
       const cached = await this.redis.get(cacheKey);
@@ -193,12 +193,12 @@ export class BibleService {
       this.logger.error('search error', err);
       throw new InternalServerErrorException('Could not search Bible');
     }
-  }
+  };
 
-  async getAudioChapter(
+  getAudioChapter = async (
     audioBibleId: string,
     chapterId: string,
-  ): Promise<Record<string, unknown>> {
+  ): Promise<Record<string, unknown>> => {
     try {
       const cacheKey = `bible:audio:${audioBibleId}:${chapterId}`;
       const cached = await this.redis.get(cacheKey);
@@ -219,9 +219,9 @@ export class BibleService {
       this.logger.error('getAudioChapter error', err);
       throw new InternalServerErrorException('Could not fetch audio chapter');
     }
-  }
+  };
 
-  async getAudioBibles(): Promise<Record<string, unknown>> {
+  getAudioBibles = async (): Promise<Record<string, unknown>> => {
     try {
       const cacheKey = 'bible:audio-bibles';
       const cached = await this.redis.get(cacheKey);
@@ -242,11 +242,11 @@ export class BibleService {
       this.logger.error('getAudioBibles error', err);
       throw new InternalServerErrorException('Could not fetch audio bibles');
     }
-  }
+  };
 
-  async logReadingSession(
+  logReadingSession = async (
     payload: Record<string, unknown>,
-  ): Promise<{ success: boolean }> {
+  ): Promise<{ success: boolean }> => {
     try {
       // Save to DB
       await this.readingLogRepo.save(payload);
@@ -256,17 +256,17 @@ export class BibleService {
       this.logger.error('logReadingSession error', err);
       throw new InternalServerErrorException('Could not log reading session');
     }
-  }
+  };
 
   /**
    * Retrieve all reading logs
    */
-  async getReadingLogs(): Promise<ReadingLog[]> {
+  getReadingLogs = async (): Promise<ReadingLog[]> => {
     try {
       return await this.readingLogRepo.find();
     } catch (err) {
       this.logger.error('getReadingLogs error', err);
       throw new InternalServerErrorException('Could not fetch reading logs');
     }
-  }
+  };
 }
