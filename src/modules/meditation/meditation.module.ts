@@ -27,7 +27,7 @@ import { ScheduleModule } from '@nestjs/schedule';
       signOptions: { expiresIn: '1d' },
     }),
 
-    ScheduleModule.forRoot(), 
+    ScheduleModule.forRoot(),
   ],
   controllers: [MeditationController],
   providers: [

@@ -1,6 +1,8 @@
 import { MigrationInterface, QueryRunner, Table, TableIndex } from 'typeorm';
 
-export class CreateMeditationVersesTables1732500000000 implements MigrationInterface {
+export class CreateMeditationVersesTables1732500000000
+  implements MigrationInterface
+{
   public async up(queryRunner: QueryRunner): Promise<void> {
     // Create meditation_verse_library table
     await queryRunner.createTable(

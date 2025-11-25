@@ -40,5 +40,5 @@ export class MeditationSession extends BaseEntity {
   completed: boolean;
 
   @Column({ type: 'jsonb', nullable: false, default: {} })
-notes: Record<string, any> | null;
+  notes: Record<string, any> | null;
 }

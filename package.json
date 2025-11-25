@@ -24,6 +24,7 @@
     "migration:revert": "npx typeorm -- migration:revert -d src/migrations/migration.config.ts"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "@hng-sdk/orm": "^0.0.0",
     "@nestjs/axios": "^4.0.1",
     "@nestjs/bull": "^11.0.4",
@@ -42,7 +43,7 @@
     "class-validator": "^0.14.3",
     "ioredis": "^5.8.2",
     "iterare": "^1.2.1",
-    "mongoose": "^8.19.4",
+    "mongoose": "^8.20.1",
     "nestjs-swagger-sync": "^6.6.1",
     "nodemailer": "^7.0.10",
     "nunjucks": "^3.2.4",
@@ -68,6 +69,7 @@
     "@types/bcrypt": "^6.0.0",
     "@types/express": "^5.0.0",
     "@types/jest": "^30.0.0",
+    "@types/mongoose": "^5.11.96",
     "@types/node": "^22.10.7",
     "@types/nodemailer": "^7.0.3",
     "@types/nunjucks": "^3.2.6",

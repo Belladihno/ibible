@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { MongooseModule } from '@nestjs/mongoose';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
 import { AppController } from './app.controller';
@@ -13,10 +14,17 @@ import { BibleModule } from './modules/bible/bible.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { UserModule } from 'src/modules/user/user.module';
 import { BibleVerseModule } from './modules/bible/bible-verse/bible-verse.module';
+import { ChatModule } from './modules/chat/chat.module';
+import {
+  ChatConversation,
+  ChatConversationSchema,
+} from './schemas/chat-conversation.schema';
+import { ChatMessage, ChatMessageSchema } from './schemas/chat-message.schema';
 import { MeditationModule } from './modules/meditation/meditation.module';
 import { ScheduleModule } from '@nestjs/schedule';
 
 import dataSource from './migrations/migration.config';
+
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -29,6 +37,18 @@ import dataSource from './migrations/migration.config';
       }),
       dataSourceFactory: async () => dataSource,
     }),
+
+    MongooseModule.forRootAsync({
+      useFactory: (configService: ConfigService) => ({
+        uri: configService.get<string>('MONGODB_URI'),
+      }),
+      inject: [ConfigService],
+    }),
+
+    MongooseModule.forFeature([
+      { name: ChatConversation.name, schema: ChatConversationSchema },
+      { name: ChatMessage.name, schema: ChatMessageSchema },
+    ]),
 
     ThrottlerModule.forRoot([
       {
@@ -62,7 +82,10 @@ import dataSource from './migrations/migration.config';
     BibleModule,
     NotificationsModule,
     BibleVerseModule,
-     ScheduleModule.forRoot(),
+
+    ChatModule,
+
+    ScheduleModule.forRoot(),
     MeditationModule,
   ],
   controllers: [AppController],
