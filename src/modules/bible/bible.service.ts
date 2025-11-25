@@ -28,11 +28,10 @@ export class BibleService {
     @InjectRepository(ReadingLog)
     private readonly readingLogRepo: Repository<ReadingLog>,
   ) {
-      const redisUrl =
+    const redisUrl =
       this.config.get<string>('REDIS_URL') || 'redis://localhost:6379';
 
-      
-  this.redis = new Redis(redisUrl);
+    this.redis = new Redis(redisUrl);
   }
 
   private getHeaders = () => {
@@ -49,6 +48,7 @@ export class BibleService {
   getChapter = async (chapterId: string): Promise<Record<string, unknown>> => {
     try {
       const cacheKey = `bible:chapter:${this.BIBLE_ID}:${chapterId}:content=json:clean`;
+
       const cached = await this.redis.get(cacheKey);
       if (cached) return JSON.parse(cached) as Record<string, unknown>;
 
