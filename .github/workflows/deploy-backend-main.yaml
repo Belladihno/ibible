@@ -214,7 +214,7 @@ jobs:
           echo "FRONTEND_URL=${{ steps.envselect.outputs.FRONTEND_URL }}" >> .env
           echo "BACKEND_URL=${{ steps.envselect.outputs.BACKEND_URL }}" >> .env
           echo "PM2_APP_NAME=${{ steps.envselect.outputs.PM2_APP_NAME }}" >> .env
-          echo "EMAIL_MAILER=${{ steps.envselect.outputs.MAIL_MAILER }}" >> .env
+          echo "EMAIL_MAILER=${{ secrets.MAIL_MAILER }}" >> .env
           echo "EMAIL_HOST=${{ secrets.MAIL_HOST }}" >> .env
           echo "EMAIL_PORT=${{ secrets.MAIL_PORT }}" >> .env
           echo "EMAIL_USERNAME=${{ secrets.MAIL_USERNAME }}" >> .env
