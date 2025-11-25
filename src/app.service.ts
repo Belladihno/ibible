@@ -5,8 +5,6 @@ import { Request } from 'express';
 export class AppService {
   getWelcomeMessage(req: Request) {
     const baseUrl = `${req.protocol}://${req.get('host')}`;
-    const apiVersion = process.env.API_VERSION || '';
-    const prefix = apiVersion ? `/${apiVersion}` : '';
     return {
       message: 'Welcome to REA - Interactive Bible App API',
       data: {
@@ -14,8 +12,8 @@ export class AppService {
         version: '1.0.0',
         status: 'active',
         docs: {
-          scalar: `${baseUrl}${prefix}/reference`,
-          swagger: `${baseUrl}${prefix}/docs`,
+          scalar: `${baseUrl}/api/v1/reference`,
+          swagger: `${baseUrl}/api/v1/docs`,
         },
       },
     };

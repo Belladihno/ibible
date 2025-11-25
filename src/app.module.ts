@@ -49,18 +49,11 @@ import dataSource from './migrations/migration.config';
     ]),
     SwaggerSyncModule.register({
       apiKey: process.env.POSTMAN_API_KEY || '',
-      swaggerPath: `${process.env.API_VERSION || ''}/docs`,
+      swaggerPath: `${process.env.API_VERSION || 'api/v1'}/docs`,
       baseUrl: `http://localhost:${process.env.PORT || 3000}`,
       collectionName: 'REA Interactive Bible API',
       runTest: true,
-      ignorePathWithBearerToken: [
-        process.env.API_VERSION
-          ? `/${process.env.API_VERSION}/user/login`
-          : 'user/login',
-        process.env.API_VERSION
-          ? `/${process.env.API_VERSION}/user/signup`
-          : 'user/signup',
-      ],
+      ignorePathWithBearerToken: ['api/v1/user/login', 'api/v1/user/signup'],
     }),
     HealthModule,
     WaitlistModule,

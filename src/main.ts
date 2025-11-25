@@ -12,7 +12,7 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
     logger: ['log', 'error', 'warn', 'debug'],
   });
-  const apiVersion = process.env.API_VERSION || ''; // Default to empty string for direct endpoints
+  const apiVersion = process.env.API_VERSION || 'api/v1';
 
   app.setGlobalPrefix(apiVersion);
 
@@ -38,12 +38,10 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, config, {
     operationIdFactory: (controllerKey, methodKey) => methodKey,
   });
-  const docsPath = apiVersion ? `/${apiVersion}/docs` : '/docs';
-  SwaggerModule.setup(docsPath, app, document);
+  SwaggerModule.setup(`/${apiVersion}/docs`, app, document);
 
-  const referencePath = apiVersion ? `/${apiVersion}/reference` : '/reference';
   app.use(
-    referencePath,
+    `/${apiVersion}/reference`,
     apiReference({
       content: document,
     }),
@@ -64,9 +62,12 @@ async function bootstrap() {
 
   await app.listen(port);
   logger.log(`REA Backend is running on: http://localhost:${port}/`);
-  const baseUrl = process.env.API_VERSION ? `/${process.env.API_VERSION}` : '';
-  logger.log(`Home: http://localhost:${port}${baseUrl}`);
-  logger.log(`Health: http://localhost:${port}${baseUrl}/health`);
+  logger.log(
+    `Home: http://localhost:${port}/${process.env.API_VERSION || 'api/v1'}`,
+  );
+  logger.log(
+    `Health: http://localhost:${port}/${process.env.API_VERSION || 'api/v1'}/health`,
+  );
 }
 bootstrap().catch((error) => {
   console.error('Failed to start application', error);
