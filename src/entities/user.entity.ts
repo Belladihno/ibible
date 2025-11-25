@@ -6,8 +6,12 @@ import {
   PreferredBibleVersion,
   PreferredAIVoice,
 } from 'src/modules/user/enums/user.enums';
-import { Entity, Column, Index } from 'typeorm';
+import { Entity, Column, Index, OneToMany } from 'typeorm';
 import { BaseEntity } from './base.entity';
+import { AccessToken } from './access-token.entity';
+import { RefreshToken } from './refresh-token.entity';
+import { PasswordResetToken } from './password-reset-token.entity';
+import { EmailVerificationToken } from './email-verification-token.entity';
 
 @Entity('users')
 export class User extends BaseEntity {
@@ -145,4 +149,22 @@ export class User extends BaseEntity {
 
   @Column({ name: 'deleted_at', type: 'timestamp', nullable: true })
   deletedAt: Date;
+
+  @OneToMany(() => AccessToken, (accessToken) => accessToken.user)
+  accessTokens: AccessToken[];
+
+  @OneToMany(() => RefreshToken, (refreshToken) => refreshToken.user)
+  refreshTokens: RefreshToken[];
+
+  @OneToMany(
+    () => PasswordResetToken,
+    (passwordResetToken) => passwordResetToken.user,
+  )
+  passwordResetTokens: PasswordResetToken[];
+
+  @OneToMany(
+    () => EmailVerificationToken,
+    (emailVerificationToken) => emailVerificationToken.user,
+  )
+  emailVerificationTokens: EmailVerificationToken[];
 }
