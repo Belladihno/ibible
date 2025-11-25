@@ -157,7 +157,7 @@ jobs:
           echo "GOOGLE_CALLBACK_URL=${{ secrets.STAGING_GOOGLE_CALLBACK_URL }}" >> $GITHUB_OUTPUT
           echo "PM2_APP_NAME=seisho-backend-staging" >> $GITHUB_OUTPUT
           echo "ENV_NAME=staging" >> $GITHUB_OUTPUT
-          echo "HEALTH_CHECK_URL=${{ secrets.STAGING_BACKEND_URL }}" >> $GITHUB_OUTPUT
+          echo "HEALTH_CHECK_URL=${{ secrets.STAGING_HEALTH_CHECK_URL }}" >> $GITHUB_OUTPUT
           echo "JWT_ACCESS_SECRET=${{ secrets.STAGING_JWT_ACCESS_SECRET }}" >> $GITHUB_OUTPUT
           echo "JWT_REFRESH_SECRET=${{ secrets.STAGING_JWT_REFRESH_SECRET }}" >> $GITHUB_OUTPUT
           echo "Environment set to Staging"
@@ -179,7 +179,7 @@ jobs:
           echo "GOOGLE_CALLBACK_URL=${{ secrets.PROD_GOOGLE_CALLBACK_URL }}" >> $GITHUB_OUTPUT
           echo "PM2_APP_NAME=seisho-backend-production" >> $GITHUB_OUTPUT
           echo "ENV_NAME=production" >> $GITHUB_OUTPUT
-          echo "HEALTH_CHECK_URL=${{ secrets.PROD_BACKEND_URL }}" >> $GITHUB_OUTPUT
+          echo "HEALTH_CHECK_URL=${{ secrets.PROD_HEALTH_CHECK_URL }}" >> $GITHUB_OUTPUT
           echo "JWT_REFRESH_SECRET=${{ secrets.PROD_JWT_REFRESH_SECRET }}" >> $GITHUB_OUTPUT
           echo "JWT_ACCESS_SECRET=${{ secrets.PROD_JWT_ACCESS_SECRET }}" >> $GITHUB_OUTPUT
           echo "Environment set to Production"
@@ -218,7 +218,6 @@ jobs:
           echo "EMAIL_HOST=${{ secrets.MAIL_HOST }}" >> .env
           echo "EMAIL_PORT=${{ secrets.MAIL_PORT }}" >> .env
           echo "EMAIL_USERNAME=${{ secrets.MAIL_USERNAME }}" >> .env
-          echo "EMAIL_PASSWORD=${{ secrets.MAIL_PASSWORD }}" >> .env
           echo "EMAIL_ENCRYPTION=${{ secrets.MAIL_ENCRYPTION }}" >> .env
           echo "EMAIL_FROM_ADDRESS=${{ secrets.MAIL_FROM_ADDRESS }}" >> .env
           echo "EMAIL_FROM_NAME=${{ secrets.MAIL_FROM_NAME }}" >> .env
@@ -236,6 +235,8 @@ jobs:
           echo "BIBLE_API_BASE_URL=${{ secrets.BIBLE_API_BASE_URL }}" >> .env
           echo "USE_API_BIBLE=${{ secrets.USE_API_BIBLE  }}" >> .env
           echo "GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY  }}" >> .env
+          echo "MONGODB_URI=${{ secrets.MONGODB_URI  }}" >> .env
+          echo "EMAIL_PASSWORD=${{ secrets.MAIL_PASSWORD }}" >> .env
           echo "Environment file written."
           set -x
           echo "🔨 Building app..."
