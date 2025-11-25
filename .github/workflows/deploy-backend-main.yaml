@@ -235,6 +235,7 @@ jobs:
           echo "BIBLE_ID=${{ secrets.BIBLE_ID }}" >> .env
           echo "BIBLE_API_BASE_URL=${{ secrets.BIBLE_API_BASE_URL }}" >> .env
           echo "USE_API_BIBLE=${{ secrets.USE_API_BIBLE  }}" >> .env
+          echo "GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY  }}" >> .env
           echo "Environment file written."
           set -x
           echo "🔨 Building app..."
