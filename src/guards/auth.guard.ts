@@ -6,6 +6,7 @@ import appConfig from '../config/auth.config';
 import * as SYS_MSG from '../shared/constants/systemMessages';
 import { IS_PUBLIC_KEY } from '../shared/helpers/skipAuth';
 import { UnauthorizedError } from '../errors/';
+import { JwtPayload } from '../shared/interfaces/jwt-payload.interface';
 
 @Injectable()
 export class AuthGuard implements CanActivate {

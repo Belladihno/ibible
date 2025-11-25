@@ -312,7 +312,10 @@ describe('UserService', () => {
         password: 'password123',
       };
 
-      userRepo.findOne.mockResolvedValue(mockUser);
+      // Create verified user for successful login
+      const verifiedUser = { ...mockUser, emailVerified: true };
+
+      userRepo.findOne.mockResolvedValue(verifiedUser);
       (bcrypt.compare as jest.Mock).mockResolvedValue(true);
 
       configService.get.mockReturnValue('900');
@@ -331,9 +334,9 @@ describe('UserService', () => {
       });
       expect(bcrypt.compare).toHaveBeenCalledWith(
         loginDto.password,
-        mockUser.passwordHash,
+        verifiedUser.passwordHash,
       );
-      expect(result.user.email).toBe(mockUser.email);
+      expect(result.user.email).toBe(verifiedUser.email);
       expect(result.tokens).toHaveProperty('accessToken');
     });
 
@@ -343,7 +346,8 @@ describe('UserService', () => {
         password: 'wrongpassword',
       };
 
-      userRepo.findOne.mockResolvedValue(mockUser);
+      const verifiedUser = { ...mockUser, emailVerified: true };
+      userRepo.findOne.mockResolvedValue(verifiedUser);
       (bcrypt.compare as jest.Mock).mockResolvedValue(false);
 
       await expect(service.login(loginDto)).rejects.toThrow(
@@ -370,11 +374,33 @@ describe('UserService', () => {
         password: 'password123',
       };
 
-      const deactivatedUser = { ...mockUser, isActive: false };
+      const deactivatedUser = {
+        ...mockUser,
+        isActive: false,
+        emailVerified: true,
+      };
       userRepo.findOne.mockResolvedValue(deactivatedUser);
 
       await expect(service.login(loginDto)).rejects.toThrow(
         UnauthorizedException,
+      );
+    });
+
+    it('should throw UnauthorizedException for unverified email', async () => {
+      const loginDto = {
+        email: 'test@example.com',
+        password: 'password123',
+      };
+
+      // mockUser has emailVerified: false
+      userRepo.findOne.mockResolvedValue(mockUser);
+      (bcrypt.compare as jest.Mock).mockResolvedValue(true);
+
+      await expect(service.login(loginDto)).rejects.toThrow(
+        UnauthorizedException,
+      );
+      await expect(service.login(loginDto)).rejects.toThrow(
+        'Email is not verified',
       );
     });
   });

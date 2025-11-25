@@ -37,3 +37,12 @@ export const WAITLIST_ALREADY_EXIST = 'waitlist already exist';
 
 export const UNAUTHENTICATED_MESSAGE = 'User is unauthenticated';
 export const INVALID_TOKEN = 'Invalid token';
+
+export const SESSION_NOT_FOUND = 'Meditation session not found';
+export const SESSION_ALREADY_COMPLETED = 'Meditation session already completed';
+export const MEDITATION_PLAN_UPDATED =
+  'Meditation preferences updated successfully';
+export const SESSION_STARTED = 'Meditation session started successfully';
+export const SESSION_COMPLETED = 'Meditation session completed successfully';
+export const MILESTONE_REACHED =
+  'Congratulations! You reached a meditation milestone';

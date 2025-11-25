@@ -13,6 +13,9 @@ import { BibleModule } from './modules/bible/bible.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { UserModule } from 'src/modules/user/user.module';
 import { BibleVerseModule } from './modules/bible/bible-verse/bible-verse.module';
+import { MeditationModule } from './modules/meditation/meditation.module';
+import { ScheduleModule } from '@nestjs/schedule';
+
 import dataSource from './migrations/migration.config';
 @Module({
   imports: [
@@ -59,6 +62,8 @@ import dataSource from './migrations/migration.config';
     BibleModule,
     NotificationsModule,
     BibleVerseModule,
+     ScheduleModule.forRoot(),
+    MeditationModule,
   ],
   controllers: [AppController],
   providers: [

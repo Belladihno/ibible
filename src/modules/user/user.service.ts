@@ -219,6 +219,11 @@ export class UserService {
     if (!user.isActive) {
       throw new UnauthorizedException('Account is deactivated');
     }
+
+    if (!user.emailVerified) {
+      throw new UnauthorizedException('Email is not verified');
+    }
+
     if (user.authProvider === AuthProvider.EMAIL) {
       if (!user.passwordHash) {
         throw new UnauthorizedException('Invalid authentication method');
