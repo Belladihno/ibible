@@ -47,8 +47,8 @@ describe('AppController', () => {
     expect(result.data.version).toBe('1.0.0');
     expect(result.data.status).toBe('active');
     expect(result.data.docs).toEqual({
-      scalar: 'http://localhost:3000/api/v1/reference',
-      swagger: 'http://localhost:3000/api/v1/docs',
+      scalar: 'http://localhost:3000/reference',
+      swagger: 'http://localhost:3000/docs',
     });
     expect(typeof result.data.timestamp).toBe('string');
   });

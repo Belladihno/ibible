@@ -76,11 +76,11 @@ Production:
 npm run start:prod
 ```
 
-The application will be available at `http://localhost:3000/api/v1`.
+The application will be available at `http://localhost:3000`.
 Documentation endpoints:
 
-- **Scalar:** `http://localhost:3000/api/v1/reference`
-- **Swagger UI:** `http://localhost:3000/api/v1/docs`
+- **Scalar:** `http://localhost:3000/reference`
+- **Swagger UI:** `http://localhost:3000/docs`
 
 ### Linting
 
