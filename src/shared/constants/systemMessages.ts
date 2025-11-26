@@ -46,3 +46,17 @@ export const SESSION_STARTED = 'Meditation session started successfully';
 export const SESSION_COMPLETED = 'Meditation session completed successfully';
 export const MILESTONE_REACHED =
   'Congratulations! You reached a meditation milestone';
+export const DELETE_BOOKMARK = 'Bookmark deleted successfully';
+export const BOOKMARK_NOT_FOUND = 'Bookmark not found';
+export const DELETE_BY_ID = 'Delete a bookmark by ID';
+export const BOOKMARK_FETCHED = 'Bookmarks fetched successfully';
+export const FETCH_BOOKMARK_LIST = 'List of bookmarks fetched successfully';
+export const BOOKMARK_FOR_USER = 'List of bookmarks for user';
+export const BOOKMARK_CREATED = 'Bookmark created successfully';
+export const VERSE_ALREADY_BOOKMARKED = 'Verse already bookmarked';
+export const INVALID_PAYLOAD_OR_BOOKMARK_ALREADY =
+  'Invalid payload or bookmark already exists';
+export const USER_NOT_FOUND = 'user not found';
+export const BOOK_CHAPTER_VERSE_REQUIRED =
+  'Book, chapter, and verse are required';
+export const PAYLOAD_CANNOT_BE_EMPTY = 'payload cannot be empty';

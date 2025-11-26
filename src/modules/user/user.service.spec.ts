@@ -184,7 +184,7 @@ describe('UserService', () => {
       userRepo.save.mockResolvedValue(mockUser);
       (bcrypt.hash as jest.Mock).mockResolvedValue('hashedpassword');
 
-      const result = await service.create(createUserDto as any);
+      const result = await service.create(createUserDto);
 
       expect(bcrypt.hash).toHaveBeenCalledWith('password123', 10);
       expect(userRepo.create).toHaveBeenCalledWith(createUserDto);

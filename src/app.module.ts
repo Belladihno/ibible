@@ -22,8 +22,8 @@ import {
 import { ChatMessage, ChatMessageSchema } from './schemas/chat-message.schema';
 import { MeditationModule } from './modules/meditation/meditation.module';
 import { ScheduleModule } from '@nestjs/schedule';
-
 import dataSource from './migrations/migration.config';
+import { BookmarkModule } from './modules/bookmarks/bookmark.module';
 
 @Module({
   imports: [
@@ -82,9 +82,8 @@ import dataSource from './migrations/migration.config';
     BibleModule,
     NotificationsModule,
     BibleVerseModule,
-
+    BookmarkModule,
     ChatModule,
-
     ScheduleModule.forRoot(),
     MeditationModule,
   ],

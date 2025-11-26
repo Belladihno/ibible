@@ -1,11 +1,17 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { GoogleGenerativeAI, GenerationConfig } from '@google/generative-ai';
+import {
+  GoogleGenerativeAI,
+  GenerativeModel,
+  GenerationConfig,
+  GenerateContentResult,
+  StartChatParams,
+} from '@google/generative-ai';
 
 @Injectable()
 export class GeminiService {
   private readonly logger = new Logger(GeminiService.name);
-  private readonly model: any;
+  private readonly model: GenerativeModel;
 
   constructor(private configService: ConfigService) {
     const apiKey = this.configService.get<string>('GEMINI_API_KEY');
@@ -39,18 +45,19 @@ export class GeminiService {
           generationConfig,
         });
 
-        const result = await chat.sendMessage(fullPrompt);
+        const result: GenerateContentResult =
+          await chat.sendMessage(fullPrompt);
         return result.response.text();
       }
 
       // Single message
-      const result = await this.model.generateContent({
+      const result: GenerateContentResult = await this.model.generateContent({
         contents: [{ role: 'user', parts: [{ text: fullPrompt }] }],
         generationConfig,
       });
 
       return result.response.text();
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error(`Gemini error: ${error.message}`);
       throw error;
     }

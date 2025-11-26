@@ -1,6 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import {
+  GoogleModel,
+  GoogleModelListResponse,
+} from 'src/shared/interfaces/model-listing.interface';
 
 @Injectable()
 export class ModelListingService {
@@ -19,32 +23,22 @@ export class ModelListingService {
     this.genAI = new GoogleGenerativeAI(apiKey);
   }
 
-  async listAvailableModels(): Promise<any[]> {
+  async listAvailableModels(): Promise<GoogleModel[]> {
     try {
-      // Using the Google Generative AI API to list models
-      const response = await this.genAI
-        .getGenerativeModel({ model: 'gemini-pro' })
-        .generateContent({
-          contents: [{ role: 'user', parts: [{ text: 'test' }] }],
-        })
-        .catch(() => {
-          // If the call fails, we'll try to list models differently
-        });
-
-      // Actually, to list all models we need a different approach
-      // This requires fetching from the models endpoint directly
       const apiKey = this.configService.get<string>('GEMINI_API_KEY');
-      const response2 = await fetch(
+
+      const response = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`,
       );
 
-      if (!response2.ok) {
-        throw new Error(`HTTP error! status: ${response2.status}`);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      const data = await response2.json();
-      return data.models || [];
-    } catch (error) {
+      const data = (await response.json()) as GoogleModelListResponse;
+
+      return data.models ?? [];
+    } catch (error: any) {
       this.logger.error(`Error listing models: ${error.message}`);
       throw error;
     }

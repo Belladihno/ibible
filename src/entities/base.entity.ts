@@ -14,3 +14,4 @@ export abstract class BaseEntity {
   @UpdateDateColumn({ name: 'updated_at' })
   updatedAt: Date;
 }
+//entity
