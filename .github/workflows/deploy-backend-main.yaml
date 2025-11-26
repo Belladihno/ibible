@@ -160,14 +160,14 @@ jobs:
         SERVER_USER: ${{ steps.envselect.outputs.SERVER_USER }}
         SERVER_HOST: ${{ steps.envselect.outputs.SERVER_HOST }}
         HEALTH_CHECK_URL: "https://api.staging.seisho.emerj.net/api/v1/health"
-        # HEALTH_CHECK_URL: ${{ steps.envselect.outputs.HEALTH_CHECK_URL }}
-        PM2_APP_NAME: ${{ steps.envselect.outputs.PM2_APP_NAME }}
+        PM2_APP_NAME: seisho-backend-staging
         ENV_NAME: ${{ steps.envselect.outputs.ENV_NAME }}
       run: |
         sshpass -p "$SERVER_PASSWORD" ssh -o StrictHostKeyChecking=no \
           $SERVER_USER@$SERVER_HOST << ENDSSH
           echo "🔄 Ensuring clean restart of $PM2_APP_NAME..."
           echo $HEALTH_CHECK_URL
+          echo $PM2_APP_NAME
 
           # Stop and delete the PM2 process completely
           pm2 delete $PM2_APP_NAME || true
