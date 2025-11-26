@@ -1,8 +1,13 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
+import { ConfigService } from '@nestjs/config';
+import { JwtModule } from '@nestjs/jwt';
 import { ChatService } from './chat.service';
 import { ChatController } from './chat.controller';
 import { GeminiService } from './services/gemini.service';
+import { ChatContextService } from './services/chat-context.service';
+import { ChatGateway } from './chat.gateway';
+import { WsJwtGuard } from './guards/ws-jwt.guard';
 import {
   ChatConversation,
   ChatConversationSchema,
@@ -11,6 +16,8 @@ import {
   ChatMessage,
   ChatMessageSchema,
 } from '../../schemas/chat-message.schema';
+import Redis from 'ioredis';
+import appConfig from '../../config/auth.config';
 
 @Module({
   imports: [
@@ -18,9 +25,29 @@ import {
       { name: ChatConversation.name, schema: ChatConversationSchema },
       { name: ChatMessage.name, schema: ChatMessageSchema },
     ]),
+    JwtModule.register({
+      secret: appConfig().jwtSecret,
+      signOptions: { expiresIn: '1h' },
+    }),
   ],
   controllers: [ChatController],
-  providers: [ChatService, GeminiService],
+  providers: [
+    ChatService,
+    GeminiService,
+    ChatContextService,
+    ChatGateway,
+    WsJwtGuard,
+    {
+      provide: 'REDIS_CLIENT',
+      useFactory: (configService: ConfigService) => {
+        return new Redis({
+          host: configService.get('REDIS_HOST') || 'localhost',
+          port: configService.get('REDIS_PORT') || 6379,
+        });
+      },
+      inject: [ConfigService],
+    },
+  ],
   exports: [ChatService, GeminiService],
 })
-export class ChatModule {}
+export class ChatModule { }

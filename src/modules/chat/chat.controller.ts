@@ -78,7 +78,8 @@ export class ChatController {
     if (!userId || typeof userId !== 'string') {
       throw new Error('Invalid user id');
     }
-    return await this.chatService.getConversations(userId);
+    const conversations = await this.chatService.getConversations(userId);
+    return { conversations }; // Return as an object with conversations array
   }
 
   @Get('conversations/:id')
@@ -132,6 +133,7 @@ export class ChatController {
     if (!userId || typeof userId !== 'string') {
       throw new Error('Invalid user id');
     }
-    return await this.chatService.getConversationById(id, userId); // Placeholder for now
+    // TODO: Implement actual deletion logic
+    return { message: 'Conversation deleted successfully' }; // Placeholder for now
   }
 }

@@ -5,6 +5,7 @@ import { ResponseInterceptor } from './shared/interceptors/response.interceptor'
 import { HttpExceptionFilter } from './shared/interceptors/http-exception.filter';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { apiReference } from '@scalar/nestjs-api-reference';
+import { IoAdapter } from '@nestjs/platform-socket.io';
 
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
@@ -13,6 +14,9 @@ async function bootstrap() {
     logger: ['log', 'error', 'warn', 'debug'],
   });
   const apiVersion = process.env.API_VERSION || 'api/v1';
+
+  // Enable WebSocket support
+  app.useWebSocketAdapter(new IoAdapter(app));
 
   app.setGlobalPrefix(apiVersion);
 
