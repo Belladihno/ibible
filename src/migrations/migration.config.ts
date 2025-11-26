@@ -12,10 +12,7 @@ const dataSource = new DataSource({
   database: configService.get('DATABASE_NAME'),
   entities: ['dist/**/entities/*.entity{.ts,.js}'],
   migrations: ['dist/db/migrations/*.js'],
-  migrationsTableName: 'migrations',
-  logging: true,
 });
-
 export async function initializeDataSource() {
   if (!dataSource.isInitialized) {
     await dataSource.initialize();

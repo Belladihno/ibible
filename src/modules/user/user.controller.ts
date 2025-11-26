@@ -248,22 +248,66 @@ export class UserController {
     };
   }
 
-  @Get('google')
-  @UseGuards(AuthGuard('google'))
-  googleAuth() {
-    // passport will redirect to provider
-  }
-
-  @Get('google/callback')
-  @UseGuards(AuthGuard('google'))
-  async googleAuthRedirect(
-    @Req() req: Request & { user: UserPayload },
-    @Res() res: Response,
-  ) {
-    const userDetails = req.user;
-    const authResult = await this.users.validateGoogleUser(userDetails);
-    const redirectUrl = `${this.configService.get('FRONTEND_URL')}?token=${authResult?.msg}`;
-    return res.redirect(redirectUrl);
+  @Post('google')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Authenticate with Google ID token' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['idToken'],
+      properties: {
+        idToken: {
+          type: 'string',
+          description: 'Google ID token from client-side OAuth',
+          example: 'eyJhbGciOiJSUzI1NiIsImtpZCI6...',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Successfully authenticated with Google',
+    schema: {
+      example: {
+        statusCode: HttpStatus.OK,
+        message: SystemMessages.USER_LOGIN_SUCCESS,
+        data: {
+          user: {
+            id: 'uuid-1234',
+            email: 'user@gmail.com',
+            fullName: 'John Doe',
+            profilePicture: 'https://lh3.googleusercontent.com/...',
+            phoneNumber: null,
+            about: null,
+          },
+          tokens: {
+            accessToken: 'eyJhbGci...',
+            refreshToken: 'eyJhbGci.refresh...',
+            expiresIn: 604800,
+            tokenType: 'Bearer',
+          },
+          timestamp: '2025-11-26T00:00:00.000Z',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: HttpStatus.UNAUTHORIZED,
+    description: 'Invalid Google ID token',
+  })
+  @ApiResponse({
+    status: HttpStatus.BAD_REQUEST,
+    description: 'Email already exists with different provider',
+  })
+  async googleAuth(@Body() body: { idToken: string }) {
+    const result = await this.users.verifyGoogleToken({
+      idToken: body.idToken,
+    });
+    return {
+      statusCode: HttpStatus.OK,
+      message: SystemMessages.USER_LOGIN_SUCCESS,
+      data: { ...result, timestamp: new Date().toISOString() },
+    };
   }
 
   @Post('refresh')

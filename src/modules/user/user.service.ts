@@ -25,8 +25,11 @@ import { EmailVerificationToken } from '../../entities/email-verification-token.
 import { EmailService } from '../email';
 import { EmailTemplateId } from '../email';
 import { User } from 'src/entities/user.entity';
+import { OAuth2Client } from 'google-auth-library';
+
 @Injectable()
 export class UserService {
+  private client: OAuth2Client;
   constructor(
     @InjectRepository(User)
     private repo: Repository<User>,
@@ -41,7 +44,11 @@ export class UserService {
     @InjectRepository(EmailVerificationToken)
     private emailVerificationTokenRepo: Repository<EmailVerificationToken>,
     private emailService: EmailService,
-  ) {}
+  ) {
+    this.client = new OAuth2Client(
+      configService.get<string>('GOOGLE_CLIENT_ID'),
+    );
+  }
 
   private async sendVerificationEmail(
     email: string,
@@ -350,45 +357,6 @@ export class UserService {
     await this.refreshTokenRepo.save(token);
   }
 
-  async validateGoogleUser(userDetails: UserPayload) {
-    const user = await this.findOneByEmail(userDetails.email);
-    if (user) {
-      if (user.authProvider === AuthProvider.EMAIL) {
-        throw new BadRequestException(
-          'An account with this email already exists. Please sign in using your email and password.',
-        );
-      }
-      return this.googleSignIn(userDetails);
-    } else {
-      return this.googleSignUp(userDetails);
-    }
-  }
-
-  async googleSignIn(userDetails: UserPayload) {
-    const user = await this.findOneByEmail(userDetails.email);
-    if (!user) {
-      throw new UnauthorizedException('Invalid credentials');
-    }
-    return {
-      msg: `Google signin successful for user: ${userDetails.email}`,
-      user: userDetails,
-    };
-  }
-
-  async googleSignUp(userDetails: UserPayload) {
-    const payload = {
-      email: userDetails.email,
-      fullName: `${userDetails.firstName} ${userDetails.lastName}`,
-      profilePicture: userDetails.picture,
-      authProvider: AuthProvider.GOOGLE,
-    };
-    const newUser = await this.create(payload);
-    return {
-      msg: `Google signup successful. New user created: ${newUser.email}`,
-      user: newUser,
-    };
-  }
-
   async refreshToken(refreshToken: string): Promise<TokenResponseDto> {
     try {
       const payload = await this.jwtService.verifyAsync(refreshToken, {
@@ -518,5 +486,47 @@ export class UserService {
 
     verificationToken.verifiedAt = new Date();
     await this.emailVerificationTokenRepo.save(verificationToken);
+  }
+
+  async verifyGoogleToken({ idToken }: { idToken: string }) {
+    try {
+      const ticket = await this.client.verifyIdToken({
+        idToken: idToken,
+        audience: this.configService.get<string>('GOOGLE_CLIENT_ID'),
+      });
+
+      const payload = ticket.getPayload();
+
+      if (!payload?.email) {
+        throw new UnauthorizedException('Google token missing email');
+      }
+
+      let user = await this.repo.findOne({ where: { email: payload.email } });
+
+      if (user) {
+        if (user.authProvider !== AuthProvider.GOOGLE) {
+          throw new UnauthorizedException(
+            'This email is registered with password login. Please use email and password.',
+          );
+        }
+      } else {
+        user = this.repo.create({
+          email: payload.email,
+          fullName:
+            payload.name ||
+            `${payload.given_name || ''} ${payload.family_name || ''}`.trim(),
+          profilePicture: payload.picture,
+          authProvider: AuthProvider.GOOGLE,
+          emailVerified: true,
+        });
+        user = await this.repo.save(user);
+      }
+
+      const tokens = await this.generateTokens(user);
+      return { user, tokens };
+    } catch (error) {
+      if (error instanceof UnauthorizedException) throw error;
+      throw new UnauthorizedException('Invalid Google token');
+    }
   }
 }
