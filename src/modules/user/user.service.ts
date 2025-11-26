@@ -444,8 +444,10 @@ export class UserService {
     if (resetToken.expiresAt < new Date()) {
       throw new BadRequestException('Reset token has expired');
     }
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
     await this.update(resetToken.user.id, {
-      password: newPassword,
+      passwordHash: hashedPassword,
     } as UpdateUserDto);
     resetToken.isUsed = true;
     await this.passwordResetTokenRepo.save(resetToken);
