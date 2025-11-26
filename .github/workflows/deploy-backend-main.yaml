@@ -165,16 +165,37 @@ jobs:
       run: |
         sshpass -p "$SERVER_PASSWORD" ssh -o StrictHostKeyChecking=no \
           $SERVER_USER@$SERVER_HOST << ENDSSH
+          echo "🔄 Ensuring clean restart of $PM2_APP_NAME..."
+          echo $HEALTH_CHECK_URL
+
+          # Stop and delete the PM2 process completely
+          pm2 delete $PM2_APP_NAME || true
+          
+          # Wait a moment for port to be released
+          sleep 5
+          
+          # Verify port 3600 is free
+          if lsof -Pi :3600 -sTCP:LISTEN -t >/dev/null ; then
+            echo "⚠️ Port 3600 still in use, forcefully killing process..."
+            kill -9 $(lsof -t -i:3600) || true
+            sleep 3
+          fi
+          
+          # Start the application fresh
+          pm2 start dist/main.js --name  $PM2_APP_NAME
+          
           echo "Waiting for app to start..."
           sleep 40
+          
           echo "🏥 Performing health check on $ENV_NAME..."
-          HTTP_STATUS=\$(curl -s -o /dev/null -w "%{http_code}" $HEALTH_CHECK_URL || echo "000")
-          if [ "\$HTTP_STATUS" -eq 200 ]; then
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" $HEALTH_CHECK_URL || echo "000")
+          
+          if [ "$HTTP_STATUS" -eq 200 ]; then
             echo "✅ Health check passed!"
           else
-            echo "❌ Health check failed with code \$HTTP_STATUS"
+            echo "❌ Health check failed with code $HTTP_STATUS"
             echo "📋 Showing logs for $PM2_APP_NAME..."
-            pm2 logs $PM2_APP_NAME --lines 50 --nostream
+            pm2 logs $PM2_APP_NAME --lines 15 --nostream
             exit 1
           fi
         ENDSSH
