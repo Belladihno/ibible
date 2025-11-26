@@ -60,3 +60,7 @@ export const USER_NOT_FOUND = 'user not found';
 export const BOOK_CHAPTER_VERSE_REQUIRED =
   'Book, chapter, and verse are required';
 export const PAYLOAD_CANNOT_BE_EMPTY = 'payload cannot be empty';
+
+export const VERIFICATION_CODE_RESENT = 'Verification code resent successfully';
+export const PASSWORD_RESET_CODE_RESENT =
+  'Password reset code resent successfully';

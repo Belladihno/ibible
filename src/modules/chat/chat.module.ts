@@ -50,4 +50,4 @@ import appConfig from '../../config/auth.config';
   ],
   exports: [ChatService, GeminiService],
 })
-export class ChatModule { }
+export class ChatModule {}

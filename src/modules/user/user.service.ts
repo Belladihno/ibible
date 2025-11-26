@@ -4,6 +4,8 @@ import {
   ConflictException,
   BadRequestException,
   NotFoundException,
+  HttpException,
+  HttpStatus,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
@@ -17,7 +19,7 @@ import { TokenResponseDto } from './dto/token-response.dto';
 import { UserPayload } from './strategy/interface';
 import { randomBytes } from 'crypto';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, MoreThanOrEqual } from 'typeorm';
 import { PasswordResetToken } from '../../entities/password-reset-token.entity';
 import { RefreshToken } from '../../entities/refresh-token.entity';
 import { AccessToken } from '../../entities/access-token.entity';
@@ -26,6 +28,20 @@ import { EmailService } from '../email';
 import { EmailTemplateId } from '../email';
 import { User } from 'src/entities/user.entity';
 import { OAuth2Client } from 'google-auth-library';
+
+// Custom TooManyRequestsException since NestJS doesn't have it by default
+export class TooManyRequestsException extends HttpException {
+  constructor(message?: string | object, error = 'Too Many Requests') {
+    super(
+      {
+        statusCode: HttpStatus.TOO_MANY_REQUESTS,
+        error,
+        message,
+      },
+      HttpStatus.TOO_MANY_REQUESTS,
+    );
+  }
+}
 
 @Injectable()
 export class UserService {
@@ -93,6 +109,7 @@ export class UserService {
       throw error;
     }
   }
+
   // --- UsersService logic ---
   async create(data: CreateUserDto) {
     const user = this.repo.create(data);
@@ -346,6 +363,7 @@ export class UserService {
       { revoked: true },
     );
   }
+
   async logout(refreshToken: string): Promise<void> {
     const token = await this.refreshTokenRepo.findOne({
       where: { token: refreshToken },
@@ -355,6 +373,45 @@ export class UserService {
     }
     token.revoked = true;
     await this.refreshTokenRepo.save(token);
+  }
+
+  async validateGoogleUser(userDetails: UserPayload) {
+    const user = await this.findOneByEmail(userDetails.email);
+    if (user) {
+      if (user.authProvider === AuthProvider.EMAIL) {
+        throw new BadRequestException(
+          'An account with this email already exists. Please sign in using your email and password.',
+        );
+      }
+      return this.googleSignIn(userDetails);
+    } else {
+      return this.googleSignUp(userDetails);
+    }
+  }
+
+  async googleSignIn(userDetails: UserPayload) {
+    const user = await this.findOneByEmail(userDetails.email);
+    if (!user) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+    return {
+      msg: `Google signin successful for user: ${userDetails.email}`,
+      user: userDetails,
+    };
+  }
+
+  async googleSignUp(userDetails: UserPayload) {
+    const payload = {
+      email: userDetails.email,
+      fullName: `${userDetails.firstName} ${userDetails.lastName}`,
+      profilePicture: userDetails.picture,
+      authProvider: AuthProvider.GOOGLE,
+    };
+    const newUser = await this.create(payload);
+    return {
+      msg: `Google signup successful. New user created: ${newUser.email}`,
+      user: newUser,
+    };
   }
 
   async refreshToken(refreshToken: string): Promise<TokenResponseDto> {
@@ -486,6 +543,103 @@ export class UserService {
 
     verificationToken.verifiedAt = new Date();
     await this.emailVerificationTokenRepo.save(verificationToken);
+  }
+
+  // NEW METHODS ADDED HERE
+  async resendVerification(email: string): Promise<void> {
+    const user = await this.findOneByEmail(email);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (user.emailVerified) {
+      throw new BadRequestException('Email is already verified');
+    }
+
+    // Check cooldown (60 seconds) - using database for simplicity
+    const lastVerification = await this.emailVerificationTokenRepo.findOne({
+      where: { userId: user.id },
+      order: { createdAt: 'DESC' },
+    });
+
+    if (lastVerification) {
+      const timeSinceLastRequest =
+        Date.now() - lastVerification.createdAt.getTime();
+      if (timeSinceLastRequest < 60000) {
+        // 60 seconds
+        const remainingTime = Math.ceil((60000 - timeSinceLastRequest) / 1000);
+        throw new BadRequestException(
+          `Please wait ${remainingTime} seconds before requesting another verification code`,
+        );
+      }
+    }
+
+    // Generate new verification token
+    const otp = await this.generateEmailVerificationToken(user.id);
+    await this.sendVerificationEmail(user.email, otp, user.fullName);
+  }
+
+  async resendPasswordReset(email: string): Promise<{ token: string }> {
+    const user = await this.findOneByEmail(email);
+    if (!user) {
+      // Don't reveal if user exists for security
+      return { token: '' };
+    }
+
+    // Check daily limit (5 attempts per day)
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const dailyResetCount = await this.passwordResetTokenRepo.count({
+      where: {
+        userId: user.id,
+        createdAt: MoreThanOrEqual(startOfDay),
+      },
+    });
+
+    if (dailyResetCount >= 5) {
+      throw new BadRequestException(
+        'Daily limit exceeded for password reset requests. Please try again tomorrow.',
+      );
+    }
+
+    // Check cooldown (30 seconds)
+    const lastResetToken = await this.passwordResetTokenRepo.findOne({
+      where: { userId: user.id },
+      order: { createdAt: 'DESC' },
+    });
+
+    if (lastResetToken) {
+      const timeSinceLastRequest =
+        Date.now() - lastResetToken.createdAt.getTime();
+      if (timeSinceLastRequest < 30000) {
+        // 30 seconds
+        const remainingTime = Math.ceil((30000 - timeSinceLastRequest) / 1000);
+        throw new BadRequestException(
+          `Please wait ${remainingTime} seconds before requesting another password reset`,
+        );
+      }
+    }
+
+    // Generate new password reset token
+    const otp = (
+      (parseInt(randomBytes(3).toString('hex'), 16) % 900000) +
+      100000
+    ).toString();
+
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+    const resetToken = this.passwordResetTokenRepo.create({
+      userId: user.id,
+      token: otp,
+      expiresAt,
+      isUsed: false,
+    });
+    await this.passwordResetTokenRepo.save(resetToken);
+
+    // Send password reset OTP email
+    await this.sendPasswordResetEmail(user.email, otp, user.fullName);
+
+    return { token: otp };
   }
 
   async verifyGoogleToken({ idToken }: { idToken: string }) {

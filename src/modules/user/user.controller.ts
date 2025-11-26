@@ -32,6 +32,8 @@ import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { VerifyEmailDto } from './dto/verify-email.dto';
 import { SignupUserDto } from './dto/signup-user.dto';
+import { ResendVerificationDto } from './dto/resend-verification.dto';
+import { ResendPasswordResetDto } from './dto/resend-password-reset.dto';
 import * as SystemMessages from 'src/shared/constants/systemMessages';
 
 @ApiTags('User')
@@ -346,6 +348,7 @@ export class UserController {
   @Post('forgot-password')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Request password reset' })
+  @ApiBody({ type: ForgotPasswordDto })
   @ApiResponse({
     status: HttpStatus.OK,
     description: 'Password reset email sent if user exists',
@@ -372,6 +375,7 @@ export class UserController {
   @Post('reset-password')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Reset password with token' })
+  @ApiBody({ type: ResetPasswordDto })
   @ApiResponse({
     status: HttpStatus.OK,
     description: 'Password successfully reset',
@@ -386,9 +390,120 @@ export class UserController {
       resetPasswordDto.password,
     );
     return {
-      statusCode: SystemMessages,
+      statusCode: HttpStatus.OK,
       message: SystemMessages.PASSWORD_RESET_SUCCESS,
       data: { timestamp: new Date().toISOString() },
+    };
+  }
+
+  @Post('verify-email')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Verify user email',
+    description: 'Verify user email with token sent to email address',
+  })
+  @ApiBody({ type: VerifyEmailDto })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Email verified successfully',
+    schema: {
+      example: {
+        statusCode: HttpStatus.OK,
+        message: SystemMessages.EMAIL_VERIFIED,
+        data: { timestamp: '2025-11-20T12:00:00.000Z' },
+      },
+    },
+  })
+  @ApiResponse({
+    status: HttpStatus.BAD_REQUEST,
+    description:
+      'Invalid or expired token | Email verification token has expired',
+  })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: 'Invalid or already used verification token',
+  })
+  async verifyEmail(@Body() verifyEmailDto: VerifyEmailDto) {
+    await this.users.verifyEmail(verifyEmailDto.email, verifyEmailDto.otp);
+    return {
+      statusCode: HttpStatus.OK,
+      message: SystemMessages.EMAIL_VERIFIED,
+      data: { timestamp: new Date().toISOString() },
+    };
+  }
+
+  // NEW ENDPOINTS ADDED HERE
+  @Post('resend-verification')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Resend email verification code' })
+  @ApiBody({ type: ResendVerificationDto })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Verification code resent successfully',
+    schema: {
+      example: {
+        statusCode: HttpStatus.OK,
+        message: SystemMessages.VERIFICATION_CODE_RESENT,
+        data: { timestamp: '2025-11-20T00:00:00.000Z' },
+      },
+    },
+  })
+  @ApiResponse({
+    status: HttpStatus.TOO_MANY_REQUESTS,
+    description: 'Please wait before requesting another verification code',
+  })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: 'User not found',
+  })
+  @ApiResponse({
+    status: HttpStatus.BAD_REQUEST,
+    description: 'Email already verified',
+  })
+  async resendVerification(
+    @Body() resendVerificationDto: ResendVerificationDto,
+  ) {
+    await this.users.resendVerification(resendVerificationDto.email);
+    return {
+      statusCode: HttpStatus.OK,
+      message: SystemMessages.VERIFICATION_CODE_RESENT,
+      data: { timestamp: new Date().toISOString() },
+    };
+  }
+
+  @Post('resend-password-reset')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Resend password reset code' })
+  @ApiBody({ type: ResendPasswordResetDto })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Password reset code resent successfully',
+    schema: {
+      example: {
+        statusCode: HttpStatus.OK,
+        message: SystemMessages.PASSWORD_RESET_CODE_RESENT,
+        data: { timestamp: '2025-11-20T00:00:00.000Z' },
+      },
+    },
+  })
+  @ApiResponse({
+    status: HttpStatus.TOO_MANY_REQUESTS,
+    description: 'Daily limit exceeded for password reset requests',
+  })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: 'User not found',
+  })
+  async resendPasswordReset(
+    @Body() resendPasswordResetDto: ResendPasswordResetDto,
+  ) {
+    const { token } = await this.users.resendPasswordReset(
+      resendPasswordResetDto.email,
+    );
+    return {
+      statusCode: HttpStatus.OK,
+      message: SystemMessages.PASSWORD_RESET_CODE_RESENT,
+      data: { token, timestamp: new Date().toISOString() },
     };
   }
 
@@ -448,42 +563,6 @@ export class UserController {
         profilePicture: user.profilePicture,
         timestamp: new Date().toISOString(),
       },
-    };
-  }
-
-  @Post('verify-email')
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({
-    summary: 'Verify user email',
-    description: 'Verify user email with token sent to email address',
-  })
-  @ApiBody({ type: VerifyEmailDto })
-  @ApiResponse({
-    status: HttpStatus.OK,
-    description: 'Email verified successfully',
-    schema: {
-      example: {
-        statusCode: HttpStatus.OK,
-        message: SystemMessages.EMAIL_VERIFIED,
-        data: { timestamp: '2025-11-20T12:00:00.000Z' },
-      },
-    },
-  })
-  @ApiResponse({
-    status: HttpStatus.BAD_REQUEST,
-    description:
-      'Invalid or expired token | Email verification token has expired',
-  })
-  @ApiResponse({
-    status: HttpStatus.NOT_FOUND,
-    description: 'Invalid or already used verification token',
-  })
-  async verifyEmail(@Body() verifyEmailDto: VerifyEmailDto) {
-    await this.users.verifyEmail(verifyEmailDto.email, verifyEmailDto.otp);
-    return {
-      statusCode: HttpStatus.OK,
-      message: SystemMessages.EMAIL_VERIFIED,
-      data: { timestamp: new Date().toISOString() },
     };
   }
 }

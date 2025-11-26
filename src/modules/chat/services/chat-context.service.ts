@@ -20,7 +20,7 @@ export class ChatContextService {
     private chatConversationModel: Model<ChatConversationDocument>,
     // In the future, these would be real services injected via tokens
     // For now we can use optional or mock implementations
-  ) { }
+  ) {}
 
   // Mock implementations for missing services
   private memoriesService: IMemoriesService = {
