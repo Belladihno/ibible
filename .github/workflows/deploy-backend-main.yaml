@@ -159,7 +159,8 @@ jobs:
         SERVER_PASSWORD: ${{ steps.envselect.outputs.SERVER_PASSWORD }}
         SERVER_USER: ${{ steps.envselect.outputs.SERVER_USER }}
         SERVER_HOST: ${{ steps.envselect.outputs.SERVER_HOST }}
-        HEALTH_CHECK_URL: ${{ steps.envselect.outputs.HEALTH_CHECK_URL }}
+        HEALTH_CHECK_URL: "https://api.staging.seisho.emerj.net/api/v1/health"
+        # HEALTH_CHECK_URL: ${{ steps.envselect.outputs.HEALTH_CHECK_URL }}
         PM2_APP_NAME: ${{ steps.envselect.outputs.PM2_APP_NAME }}
         ENV_NAME: ${{ steps.envselect.outputs.ENV_NAME }}
       run: |
