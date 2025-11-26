@@ -124,44 +124,46 @@ export class BibleController {
   }
 
   // GET /bible/:book/:chapter
-  @ApiOperation({ summary: 'Get a chapter (returns cleaned verse list)' })
+  @ApiOperation({ summary: 'Get a chapter (bible-api.com format)' })
   @ApiOkResponse({
-    description: 'Chapter with verses',
+    description: 'Chapter with verses (free Bible API)',
     schema: {
       type: 'object',
       properties: {
-        id: { type: 'string' },
-        orgId: { type: 'string' },
-        bibleId: { type: 'string' },
-        bookId: { type: 'string' },
-        chapterIds: { type: 'array', items: { type: 'string' } },
-        reference: { type: 'string' },
-        content: {
+        reference: { type: 'string', example: 'Genesis 1' },
+        translation: { type: 'string', example: 'King James Version' },
+        verses: {
           type: 'array',
           items: {
             type: 'object',
             properties: {
-              verseId: { type: 'string' },
-              verse: { type: 'string' },
+              book: { type: 'string', example: 'Genesis' },
+              chapter: { type: 'integer', example: 1 },
+              verse: { type: 'integer', example: 1 },
+              text: {
+                type: 'string',
+                example:
+                  'In the beginning God created the heavens and the earth.',
+              },
             },
           },
         },
       },
       example: {
-        id: 'GEN.1',
-        orgId: 'org-123',
-        bibleId: 'de4e12af7f28f599-02',
-        bookId: 'GEN',
-        chapterIds: ['GEN.1'],
         reference: 'Genesis 1',
-        content: [
+        translation: 'King James Version',
+        verses: [
           {
-            verseId: 'GEN.1.1',
-            verse: 'In the beginning God created the heavens and the earth.',
+            book: 'Genesis',
+            chapter: 1,
+            verse: 1,
+            text: 'In the beginning God created the heavens and the earth.',
           },
           {
-            verseId: 'GEN.1.2',
-            verse: 'And the earth was without form...',
+            book: 'Genesis',
+            chapter: 1,
+            verse: 2,
+            text: 'And the earth was without form...',
           },
         ],
       },
@@ -170,10 +172,9 @@ export class BibleController {
   @Get(':book/:chapter')
   async getChapter(
     @Param('book') book: string,
-    @Param('chapter') chapter: string,
+    @Param('chapter') chapter: number,
   ): Promise<Record<string, unknown>> {
-    const chapterId = `${book.toUpperCase()}.${chapter}`;
-    return this.bibleService.getChapter(chapterId);
+    return this.bibleService.getBookChapter(book, chapter);
   }
 
   // GET /bible/verse?verseId=GEN.1.1

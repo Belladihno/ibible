@@ -130,6 +130,44 @@ export class BibleService {
     }
   };
 
+  getBookChapter = async (
+    book: string,
+    chapter: number,
+  ): Promise<Record<string, unknown>> => {
+    try {
+      const bookLower = book.toLowerCase();
+      const ref = `${bookLower}${chapter}`;
+      const cacheKey = `bible:book_chapter:${ref}`;
+
+      const url = `https://bible-api.com/${ref}`;
+      const response = await fetch(url);
+
+      if (!response.ok) {
+        throw new Error(`Bible API failed: ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      const cleanData = {
+        reference: data.reference,
+        verses: data.verses?.map((v: any) => ({
+          book: v.book_name,
+          chapter: v.chapter,
+          verse: v.verse,
+          text: v.text.trim(),
+        })),
+        translation: data.translation_name,
+      };
+
+      return cleanData;
+    } catch (err) {
+      this.logger.error('getBookChapter error', err);
+      throw new InternalServerErrorException(
+        'Could not fetch book chapter from Bible API',
+      );
+    }
+  };
+
   getBooks = async (bibleId?: string): Promise<Record<string, unknown>> => {
     try {
       const id = bibleId || this.BIBLE_ID;
