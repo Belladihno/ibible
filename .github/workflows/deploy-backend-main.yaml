@@ -166,7 +166,7 @@ jobs:
         sshpass -p "$SERVER_PASSWORD" ssh -o StrictHostKeyChecking=no \
           $SERVER_USER@$SERVER_HOST << ENDSSH
           echo "Waiting for app to start..."
-          sleep 30
+          sleep 40
           echo "🏥 Performing health check on $ENV_NAME..."
           HTTP_STATUS=\$(curl -s -o /dev/null -w "%{http_code}" $HEALTH_CHECK_URL || echo "000")
           if [ "\$HTTP_STATUS" -eq 200 ]; then
