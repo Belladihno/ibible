@@ -2,7 +2,7 @@ import { Controller, Get, HttpStatus, HttpCode } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 
 import { DailyVerseResponse } from 'src/shared/types/bible-verse.types';
-import { BibleVerseService } from './bible-verse.service';
+import { BibleVerseService } from './daily-verse.service';
 
 @ApiTags('Bible Verse')
 @Controller('bible-verse')

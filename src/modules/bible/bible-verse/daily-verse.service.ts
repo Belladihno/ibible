@@ -3,6 +3,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { DailyVerse } from 'src/entities/bible-verse.entity';
+import { firstValueFrom } from 'rxjs';
+import { HttpService } from '@nestjs/axios';
 import {
   BibleVerse,
   BibleApiResponse,
@@ -19,6 +21,7 @@ export class BibleVerseService implements OnModuleInit {
   constructor(
     @InjectRepository(DailyVerse)
     private readonly dailyVerseRepo: Repository<DailyVerse>,
+    private readonly httpService: HttpService,
   ) {}
 
   async onModuleInit() {
@@ -58,14 +61,11 @@ export class BibleVerseService implements OnModuleInit {
 
   private async fetchAndCacheVerse(): Promise<void> {
     try {
-      const response = await fetch(this.API_URL);
+      const response = await firstValueFrom(
+        this.httpService.get<BibleApiResponse>(this.API_URL),
+      );
 
-      if (!response.ok) {
-        throw new Error(`API request failed: ${response.status}`);
-      }
-
-      const apiResponse = (await response.json()) as BibleApiResponse;
-
+      const apiResponse = response.data;
       // Transform API response to our format
       const verse: BibleVerse = {
         reference: `${apiResponse.random_verse.book} ${apiResponse.random_verse.chapter}:${apiResponse.random_verse.verse}`,

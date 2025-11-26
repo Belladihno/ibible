@@ -13,7 +13,7 @@ import { SwaggerSyncModule } from 'nestjs-swagger-sync';
 import { BibleModule } from './modules/bible/bible.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { UserModule } from 'src/modules/user/user.module';
-import { BibleVerseModule } from './modules/bible/bible-verse/bible-verse.module';
+import { BibleVerseModule } from './modules/bible/bible-verse/daily-verse.module';
 import { ChatModule } from './modules/chat/chat.module';
 import {
   ChatConversation,

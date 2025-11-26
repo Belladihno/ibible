@@ -8,6 +8,21 @@ import { ChatMessage, MessageSender } from '../../schemas/chat-message.schema';
 import { ChatContextService } from './services/chat-context.service';
 import { CreateMessageDto } from './dto/create-message.dto';
 
+// Helper type for mocking mongoose query-like objects with `sort()`
+type MockQuery<T> = {
+  sort: jest.Mock<Promise<T>, any[]>;
+};
+
+type PlainConversation = {
+  _id: string;
+  userId: string;
+  title: string;
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+  messages: any[];
+};
+
 describe('ChatService', () => {
   let service: ChatService;
   let model: any;
@@ -33,21 +48,24 @@ describe('ChatService', () => {
 
   beforeEach(async () => {
     // Create a mock model constructor
-    const mockModel: any = jest.fn().mockImplementation((data) => ({
-      ...mockChatConversationDocument,
-      ...data,
-      save: jest
-        .fn()
-        .mockResolvedValue({ ...mockChatConversationDocument, ...data }),
-    }));
+    const mockModel: any = jest.fn().mockImplementation(
+      (data: Partial<ChatConversation> = {}): ChatConversation =>
+        ({
+          ...mockChatConversationDocument,
+          ...data,
+          save: jest
+            .fn()
+            .mockResolvedValue({ ...mockChatConversationDocument, ...data }),
+        }) as ChatConversation,
+    );
 
     // Add static methods to the mock constructor
     mockModel.find = jest.fn().mockReturnValue({
       sort: jest.fn().mockResolvedValue([]),
-    });
+    } as unknown as MockQuery<ChatConversation[]>);
     mockModel.findOne = jest.fn().mockReturnValue({
       sort: jest.fn().mockResolvedValue(null),
-    });
+    } as unknown as MockQuery<ChatConversation | null>);
     mockModel.sort = jest.fn().mockReturnThis();
 
     const module: TestingModule = await Test.createTestingModule({
@@ -103,11 +121,14 @@ describe('ChatService', () => {
         save: jest.fn().mockResolvedValue(mockConversationObject),
       };
 
-      model.mockImplementationOnce((data) => ({
-        ...mockChatConversationDocument,
-        ...data,
-        save: jest.fn().mockResolvedValue(mockSavedConversation),
-      }));
+      model.mockImplementationOnce(
+        (data: Partial<ChatConversation>): ChatConversation =>
+          ({
+            ...mockChatConversationDocument,
+            ...data,
+            save: jest.fn().mockResolvedValue(mockSavedConversation),
+          }) as ChatConversation,
+      );
 
       const result = await service.createConversation(userId);
 
@@ -138,11 +159,14 @@ describe('ChatService', () => {
         }),
       };
 
-      model.mockImplementationOnce((data) => ({
-        ...mockChatConversationDocument,
-        ...data,
-        save: jest.fn().mockResolvedValue(mockSavedConversation),
-      }));
+      model.mockImplementationOnce(
+        (data: Partial<ChatConversation>): ChatConversation =>
+          ({
+            ...mockChatConversationDocument,
+            ...data,
+            save: jest.fn().mockResolvedValue(mockSavedConversation),
+          }) as ChatConversation,
+      );
 
       const result = await service.createConversation(userId, customTitle);
 
@@ -183,7 +207,7 @@ describe('ChatService', () => {
 
       jest.spyOn(model, 'findOne').mockReturnValueOnce({
         sort: jest.fn().mockResolvedValue(mockExistingConversation),
-      });
+      } as unknown as MockQuery<typeof mockExistingConversation>);
       jest
         .spyOn(geminiService, 'generateContent')
         .mockResolvedValue(
@@ -231,13 +255,16 @@ describe('ChatService', () => {
 
       jest.spyOn(model, 'findOne').mockReturnValueOnce({
         sort: jest.fn().mockResolvedValue(null),
-      });
+      } as unknown as MockQuery<null>);
 
-      model.mockImplementationOnce((data) => ({
-        ...mockChatConversationDocument,
-        ...data,
-        save: jest.fn().mockResolvedValue(mockNewConversation),
-      }));
+      model.mockImplementationOnce(
+        (data: Partial<ChatConversation>): ChatConversation =>
+          ({
+            ...mockChatConversationDocument,
+            ...data,
+            save: jest.fn().mockResolvedValue(mockNewConversation),
+          }) as ChatConversation,
+      );
 
       jest
         .spyOn(geminiService, 'generateContent')
@@ -280,7 +307,7 @@ describe('ChatService', () => {
 
       jest.spyOn(model, 'findOne').mockReturnValueOnce({
         sort: jest.fn().mockResolvedValue(mockExistingConversation),
-      });
+      } as unknown as MockQuery<typeof mockExistingConversation>);
       jest
         .spyOn(geminiService, 'generateContent')
         .mockRejectedValue(new Error('API quota exceeded'));
@@ -323,7 +350,7 @@ describe('ChatService', () => {
 
       jest.spyOn(model, 'findOne').mockReturnValueOnce({
         sort: jest.fn().mockResolvedValue(mockExistingConversation),
-      });
+      } as unknown as MockQuery<typeof mockExistingConversation>);
       jest.spyOn(geminiService, 'generateContent').mockResolvedValue('');
 
       const result = await service.sendMessage(userId, messageDto);
@@ -353,7 +380,7 @@ describe('ChatService', () => {
             createdAt: new Date(),
             updatedAt: new Date(),
             messages: [],
-          }),
+          } as PlainConversation),
         },
         {
           _id: 'conv2',
@@ -371,13 +398,13 @@ describe('ChatService', () => {
             createdAt: new Date(),
             updatedAt: new Date(),
             messages: [],
-          }),
+          } as PlainConversation),
         },
       ];
 
       jest.spyOn(model, 'find').mockReturnValue({
         sort: jest.fn().mockResolvedValue(mockConversations),
-      } as any);
+      } as unknown as MockQuery<typeof mockConversations>);
 
       const result = await service.getConversations(userId);
 
@@ -426,7 +453,7 @@ describe('ChatService', () => {
           createdAt: new Date(),
           updatedAt: new Date(),
           messages: [],
-        }),
+        } as PlainConversation),
       };
 
       jest.spyOn(model, 'findOne').mockResolvedValue(mockConversation);
