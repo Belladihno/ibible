@@ -159,12 +159,14 @@ jobs:
         SERVER_PASSWORD: ${{ steps.envselect.outputs.SERVER_PASSWORD }}
         SERVER_USER: ${{ steps.envselect.outputs.SERVER_USER }}
         SERVER_HOST: ${{ steps.envselect.outputs.SERVER_HOST }}
+        SERVER_APP_DIR: ${{ steps.envselect.outputs.SERVER_APP_DIR }}
         HEALTH_CHECK_URL: "https://api.staging.seisho.emerj.net/api/v1/health"
         PM2_APP_NAME: seisho-backend-staging
         ENV_NAME: ${{ steps.envselect.outputs.ENV_NAME }}
       run: |
         sshpass -p "$SERVER_PASSWORD" ssh -o StrictHostKeyChecking=no \
           $SERVER_USER@$SERVER_HOST << ENDSSH
+          cd $SERVER_APP_DIR
           echo "🔄 Ensuring clean restart of $PM2_APP_NAME..."
           echo $HEALTH_CHECK_URL
           echo $PM2_APP_NAME
