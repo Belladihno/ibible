@@ -9,7 +9,7 @@ export class UpdatePrayerDto extends PartialType(CreatePrayerDto) {
     example: 'answered',
     description: 'Status of the prayer request',
     enum: PrayerStatus,
-    enumName: 'PrayerStatus'
+    enumName: 'PrayerStatus',
   })
   @IsEnum(PrayerStatus)
   @IsOptional()
@@ -17,7 +17,7 @@ export class UpdatePrayerDto extends PartialType(CreatePrayerDto) {
 
   @ApiPropertyOptional({
     example: 'Heavenly Father, I come before You seeking Your healing touch...',
-    description: 'AI-generated prayer text'
+    description: 'AI-generated prayer text',
   })
   @IsString()
   @IsOptional()

@@ -1,15 +1,24 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, OneToMany, ManyToOne, JoinColumn } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  UpdateDateColumn,
+  OneToMany,
+  ManyToOne,
+  JoinColumn,
+} from 'typeorm';
 import { PrayerReminder } from './prayer-reminder.entity';
 import { User } from './user.entity';
 
 export enum PrayerType {
   SELF = 'self',
-  OTHERS = 'others'
+  OTHERS = 'others',
 }
 
 export enum PrayerStatus {
   ONGOING = 'ongoing',
-  ANSWERED = 'answered'
+  ANSWERED = 'answered',
 }
 
 @Entity('prayers')
@@ -20,7 +29,7 @@ export class Prayer {
   @Column({
     type: 'enum',
     enum: PrayerType,
-    default: PrayerType.SELF
+    default: PrayerType.SELF,
   })
   type: PrayerType;
 
@@ -36,7 +45,7 @@ export class Prayer {
   @Column({
     type: 'enum',
     enum: PrayerStatus,
-    default: PrayerStatus.ONGOING
+    default: PrayerStatus.ONGOING,
   })
   status: PrayerStatus;
 
@@ -46,7 +55,7 @@ export class Prayer {
   @UpdateDateColumn()
   updatedAt: Date;
 
-  @OneToMany(() => PrayerReminder, reminder => reminder.prayer)
+  @OneToMany(() => PrayerReminder, (reminder) => reminder.prayer)
   reminders: PrayerReminder[];
 
   @Column({ name: 'user_id', type: 'uuid', nullable: false })

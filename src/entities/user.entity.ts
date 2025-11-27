@@ -171,5 +171,4 @@ export class User extends BaseEntity {
 
   @OneToMany(() => Prayer, (prayer) => prayer.user)
   prayers: Prayer[];
-
 }

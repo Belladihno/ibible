@@ -42,14 +42,20 @@ export class PrayerGeminiService {
         });
 
         const text = result?.response?.text?.();
-        this.logger.debug(`PrayerGemini fullPrompt length=${fullPrompt.length}`);
+        this.logger.debug(
+          `PrayerGemini fullPrompt length=${fullPrompt.length}`,
+        );
         this.logger.debug(`PrayerGemini response length=${text?.length ?? 0}`);
 
         if (text && text.trim()) return text;
 
-        this.logger.warn(`PrayerGemini empty response (attempt ${attempt}/${maxAttempts})`);
+        this.logger.warn(
+          `PrayerGemini empty response (attempt ${attempt}/${maxAttempts})`,
+        );
       } catch (err: any) {
-        this.logger.warn(`PrayerGemini attempt ${attempt} error: ${err?.message ?? err}`);
+        this.logger.warn(
+          `PrayerGemini attempt ${attempt} error: ${err?.message ?? err}`,
+        );
         if (attempt === maxAttempts) throw err;
       }
 

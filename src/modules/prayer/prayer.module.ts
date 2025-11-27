@@ -1,4 +1,3 @@
-// prayer.module.ts
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { PrayerReminder } from 'src/entities/prayer-reminder.entity';
@@ -9,12 +8,16 @@ import { PrayerGeminiService } from './services/prayer-gemini.service';
 import { AiPrayerService } from './ai-prayer.service';
 import { PrayerController } from './prayer.controller';
 import { PrayerService } from './prayer.service';
-// Import existing
 
 @Module({
   imports: [TypeOrmModule.forFeature([Prayer, PrayerReminder, TempPrayer])],
   controllers: [PrayerController],
-  providers: [PrayerService, AiPrayerService, GeminiService, PrayerGeminiService],
-  exports: [PrayerService]
+  providers: [
+    PrayerService,
+    AiPrayerService,
+    GeminiService,
+    PrayerGeminiService,
+  ],
+  exports: [PrayerService],
 })
 export class PrayerModule {}
