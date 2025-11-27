@@ -1,6 +1,8 @@
 import {
   Controller,
   Post,
+  Patch,
+  Delete,
   Body,
   Param,
   ParseUUIDPipe,
@@ -9,6 +11,7 @@ import {
   Req,
 } from '@nestjs/common';
 import { CreatePrayerDto } from './dto/create-prayer.dto';
+import { UpdatePrayerDto } from './dto/update-prayer.dto';
 import { PrayerService } from './prayer.service';
 import { AuthGuard } from '@nestjs/passport';
 import type { Request } from 'express';
@@ -19,6 +22,19 @@ import { Prayer } from 'src/entities/prayer.entity';
 @Controller('prayers')
 export class PrayerController {
   constructor(private readonly prayerService: PrayerService) {}
+
+  private extractUserId(
+    req: Request & {
+      user: UserPayload & {
+        userId?: string;
+        sub?: string;
+        id?: string;
+      };
+    },
+  ): string {
+    const payload = req.user;
+    return payload.userId ?? payload.sub ?? payload.id ?? '';
+  }
 
   @Post()
   @UseGuards(AuthGuard('jwt'))
@@ -96,5 +112,59 @@ export class PrayerController {
       finalRequest,
       userId,
     );
+  }
+
+  @Patch(':id')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Update an existing prayer (owner only)',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Prayer updated successfully',
+  })
+  async updatePrayer(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() updatePrayerDto: UpdatePrayerDto,
+    @Req() req: Request & { user: UserPayload },
+  ) {
+    const userId = this.extractUserId(req);
+
+    const updated = await this.prayerService.updatePrayer(
+      id,
+      updatePrayerDto,
+      userId,
+    );
+
+    return {
+      statusCode: HttpStatus.OK,
+      message: 'Prayer updated successfully',
+      data: updated,
+    };
+  }
+
+  @Delete(':id')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Delete a prayer request (owner only)',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Prayer deleted successfully',
+  })
+  async deletePrayer(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() req: Request & { user: UserPayload },
+  ) {
+    const userId = this.extractUserId(req);
+
+    await this.prayerService.deletePrayer(id, userId);
+
+    return {
+      statusCode: HttpStatus.OK,
+      message: 'Prayer deleted successfully',
+    };
   }
 }

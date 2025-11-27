@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  Logger,
+  ForbiddenException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Prayer, PrayerStatus } from 'src/entities/prayer.entity';
 import { Repository } from 'typeorm';
@@ -6,6 +11,7 @@ import { AiPrayerService } from './ai-prayer.service';
 import { PrayerReminder } from 'src/entities/prayer-reminder.entity';
 import { CreatePrayerDto } from './dto/create-prayer.dto';
 import { TempPrayer } from 'src/entities/temp-prayer.entity';
+import { UpdatePrayerDto } from './dto/update-prayer.dto';
 
 @Injectable()
 export class PrayerService {
@@ -121,5 +127,44 @@ export class PrayerService {
     logger.debug(`Generated aiPrayer length=${prayer.aiPrayer?.length ?? 0}`);
 
     return this.prayerRepository.save(prayer);
+  }
+  async updatePrayer(
+    id: string,
+    dto: UpdatePrayerDto,
+    userId: string,
+  ): Promise<Prayer> {
+    const prayer = await this.prayerRepository.findOne({
+      where: { id },
+    });
+
+    if (!prayer) {
+      throw new NotFoundException('Prayer not found');
+    }
+
+    if (prayer.userId !== userId) {
+      throw new ForbiddenException('You cannot update this prayer');
+    }
+
+    Object.assign(prayer, dto);
+
+    return this.prayerRepository.save(prayer);
+  }
+
+  async deletePrayer(id: string, userId: string): Promise<void> {
+    const prayer = await this.prayerRepository.findOne({
+      where: { id },
+    });
+
+    if (!prayer) {
+      throw new NotFoundException('Prayer not found');
+    }
+
+    if (prayer.userId !== userId) {
+      throw new ForbiddenException('You cannot delete this prayer');
+    }
+
+    await this.reminderRepository.delete({ prayerId: id });
+
+    await this.prayerRepository.delete({ id });
   }
 }
