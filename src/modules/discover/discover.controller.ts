@@ -116,7 +116,7 @@ export class DiscoverController {
     const history = await this.discoverService.getEmotionHistory(userId);
 
     return {
-      statusCodes: HttpStatus.OK,
+      statusCode: HttpStatus.OK,
       message: SYM.HISTORY_FETCHED,
       data: history,
     };
