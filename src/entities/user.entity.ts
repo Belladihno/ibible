@@ -7,6 +7,7 @@ import {
   PreferredAIVoice,
 } from 'src/modules/user/enums/user.enums';
 import { Entity, Column, Index, OneToMany } from 'typeorm';
+import { Prayer } from './prayer.entity';
 import { BaseEntity } from './base.entity';
 import { AccessToken } from './access-token.entity';
 import { RefreshToken } from './refresh-token.entity';
@@ -167,4 +168,8 @@ export class User extends BaseEntity {
     (emailVerificationToken) => emailVerificationToken.user,
   )
   emailVerificationTokens: EmailVerificationToken[];
+
+  @OneToMany(() => Prayer, (prayer) => prayer.user)
+  prayers: Prayer[];
+
 }
