@@ -68,6 +68,6 @@ export const PASSWORD_RESET_CODE_RESENT =
 export const EMOTION_REQUIRED = 'Emotion required';
 
 export const EMOTION_LOGGED_AND_VERSES_RETURNED =
-  'emotion logged and verse returned successfully';
+  'Emotion logged and verse returned successfully';
 export const INVALID_PAYLOAD = 'Invalid Payload or user not found';
 export const HISTORY_FETCHED = 'history fetched succesfully';

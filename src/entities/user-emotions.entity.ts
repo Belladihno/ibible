@@ -15,16 +15,7 @@ export class UserEmotion extends BaseEntity {
   @Column({ type: 'varchar', length: 50 })
   @Index('idx_user_emotions_emotion')
   emotion: string;
-
-  // @Column({ type: 'int', nullable: true })
-  // intensity: number | null;
-
-  // @Column({ type: 'text', nullable: true })
-  // context: string | null;
-
-  // @Column({ type: 'simple-array', nullable: true })
-  // tags: string[] | null;
-
+  
   @Column({
     name: 'logged_at',
     type: 'timestamp',
