@@ -64,3 +64,10 @@ export const PAYLOAD_CANNOT_BE_EMPTY = 'payload cannot be empty';
 export const VERIFICATION_CODE_RESENT = 'Verification code resent successfully';
 export const PASSWORD_RESET_CODE_RESENT =
   'Password reset code resent successfully';
+
+export const EMOTION_REQUIRED = 'Emotion required';
+
+export const EMOTION_LOGGED_AND_VERSES_RETURNED =
+  'emotion logged and verse returned successfully';
+export const INVALID_PAYLOAD = 'Invalid Payload or user not found';
+export const HISTORY_FETCHED = 'history fetched succesfully';
