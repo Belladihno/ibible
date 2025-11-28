@@ -29,6 +29,12 @@ export class PrayerReminder {
   @Column({ type: 'time', nullable: true })
   customTime: string | null;
 
+  @Column({ type: 'date', nullable: true })
+  customStartDate: Date | null;
+
+  @Column({ type: 'date', nullable: true })
+  customEndDate: Date | null;
+
   @Column({ default: true })
   isActive: boolean;
 
