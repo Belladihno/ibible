@@ -82,7 +82,6 @@ export class PrayerReminderController {
     };
   }
 
-
   @Get('reminders')
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth()
@@ -111,7 +110,6 @@ export class PrayerReminderController {
       data: reminders,
     };
   }
-
 
   @Get('reminders/:id')
   @UseGuards(AuthGuard('jwt'))
@@ -142,7 +140,6 @@ export class PrayerReminderController {
       data: reminder,
     };
   }
-
 
   @Patch('reminders/:id')
   @UseGuards(AuthGuard('jwt'))

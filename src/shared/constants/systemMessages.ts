@@ -68,12 +68,10 @@ export const PASSWORD_RESET_CODE_RESENT =
 export const EMOTION_REQUIRED = 'Emotion required';
 
 export const EMOTION_LOGGED_AND_VERSES_RETURNED =
-
   'Emotion logged and verse returned successfully';
 
 export const INVALID_PAYLOAD = 'Invalid Payload or user not found';
 export const HISTORY_FETCHED = 'history fetched succesfully';
-
 
 // REMINDERS MESSAGES
 // Prayer Reminder Messages
@@ -96,4 +94,3 @@ export const REMINDER_INVALID_PAYLOAD = 'Invalid reminder payload';
 export const REMINDER_ID_REQUIRED = 'Reminder ID is required';
 export const PRAYER_ID_MISMATCH =
   'Path prayerId does not match prayerId in request body';
-

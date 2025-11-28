@@ -52,15 +52,12 @@ export class DiscoverService {
       loggedAt: new Date(),
     });
 
-
     await this.userEmotionRepo.save(userEmotion);
-
 
     return verses;
   }
 
   async getEmotionHistory(userId: string): Promise<UserEmotion[]> {
-
     const user = await this.userRepo.findOne({ where: { id: userId } });
 
     if (!user) {

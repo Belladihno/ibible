@@ -10,12 +10,13 @@ import { JwtModule } from '@nestjs/jwt';
 import appConfig from 'src/config/auth.config';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([UserEmotion, User]),
-  JwtModule.register({
-        secret: appConfig().jwtSecret,
-        signOptions: { expiresIn: '7d' },
-      }),
-],
+  imports: [
+    TypeOrmModule.forFeature([UserEmotion, User]),
+    JwtModule.register({
+      secret: appConfig().jwtSecret,
+      signOptions: { expiresIn: '7d' },
+    }),
+  ],
   controllers: [DiscoverController],
   providers: [DiscoverService, GeminiService, AuthGuard],
 })
