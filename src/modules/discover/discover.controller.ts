@@ -74,6 +74,7 @@ export class DiscoverController {
     };
   }
 
+
   @Get('emotions/history')
   @UseGuards(AuthGuard)
   @ApiBearerAuth()
