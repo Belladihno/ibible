@@ -12,7 +12,14 @@ import {
   Delete,
   BadRequestException,
   Headers as HeadersDecorator,
+  UseInterceptors,
+  UploadedFile,
+  ParseFilePipe,
+  MaxFileSizeValidator,
+  FileTypeValidator,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { ApiConsumes } from '@nestjs/swagger';
 import {
   ApiTags,
   ApiOperation,
@@ -162,6 +169,57 @@ export class UserController {
       statusCode: HttpStatus.OK,
       message: SystemMessages.USER_UPDATED,
       data: filtered,
+    };
+  }
+
+  @Post('profile-picture')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiBearerAuth()
+  @UseInterceptors(FileInterceptor('file'))
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({ summary: 'Upload user profile picture' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        file: {
+          type: 'string',
+          format: 'binary',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Profile picture uploaded successfully',
+  })
+  async uploadProfilePicture(
+    @Req() req: Request & { user: { userId: string; id?: string } },
+    @UploadedFile(
+      new ParseFilePipe({
+        validators: [
+          new MaxFileSizeValidator({ maxSize: 5 * 1024 * 1024 }), // 5MB
+          new FileTypeValidator({ fileType: /(jpg|jpeg|png|webp)$/ }),
+        ],
+      }),
+    )
+    file: Express.Multer.File,
+  ) {
+    const userId = req.user.userId || req.user.id;
+    if (!userId) throw new BadRequestException('Invalid user id');
+
+    const profilePictureUrl = await this.users.uploadProfilePicture(
+      userId,
+      file,
+    );
+
+    return {
+      statusCode: HttpStatus.OK,
+      message: 'Profile picture uploaded successfully',
+      data: {
+        profilePictureUrl,
+        timestamp: new Date().toISOString(),
+      },
     };
   }
 

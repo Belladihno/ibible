@@ -13,6 +13,7 @@ import { PassportModule } from '@nestjs/passport';
 import { EmailModule } from '../email/email.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { PasswordResetToken } from '../../entities/password-reset-token.entity';
+import { UploadModule } from '../upload/upload.module';
 
 @Module({
   imports: [
@@ -41,6 +42,7 @@ import { PasswordResetToken } from '../../entities/password-reset-token.entity';
       inject: [ConfigService],
     }),
     EmailModule,
+    UploadModule,
   ],
   controllers: [UserController],
   providers: [UserService, JwtStrategy, GoogleStrategy],
