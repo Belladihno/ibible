@@ -128,6 +128,56 @@ export class PrayerService {
 
     return this.prayerRepository.save(prayer);
   }
+  async getAllPrayersPaginated(
+    userId: string,
+    page: number,
+    limit: number,
+  ): Promise<{
+    data: Prayer[];
+    meta: {
+      total: number;
+      page: number;
+      limit: number;
+      totalPages: number;
+    };
+  }> {
+    const safePage = page > 0 ? page : 1;
+    const safeLimit = limit > 0 ? limit : 10;
+
+    const [data, total] = await this.prayerRepository.findAndCount({
+      where: { userId },
+      take: safeLimit,
+      skip: (safePage - 1) * safeLimit,
+      order: { createdAt: 'DESC' },
+    });
+
+    return {
+      data,
+      meta: {
+        total,
+        page: safePage,
+        limit: safeLimit,
+        totalPages: Math.ceil(total / safeLimit),
+      },
+    };
+  }
+
+  async getPrayerById(id: string, userId: string): Promise<Prayer> {
+    const prayer = await this.prayerRepository.findOne({
+      where: { id },
+    });
+
+    if (!prayer) {
+      throw new NotFoundException('Prayer not found');
+    }
+
+    if (prayer.userId !== userId) {
+      throw new ForbiddenException('You cannot view this prayer');
+    }
+
+    return prayer;
+  }
+
   async updatePrayer(
     id: string,
     dto: UpdatePrayerDto,
