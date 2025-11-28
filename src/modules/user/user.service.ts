@@ -28,6 +28,7 @@ import { EmailService } from '../email';
 import { EmailTemplateId } from '../email';
 import { User } from 'src/entities/user.entity';
 import { OAuth2Client } from 'google-auth-library';
+import { UploadService } from '../upload/upload.service';
 
 // Custom TooManyRequestsException since NestJS doesn't have it by default
 export class TooManyRequestsException extends HttpException {
@@ -60,6 +61,7 @@ export class UserService {
     @InjectRepository(EmailVerificationToken)
     private emailVerificationTokenRepo: Repository<EmailVerificationToken>,
     private emailService: EmailService,
+    private uploadService: UploadService,
   ) {
     this.client = new OAuth2Client(
       configService.get<string>('GOOGLE_CLIENT_ID'),
@@ -679,8 +681,20 @@ export class UserService {
       const tokens = await this.generateTokens(user);
       return { user, tokens };
     } catch (error) {
-      if (error instanceof UnauthorizedException) throw error;
       throw new UnauthorizedException('Invalid Google token');
     }
+  }
+
+  async uploadProfilePicture(
+    userId: string,
+    file: Express.Multer.File,
+  ): Promise<string> {
+    // 1. Upload file to MinIO/S3
+    const profilePictureUrl = await this.uploadService.uploadFile(file);
+
+    // 2. Update user record
+    await this.repo.update(userId, { profilePicture: profilePictureUrl });
+
+    return profilePictureUrl;
   }
 }

@@ -27,10 +27,6 @@ export class DiscoverService {
       throw new BadRequestException(SYM.EMOTION_REQUIRED);
     }
 
-    if (!logEmotionDto) {
-      throw new BadRequestException(SYM.PAYLOAD_CANNOT_BE_EMPTY);
-    }
-
     const user = await this.userRepo.findOne({ where: { id: userId } });
 
     if (!user) {
@@ -56,12 +52,12 @@ export class DiscoverService {
       loggedAt: new Date(),
     });
 
-    const saveEmotion = await this.userEmotionRepo.save(userEmotion);
+    await this.userEmotionRepo.save(userEmotion);
 
     return verses;
   }
 
-  async getEmotionHistory(userId): Promise<UserEmotion[]> {
+  async getEmotionHistory(userId: string): Promise<UserEmotion[]> {
     const user = await this.userRepo.findOne({ where: { id: userId } });
 
     if (!user) {
