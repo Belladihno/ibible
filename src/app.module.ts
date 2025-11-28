@@ -24,6 +24,7 @@ import { MeditationModule } from './modules/meditation/meditation.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import dataSource from './migrations/migration.config';
 import { BookmarkModule } from './modules/bookmarks/bookmark.module';
+import { PrayerModule } from './modules/prayer/prayer.module';
 
 @Module({
   imports: [
@@ -86,6 +87,7 @@ import { BookmarkModule } from './modules/bookmarks/bookmark.module';
     ChatModule,
     ScheduleModule.forRoot(),
     MeditationModule,
+    PrayerModule,
   ],
   controllers: [AppController],
   providers: [
