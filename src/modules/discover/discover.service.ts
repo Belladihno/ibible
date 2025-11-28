@@ -54,7 +54,6 @@ export class DiscoverService {
 
     await this.userEmotionRepo.save(userEmotion);
 
-
     return verses;
   }
 

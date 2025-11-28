@@ -177,7 +177,6 @@ export class BibleController {
     return this.bibleService.getBookChapter(book, chapter);
   }
 
-
   // GET /bible/verse?verseId=genesis1:1
   @ApiOperation({ summary: 'Get a single verse (bible-api.com format)' })
   @ApiQuery({
