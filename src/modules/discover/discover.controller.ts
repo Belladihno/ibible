@@ -74,7 +74,9 @@ export class DiscoverController {
     };
   }
 
-  @Get('emotion/history')
+  @Get('emotions/history')
+  @UseGuards(AuthGuard)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Retrieve all logged emotions for a user' })
   @ApiResponse({
     status: HttpStatus.OK,

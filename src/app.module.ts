@@ -25,6 +25,7 @@ import { ScheduleModule } from '@nestjs/schedule';
 import dataSource from './migrations/migration.config';
 import { BookmarkModule } from './modules/bookmarks/bookmark.module';
 import { PrayerModule } from './modules/prayer/prayer.module';
+import { DiscoverModule } from './modules/discover/discover.module';
 
 @Module({
   imports: [
@@ -88,6 +89,7 @@ import { PrayerModule } from './modules/prayer/prayer.module';
     ScheduleModule.forRoot(),
     MeditationModule,
     PrayerModule,
+    DiscoverModule,
   ],
   controllers: [AppController],
   providers: [
