@@ -177,58 +177,49 @@ export class BibleController {
     return this.bibleService.getBookChapter(book, chapter);
   }
 
-  // GET /bible/verse?verseId=GEN.1.1
-  @ApiOperation({ summary: 'Get a single verse (cleaned content)' })
+
+  // GET /bible/verse?verseId=genesis1:1
+  @ApiOperation({ summary: 'Get a single verse (bible-api.com format)' })
   @ApiQuery({
     name: 'verseId',
     required: true,
-    description: 'Verse id, e.g. GEN.1.1',
+    description: 'Format: genesis1:1 or john3:16 (case-insensitive)',
   })
   @ApiOkResponse({
-    description: 'Single verse response',
+    description: 'Single verse from the free Bible API',
     schema: {
       type: 'object',
       properties: {
-        id: { type: 'string' },
-        orgId: { type: 'string' },
-        bibleId: { type: 'string' },
-        bookId: { type: 'string' },
-        chapterId: { type: 'string' },
-        reference: { type: 'string' },
-        content: {
+        reference: { type: 'string', example: 'Genesis 1:1' },
+        translation: { type: 'string', example: 'King James Version' },
+        verses: {
           type: 'array',
           items: {
             type: 'object',
             properties: {
-              verseId: { type: 'string' },
-              verse: { type: 'string' },
+              book: { type: 'string', example: 'Genesis' },
+              chapter: { type: 'integer', example: 1 },
+              verse: { type: 'integer', example: 1 },
+              text: {
+                type: 'string',
+                example:
+                  'In the beginning God created the heaven and the earth.',
+              },
             },
           },
         },
-        verseCount: { type: 'integer' },
-        next: { type: 'object', nullable: true },
-        previous: { type: 'object', nullable: true },
-        timestamp: { type: 'string', format: 'date-time' },
-        copyright: { type: 'string' },
       },
       example: {
-        id: 'GEN.1.1',
-        orgId: 'org-123',
-        bibleId: 'de4e12af7f28f599-02',
-        bookId: 'GEN',
-        chapterId: 'GEN.1',
         reference: 'Genesis 1:1',
-        content: [
+        translation: 'King James Version',
+        verses: [
           {
-            verseId: 'GEN.1.1',
-            verse: 'In the beginning God created the heavens and the earth.',
+            book: 'Genesis',
+            chapter: 1,
+            verse: 1,
+            text: 'In the beginning God created the heaven and the earth.',
           },
         ],
-        verseCount: 1,
-        next: null,
-        previous: null,
-        timestamp: '2025-11-24T00:00:00Z',
-        copyright: 'Public Domain',
       },
     },
   })
@@ -240,34 +231,6 @@ export class BibleController {
     if (!verseId) throw new BadRequestException('verseId is required');
     return this.bibleService.getVerse(verseId);
   }
-
-  // GET /bible/search?query=xxx&limit=10&offset=0
-  @ApiOperation({ summary: 'Search the Bible text' })
-  @ApiQuery({ name: 'query', required: true, description: 'Search query' })
-  @ApiQuery({
-    name: 'limit',
-    required: false,
-    description: 'Max results (default 10)',
-  })
-  @ApiQuery({
-    name: 'offset',
-    required: false,
-    description: 'Result offset (default 0)',
-  })
-  @ApiOkResponse({
-    description: 'Search results',
-    schema: {
-      example: {
-        total: 1,
-        data: [
-          {
-            reference: 'John 3:16',
-            passage: 'For God so loved the world...',
-          },
-        ],
-      },
-    },
-  })
   @ApiBadRequestResponse({ description: 'Missing query parameter' })
   @Get('search')
   async search(

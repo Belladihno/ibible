@@ -87,46 +87,38 @@ export class BibleService {
 
   getVerse = async (verseId: string): Promise<Record<string, unknown>> => {
     try {
-      const cacheKey = `bible:verse:${this.BIBLE_ID}:${verseId}:content=json:clean`;
-      const cached = await this.redis.get(cacheKey);
-      if (cached) return JSON.parse(cached) as Record<string, unknown>;
+      // verseId will be like: "genesis2:2" or "john3:16"
+      const ref = verseId.toLowerCase();
 
-      const url = `${API_BASE}/bibles/${this.BIBLE_ID}/verses/${verseId}?content-type=json`;
-      const res = await fetch(url, { headers: this.getHeaders() });
-      if (!res.ok) throw new Error('Failed to fetch verse');
-      const raw = (await res.json()) as VerseResponse;
-      const data = raw?.data;
-      const content = Array.isArray(data?.content)
-        ? extractVerses(data.content)
-        : [];
+      const cacheKey = `bible:verse:${ref}`;
 
+      const url = `https://bible-api.com/${ref}?translation=kjv`;
+      const response = await fetch(url);
+
+      if (!response.ok) {
+        throw new Error(`Bible API failed with status ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      // Bible API returns a list of verses even for a single verse
       const cleanData = {
-        id: data?.id,
-        orgId: data?.orgId,
-        bibleId: data?.bibleId,
-        bookId: data?.bookId,
-        chapterId:
-          data?.chapterId ??
-          (data?.chapterIds ? data.chapterIds[0] : undefined),
-        reference: data?.reference,
-        content,
-        verseCount: data?.verseCount,
-        next: data?.next,
-        previous: data?.previous,
-        timestamp: data?.timestamp,
-        copyright: data?.copyright,
+        reference: data.reference,
+        verses: data.verses?.map((v: any) => ({
+          book: v.book_name,
+          chapter: v.chapter,
+          verse: v.verse,
+          text: v.text.trim(),
+        })),
+        translation: data.translation_name,
       };
 
-      await this.redis.set(
-        cacheKey,
-        JSON.stringify(cleanData),
-        'EX',
-        60 * 60 * 24 * 7,
-      ); // 7 days
       return cleanData;
     } catch (err) {
       this.logger.error('getVerse error', err);
-      throw new InternalServerErrorException('Could not fetch verse');
+      throw new InternalServerErrorException(
+        'Could not fetch verse from Bible API',
+      );
     }
   };
 
@@ -139,7 +131,7 @@ export class BibleService {
       const ref = `${bookLower}${chapter}`;
       const cacheKey = `bible:book_chapter:${ref}`;
 
-      const url = `https://bible-api.com/${ref}`;
+      const url = `https://bible-api.com/${ref}?translation=kjv`;
       const response = await fetch(url);
 
       if (!response.ok) {
