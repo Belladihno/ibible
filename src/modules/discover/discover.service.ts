@@ -6,6 +6,8 @@ import { Repository } from 'typeorm';
 import { LogEmotionDto } from './dto/log-emotion.dto';
 import * as SYM from 'src/shared/constants/systemMessages';
 import { GeminiService } from '../chat/services/gemini.service';
+import { VerseResponse } from 'src/shared/interfaces/discover.interface';
+import { extractSafeVerses } from 'src/shared/utils/gemini-parse';
 
 @Injectable()
 export class DiscoverService {
@@ -20,7 +22,7 @@ export class DiscoverService {
   async createEmotion(
     logEmotionDto: LogEmotionDto,
     userId: string,
-  ): Promise<string[]> {
+  ): Promise<VerseResponse[]> {
     const { emotion } = logEmotionDto;
 
     if (!emotion) {
@@ -34,17 +36,34 @@ export class DiscoverService {
     }
 
     const prompt = `
-            Provide 5-10 Bible verses that relate to the emotion "${emotion}".
-            Format: Book Chapter:Verse only. No commentary.
+        Return ONLY a valid JSON array.
+        NO markdown. NO explanation. NO code fences. NO tags.
+
+        Generate 5–10 Bible verses related to the emotion "${emotion}".
+
+        Respond ONLY with this exact structure:
+
+        [
+          {
+            "text": "verse text",
+            "bibleVerse": "Book chapter:verse"
+          }
+        ]
         `;
 
     const response = await this.geminiService.generateContent(prompt);
-
-    // Split the response into a clean array of verses
-    const verses = response
-      .split(/\r?\n/)
-      .map((line) => line.replace(/^\d+\.?\s*/, '').trim())
-      .filter((line) => line.length > 0);
+    console.log(response);
+    let verses: VerseResponse[] = [];
+    try {
+      verses = JSON.parse(response);
+    } catch (e) {
+      verses = extractSafeVerses(response);
+      if (!verses.length) {
+        throw new BadRequestException(
+          'Failed to parse verse response. Response may have been truncated.',
+        );
+      }
+    }
 
     const userEmotion = this.userEmotionRepo.create({
       user: user,
@@ -65,8 +84,9 @@ export class DiscoverService {
     }
 
     const emotionHistory = await this.userEmotionRepo.find({
-      where: { user: { id: userId } },
+      where: { userId: userId },
       order: { loggedAt: 'DESC' },
+      select: ['id', 'emotion', 'loggedAt', 'createdAt', 'updatedAt'],
     });
 
     return emotionHistory;

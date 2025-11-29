@@ -21,6 +21,7 @@ import { EmailVerificationToken } from 'src/entities/email-verification-token.en
 import { EmailService } from '../email/email.service';
 import { AuthProvider } from './enums/user.enums';
 import * as bcrypt from 'bcrypt';
+import { UploadService } from '../upload/upload.service';
 
 jest.mock('bcrypt', () => ({
   hash: jest.fn(),
@@ -39,6 +40,7 @@ describe('UserService', () => {
   let emailVerificationTokenRepo: jest.Mocked<
     Repository<EmailVerificationToken>
   >;
+  let uploadService: jest.Mocked<UploadService>;
 
   const mockUser: User = {
     id: '123',
@@ -116,6 +118,10 @@ describe('UserService', () => {
       delete: jest.fn(),
     };
 
+    const mockUploadService = {
+      uploadFile: jest.fn(),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         UserService,
@@ -151,6 +157,10 @@ describe('UserService', () => {
           provide: getRepositoryToken(EmailVerificationToken),
           useValue: mockEmailVerificationTokenRepo,
         },
+        {
+          provide: UploadService,
+          useValue: mockUploadService,
+        },
       ],
     }).compile();
 
@@ -165,6 +175,7 @@ describe('UserService', () => {
     emailVerificationTokenRepo = module.get(
       getRepositoryToken(EmailVerificationToken),
     );
+    uploadService = module.get(UploadService);
   });
 
   afterEach(() => {
@@ -797,6 +808,28 @@ describe('UserService', () => {
       await expect(service.refreshToken('invalid-token')).rejects.toThrow(
         UnauthorizedException,
       );
+    });
+  });
+
+  describe('uploadProfilePicture', () => {
+    it('should upload file and update user profile picture', async () => {
+      const userId = '123';
+      const mockFile = {
+        originalname: 'test.jpg',
+        buffer: Buffer.from('test'),
+      } as Express.Multer.File;
+      const mockUrl = 'http://minio/bucket/file.jpg';
+
+      uploadService.uploadFile.mockResolvedValue(mockUrl);
+      userRepo.update.mockResolvedValue({} as any);
+
+      const result = await service.uploadProfilePicture(userId, mockFile);
+
+      expect(uploadService.uploadFile).toHaveBeenCalledWith(mockFile);
+      expect(userRepo.update).toHaveBeenCalledWith(userId, {
+        profilePicture: mockUrl,
+      });
+      expect(result).toBe(mockUrl);
     });
   });
 });

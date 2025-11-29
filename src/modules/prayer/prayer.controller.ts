@@ -4,11 +4,13 @@ import {
   Patch,
   Delete,
   Body,
+  Query,
   Param,
   ParseUUIDPipe,
   HttpStatus,
   UseGuards,
   Req,
+  Get,
 } from '@nestjs/common';
 import { CreatePrayerDto } from './dto/create-prayer.dto';
 import { UpdatePrayerDto } from './dto/update-prayer.dto';
@@ -112,6 +114,61 @@ export class PrayerController {
       finalRequest,
       userId,
     );
+  }
+
+  @Get()
+  @UseGuards(AuthGuard('jwt'))
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Get all prayers for the current user (paginated)',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Prayer list returned successfully',
+  })
+  async getAllPrayers(
+    @Req() req: Request & { user: UserPayload },
+    @Query('page') page = '1',
+    @Query('limit') limit = '10',
+  ) {
+    const userId = this.extractUserId(req);
+
+    const result = await this.prayerService.getAllPrayersPaginated(
+      userId,
+      Number(page),
+      Number(limit),
+    );
+
+    return {
+      statusCode: HttpStatus.OK,
+      message: 'Prayers retrieved successfully',
+      ...result,
+    };
+  }
+
+  @Get('pray/:id')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Get a single prayer (owner only)',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Prayer retrieved successfully',
+  })
+  async getPrayer(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() req: Request & { user: UserPayload },
+  ) {
+    const userId = this.extractUserId(req);
+
+    const prayer = await this.prayerService.getPrayerById(id, userId);
+
+    return {
+      statusCode: HttpStatus.OK,
+      message: 'Prayer retrieved successfully',
+      data: prayer,
+    };
   }
 
   @Patch(':id')

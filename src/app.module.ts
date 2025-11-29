@@ -26,6 +26,9 @@ import dataSource from './migrations/migration.config';
 import { BookmarkModule } from './modules/bookmarks/bookmark.module';
 import { PrayerModule } from './modules/prayer/prayer.module';
 import { DiscoverModule } from './modules/discover/discover.module';
+import { StreaksModule } from './modules/streaks/streaks.module';
+// import { StreaksService } from './modules/streaks/streaks.service';
+import { StreaksController } from './modules/streaks/streaks.controller';
 
 @Module({
   imports: [
@@ -90,6 +93,7 @@ import { DiscoverModule } from './modules/discover/discover.module';
     MeditationModule,
     PrayerModule,
     DiscoverModule,
+    StreaksModule,
   ],
   controllers: [AppController],
   providers: [
@@ -98,6 +102,7 @@ import { DiscoverModule } from './modules/discover/discover.module';
       provide: APP_GUARD,
       useClass: ThrottlerGuard,
     },
+    // StreaksService,
   ],
 })
 export class AppModule {}

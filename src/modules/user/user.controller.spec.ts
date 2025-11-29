@@ -10,6 +10,7 @@ import { EmailVerificationToken } from 'src/entities/email-verification-token.en
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { EmailService } from '../email/email.service';
+import { UploadService } from '../upload/upload.service';
 
 describe('UserController', () => {
   let controller: UserController;
@@ -62,6 +63,10 @@ describe('UserController', () => {
       delete: jest.fn(),
     };
 
+    const mockUploadService = {
+      uploadFile: jest.fn(),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       controllers: [UserController],
       providers: [
@@ -97,6 +102,10 @@ describe('UserController', () => {
         {
           provide: getRepositoryToken(EmailVerificationToken),
           useValue: mockEmailVerificationTokenRepo,
+        },
+        {
+          provide: UploadService,
+          useValue: mockUploadService,
         },
       ],
     }).compile();

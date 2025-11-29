@@ -12,7 +12,14 @@ import {
   Delete,
   BadRequestException,
   Headers as HeadersDecorator,
+  UseInterceptors,
+  UploadedFile,
+  ParseFilePipe,
+  MaxFileSizeValidator,
+  FileTypeValidator,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { ApiConsumes } from '@nestjs/swagger';
 import {
   ApiTags,
   ApiOperation,
@@ -165,6 +172,57 @@ export class UserController {
     };
   }
 
+  @Post('profile-picture')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiBearerAuth()
+  @UseInterceptors(FileInterceptor('file'))
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({ summary: 'Upload user profile picture' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        file: {
+          type: 'string',
+          format: 'binary',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Profile picture uploaded successfully',
+  })
+  async uploadProfilePicture(
+    @Req() req: Request & { user: { userId: string; id?: string } },
+    @UploadedFile(
+      new ParseFilePipe({
+        validators: [
+          new MaxFileSizeValidator({ maxSize: 5 * 1024 * 1024 }), // 5MB
+          new FileTypeValidator({ fileType: /(jpg|jpeg|png|webp)$/ }),
+        ],
+      }),
+    )
+    file: Express.Multer.File,
+  ) {
+    const userId = req.user.userId || req.user.id;
+    if (!userId) throw new BadRequestException('Invalid user id');
+
+    const profilePictureUrl = await this.users.uploadProfilePicture(
+      userId,
+      file,
+    );
+
+    return {
+      statusCode: HttpStatus.OK,
+      message: 'Profile picture uploaded successfully',
+      data: {
+        profilePictureUrl,
+        timestamp: new Date().toISOString(),
+      },
+    };
+  }
+
   @Post('signup')
   @ApiOperation({ summary: 'Sign up a new user' })
   @ApiResponse({
@@ -250,9 +308,71 @@ export class UserController {
     };
   }
 
-  @Post('google')
+  @Post('google/signup')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Authenticate with Google ID token' })
+  @ApiOperation({ summary: 'Sign up with Google ID token' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['idToken'],
+      properties: {
+        idToken: {
+          type: 'string',
+          description: 'Google ID token from client-side OAuth',
+          example: 'eyJhbGciOiJSUzI1NiIsImtpZCI6...',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Successfully authenticated with Google',
+    schema: {
+      example: {
+        statusCode: HttpStatus.OK,
+        message: SystemMessages.USER_SIGNUP_SUCCESS,
+        data: {
+          user: {
+            id: 'uuid-1234',
+            email: 'user@gmail.com',
+            fullName: 'John Doe',
+            profilePicture: 'https://lh3.googleusercontent.com/...',
+            phoneNumber: null,
+            about: null,
+          },
+          tokens: {
+            accessToken: 'eyJhbGci...',
+            refreshToken: 'eyJhbGci.refresh...',
+            expiresIn: 604800,
+            tokenType: 'Bearer',
+          },
+          timestamp: '2025-11-26T00:00:00.000Z',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: HttpStatus.UNAUTHORIZED,
+    description: 'Invalid Google ID token',
+  })
+  @ApiResponse({
+    status: HttpStatus.BAD_REQUEST,
+    description: 'Email already exists with different provider',
+  })
+  async googleAuth(@Body() body: { idToken: string }) {
+    const result = await this.users.googleSignUp({
+      idToken: body.idToken,
+    });
+    return {
+      statusCode: HttpStatus.OK,
+      message: SystemMessages.USER_SIGNUP_SUCCESS,
+      data: { ...result, timestamp: new Date().toISOString() },
+    };
+  }
+
+  @Post('google/login')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Login with Google ID token' })
   @ApiBody({
     schema: {
       type: 'object',
@@ -301,8 +421,8 @@ export class UserController {
     status: HttpStatus.BAD_REQUEST,
     description: 'Email already exists with different provider',
   })
-  async googleAuth(@Body() body: { idToken: string }) {
-    const result = await this.users.verifyGoogleToken({
+  async googleLogin(@Body() body: { idToken: string }) {
+    const result = await this.users.googleLogin({
       idToken: body.idToken,
     });
     return {

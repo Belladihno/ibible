@@ -19,7 +19,7 @@ import { TokenResponseDto } from './dto/token-response.dto';
 import { UserPayload } from './strategy/interface';
 import { randomBytes } from 'crypto';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, MoreThanOrEqual } from 'typeorm';
+import { LessThan, Repository, MoreThanOrEqual } from 'typeorm';
 import { PasswordResetToken } from '../../entities/password-reset-token.entity';
 import { RefreshToken } from '../../entities/refresh-token.entity';
 import { AccessToken } from '../../entities/access-token.entity';
@@ -28,6 +28,7 @@ import { EmailService } from '../email';
 import { EmailTemplateId } from '../email';
 import { User } from 'src/entities/user.entity';
 import { OAuth2Client } from 'google-auth-library';
+import { UploadService } from '../upload/upload.service';
 
 // Custom TooManyRequestsException since NestJS doesn't have it by default
 export class TooManyRequestsException extends HttpException {
@@ -60,6 +61,7 @@ export class UserService {
     @InjectRepository(EmailVerificationToken)
     private emailVerificationTokenRepo: Repository<EmailVerificationToken>,
     private emailService: EmailService,
+    private uploadService: UploadService,
   ) {
     this.client = new OAuth2Client(
       configService.get<string>('GOOGLE_CLIENT_ID'),
@@ -375,19 +377,19 @@ export class UserService {
     await this.refreshTokenRepo.save(token);
   }
 
-  async validateGoogleUser(userDetails: UserPayload) {
-    const user = await this.findOneByEmail(userDetails.email);
-    if (user) {
-      if (user.authProvider === AuthProvider.EMAIL) {
-        throw new BadRequestException(
-          'An account with this email already exists. Please sign in using your email and password.',
-        );
-      }
-      return this.googleSignIn(userDetails);
-    } else {
-      return this.googleSignUp(userDetails);
-    }
-  }
+  // async validateGoogleUser(userDetails: UserPayload) {
+  //   const user = await this.findOneByEmail(userDetails.email);
+  //   if (user) {
+  //     if (user.authProvider === AuthProvider.EMAIL) {
+  //       throw new BadRequestException(
+  //         'An account with this email already exists. Please sign in using your email and password.',
+  //       );
+  //     }
+  //     return this.googleSignIn(userDetails);
+  //   } else {
+  //     return this.googleSignUp(userDetails);
+  //   }
+  // }
 
   async googleSignIn(userDetails: UserPayload) {
     const user = await this.findOneByEmail(userDetails.email);
@@ -400,19 +402,19 @@ export class UserService {
     };
   }
 
-  async googleSignUp(userDetails: UserPayload) {
-    const payload = {
-      email: userDetails.email,
-      fullName: `${userDetails.firstName} ${userDetails.lastName}`,
-      profilePicture: userDetails.picture,
-      authProvider: AuthProvider.GOOGLE,
-    };
-    const newUser = await this.create(payload);
-    return {
-      msg: `Google signup successful. New user created: ${newUser.email}`,
-      user: newUser,
-    };
-  }
+  // async googleSignUp(userDetails: UserPayload) {
+  //   const payload = {
+  //     email: userDetails.email,
+  //     fullName: `${userDetails.firstName} ${userDetails.lastName}`,
+  //     profilePicture: userDetails.picture,
+  //     authProvider: AuthProvider.GOOGLE,
+  //   };
+  //   const newUser = await this.create(payload);
+  //   return {
+  //     msg: `Google signup successful. New user created: ${newUser.email}`,
+  //     user: newUser,
+  //   };
+  // }
 
   async refreshToken(refreshToken: string): Promise<TokenResponseDto> {
     try {
@@ -504,6 +506,9 @@ export class UserService {
   }
 
   async verifyEmail(email: string, otp: string): Promise<void> {
+    await this.emailVerificationTokenRepo.delete({
+      expiresAt: LessThan(new Date()),
+    });
     const verificationToken = await this.emailVerificationTokenRepo.findOne({
       where: {
         otp,
@@ -521,7 +526,11 @@ export class UserService {
     });
 
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException('User not found with ID');
+    }
+
+    if (!user.email) {
+      throw new NotFoundException('User has no email');
     }
 
     if (user.emailVerified === true) {
@@ -642,11 +651,17 @@ export class UserService {
     return { token: otp };
   }
 
-  async verifyGoogleToken({ idToken }: { idToken: string }) {
+  async googleSignUp({ idToken }: { idToken: string }) {
     try {
+      const clientIds: string[] = [
+        this.configService.get<string>('GOOGLE_CLIENT_ID_WEB'),
+        this.configService.get<string>('GOOGLE_CLIENT_ID_ANDROID'),
+        this.configService.get<string>('GOOGLE_CLIENT_ID_IOS'),
+      ].filter((id): id is string => !!id);
+
       const ticket = await this.client.verifyIdToken({
         idToken: idToken,
-        audience: this.configService.get<string>('GOOGLE_CLIENT_ID'),
+        audience: clientIds,
       });
 
       const payload = ticket.getPayload();
@@ -655,32 +670,111 @@ export class UserService {
         throw new UnauthorizedException('Google token missing email');
       }
 
-      let user = await this.repo.findOne({ where: { email: payload.email } });
+      // Check if user already exists
+      const existingUser = await this.repo.findOne({
+        where: { email: payload.email },
+      });
 
-      if (user) {
-        if (user.authProvider !== AuthProvider.GOOGLE) {
-          throw new UnauthorizedException(
-            'This email is registered with password login. Please use email and password.',
-          );
-        }
-      } else {
-        user = this.repo.create({
-          email: payload.email,
-          fullName:
-            payload.name ||
-            `${payload.given_name || ''} ${payload.family_name || ''}`.trim(),
-          profilePicture: payload.picture,
-          authProvider: AuthProvider.GOOGLE,
-          emailVerified: true,
-        });
-        user = await this.repo.save(user);
+      if (existingUser) {
+        throw new ConflictException(
+          'An account with this email already exists. Please login instead.',
+        );
+      }
+
+      // Create new user
+      let user = this.repo.create({
+        email: payload.email,
+        fullName:
+          payload.name ||
+          `${payload.given_name || ''} ${payload.family_name || ''}`.trim(),
+        profilePicture: payload.picture,
+        authProvider: AuthProvider.GOOGLE,
+        emailVerified: false,
+      });
+      user = await this.repo.save(user);
+
+      const otp = await this.generateEmailVerificationToken(user.id);
+      await this.sendVerificationEmail(user.email, otp, user.fullName);
+
+      const tokens = await this.generateTokens(user);
+      return { user, tokens };
+    } catch (error) {
+      console.error('Google signup error:', error);
+      if (
+        error instanceof UnauthorizedException ||
+        error instanceof ConflictException
+      ) {
+        throw error;
+      }
+      throw new UnauthorizedException(`Invalid Google token: ${error.message}`);
+    }
+  }
+
+  async googleLogin({ idToken }: { idToken: string }) {
+    try {
+      const clientIds: string[] = [
+        this.configService.get<string>('GOOGLE_CLIENT_ID_WEB'),
+        this.configService.get<string>('GOOGLE_CLIENT_ID_ANDROID'),
+        this.configService.get<string>('GOOGLE_CLIENT_ID_IOS'),
+      ].filter((id): id is string => !!id);
+
+      const ticket = await this.client.verifyIdToken({
+        idToken: idToken,
+        audience: clientIds,
+      });
+
+      const payload = ticket.getPayload();
+
+      if (!payload?.email) {
+        throw new UnauthorizedException('Google token missing email');
+      }
+
+      // Find existing user
+      const user = await this.repo.findOne({
+        where: { email: payload.email },
+      });
+
+      if (!user) {
+        throw new NotFoundException(
+          'No account found with this email. Please sign up first.',
+        );
+      }
+
+      if (!user.emailVerified) {
+        throw new UnauthorizedException('Email is not verified');
+      }
+
+      // Check if user registered with Google
+      if (user.authProvider !== AuthProvider.GOOGLE) {
+        throw new UnauthorizedException(
+          'This email is registered with password login. Please use email and password.',
+        );
       }
 
       const tokens = await this.generateTokens(user);
       return { user, tokens };
     } catch (error) {
-      if (error instanceof UnauthorizedException) throw error;
-      throw new UnauthorizedException('Invalid Google token');
+      console.error('Google login error:', error);
+      if (
+        error instanceof UnauthorizedException ||
+        error instanceof NotFoundException
+      ) {
+        throw error;
+      }
+      throw new UnauthorizedException(`Invalid Google token: ${error.message}`);
     }
+  }
+
+  async uploadProfilePicture(
+    userId: string,
+    file: Express.Multer.File,
+  ): Promise<string> {
+    // 1. Upload file to MinIO/S3
+    const profilePictureUrl = await this.uploadService.uploadFile(file);
+
+    // 2. Update user record
+    await this.repo.update(userId, { profilePicture: profilePictureUrl });
+
+    return profilePictureUrl;
   }
 }

@@ -69,17 +69,23 @@ export class AiPrayerService {
       if (!result || !result.trim()) {
         this.logger.error('Empty generated prayer from Gemini');
         throw new HttpException(
-          'Empty generated prayer from AI',
-          HttpStatus.INTERNAL_SERVER_ERROR,
+          'Server busy, please try again later',
+          HttpStatus.SERVICE_UNAVAILABLE,
         );
       }
 
       return result;
     } catch (error) {
       this.logger.error('Failed to generate prayer', error?.message ?? error);
+      // If it's already an HttpException, re-throw it
+      if (error instanceof HttpException) {
+        throw error;
+      }
+
+      // For unknown errors, return a generic message
       throw new HttpException(
-        'Failed to generate prayer',
-        HttpStatus.INTERNAL_SERVER_ERROR,
+        'Server busy, please try again later',
+        HttpStatus.SERVICE_UNAVAILABLE,
       );
     }
   }
