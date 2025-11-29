@@ -3,7 +3,6 @@ import {
   Post,
   Patch,
   Delete,
-  Get,
   Body,
   Query,
   Param,
@@ -11,6 +10,7 @@ import {
   HttpStatus,
   UseGuards,
   Req,
+  Get,
 } from '@nestjs/common';
 import { CreatePrayerDto } from './dto/create-prayer.dto';
 import { UpdatePrayerDto } from './dto/update-prayer.dto';
