@@ -73,34 +73,87 @@ Example:
           bibleVerse: v.bibleVerse.trim(),
         }));
     } catch (error) {
-      // Improved fallback: extract only Bible verse references
-      const lines = response.split(/\r?\n/).map((line) => line.trim());
+      // More lenient fallback parsing
+      const lines = response.split(/\r?\n/).filter((line) => line.trim());
 
-      // Regex to match Bible references: Book Chapter:Verse or Book Chapter:Verse-Verse
+      // Try to extract verses from various formats
       const versePattern =
-        /(?:1|2|3)?\s*[A-Z][a-z]+(?:\s+[A-Z][a-z]+)?\s+\d+:\d+(?:-\d+)?(?:\s+\([A-Z]+\))?/;
+        /([1-3]?\s*[A-Za-z]+(?:\s+[A-Za-z]+)*)\s+(\d+):(\d+(?:-\d+)?)/;
 
-      verses = lines
-        .filter((line) => {
-          // Skip lines with JSON syntax
-          if (
-            line.includes('{') ||
-            line.includes('}') ||
-            line.includes('"text"') ||
-            line.includes('"bibleVerse"') ||
-            line.includes('[') ||
-            line.includes(']')
-          ) {
-            return false;
+      verses = [];
+
+      for (const line of lines) {
+        const match = line.match(versePattern);
+        if (match) {
+          // Extract the full Bible reference including (NIV) if present
+          const bibleVerseMatch = line.match(
+            /([1-3]?\s*[A-Za-z]+(?:\s+[A-Za-z]+)*\s+\d+:\d+(?:-\d+)?(?:\s*\([A-Z]+\))?)/,
+          );
+          const bibleVerse = bibleVerseMatch ? bibleVerseMatch[0] : null;
+
+          if (bibleVerse) {
+            // Try to extract text before the reference
+            let text = line.split(bibleVerse)[0].trim();
+
+            // Remove quotes, dashes, asterisks, numbers at start
+            text = text
+              .replace(/^["'\-*\d.\s]+/, '')
+              .replace(/["'\-*]+$/, '')
+              .trim();
+
+            // If no meaningful text found, use fallback
+            if (text.length < 10) {
+              text = 'See Bible verse for guidance';
+            }
+
+            verses.push({
+              text: text,
+              bibleVerse: bibleVerse.trim(),
+            });
           }
-          // Only keep lines that match Bible verse pattern
-          return versePattern.test(line);
-        })
-        .map((line) => ({
-          text: 'See Bible verse for guidance',
-          bibleVerse: line,
-        }))
-        .slice(0, 10);
+        }
+      }
+
+      // If still empty, create a minimal fallback based on emotion
+      if (verses.length === 0) {
+        const fallbackVerses = {
+          anxious: {
+            text: 'Cast all your anxiety on him because he cares for you.',
+            bibleVerse: '1 Peter 5:7 (NIV)',
+          },
+          anxiety: {
+            text: 'Do not be anxious about anything, but in every situation, by prayer and petition, with thanksgiving, present your requests to God.',
+            bibleVerse: 'Philippians 4:6 (NIV)',
+          },
+          sad: {
+            text: 'The Lord is close to the brokenhearted and saves those who are crushed in spirit.',
+            bibleVerse: 'Psalm 34:18 (NIV)',
+          },
+          joy: {
+            text: 'Rejoice in the Lord always. I will say it again: Rejoice!',
+            bibleVerse: 'Philippians 4:4 (NIV)',
+          },
+          anger: {
+            text: 'In your anger do not sin: Do not let the sun go down while you are still angry.',
+            bibleVerse: 'Ephesians 4:26 (NIV)',
+          },
+          faith: {
+            text: 'Now faith is confidence in what we hope for and assurance about what we do not see.',
+            bibleVerse: 'Hebrews 11:1 (NIV)',
+          },
+          fear: {
+            text: 'For God has not given us a spirit of fear, but of power and of love and of a sound mind.',
+            bibleVerse: '2 Timothy 1:7 (NIV)',
+          },
+        };
+
+        const fallback = fallbackVerses[emotion.toLowerCase()] || {
+          text: 'The Lord is my strength and my shield; my heart trusts in him, and he helps me.',
+          bibleVerse: 'Psalm 28:7 (NIV)',
+        };
+
+        verses = [fallback];
+      }
     }
 
     // Save emotion log
@@ -123,7 +176,7 @@ Example:
     }
 
     const emotionHistory = await this.userEmotionRepo.find({
-      where: { userId: userId },
+      where: { user: { id: userId } },
       order: { loggedAt: 'DESC' },
       select: ['id', 'emotion', 'loggedAt', 'createdAt', 'updatedAt'],
     });
