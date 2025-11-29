@@ -73,11 +73,29 @@ Example:
           bibleVerse: v.bibleVerse.trim(),
         }));
     } catch (error) {
-      // Fallback: parse line-by-line if JSON parsing fails
-      verses = response
-        .split(/\r?\n/)
-        .map((line) => line.replace(/^\d+\.?\s*/, '').trim())
-        .filter((line) => line.length > 0 && line.includes(':'))
+      // Improved fallback: extract only Bible verse references
+      const lines = response.split(/\r?\n/).map((line) => line.trim());
+
+      // Regex to match Bible references: Book Chapter:Verse or Book Chapter:Verse-Verse
+      const versePattern =
+        /(?:1|2|3)?\s*[A-Z][a-z]+(?:\s+[A-Z][a-z]+)?\s+\d+:\d+(?:-\d+)?(?:\s+\([A-Z]+\))?/;
+
+      verses = lines
+        .filter((line) => {
+          // Skip lines with JSON syntax
+          if (
+            line.includes('{') ||
+            line.includes('}') ||
+            line.includes('"text"') ||
+            line.includes('"bibleVerse"') ||
+            line.includes('[') ||
+            line.includes(']')
+          ) {
+            return false;
+          }
+          // Only keep lines that match Bible verse pattern
+          return versePattern.test(line);
+        })
         .map((line) => ({
           text: 'See Bible verse for guidance',
           bibleVerse: line,
@@ -105,8 +123,9 @@ Example:
     }
 
     const emotionHistory = await this.userEmotionRepo.find({
-      where: { user: { id: userId } },
+      where: { userId: userId },
       order: { loggedAt: 'DESC' },
+      select: ['id', 'emotion', 'loggedAt', 'createdAt', 'updatedAt'],
     });
 
     return emotionHistory;
