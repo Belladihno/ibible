@@ -24,9 +24,9 @@ export class BookmarkService {
       throw new BadRequestException(SYM.PAYLOAD_CANNOT_BE_EMPTY);
     }
 
-    const { book, chapter, verse } = createDto;
+    const { text, verse } = createDto;
 
-    if (!book || !chapter || !verse) {
+    if (!text || !verse) {
       throw new BadRequestException(SYM.BOOK_CHAPTER_VERSE_REQUIRED);
     }
 
@@ -45,8 +45,7 @@ export class BookmarkService {
     }
 
     const bookmark = this.bookMarkRepo.create({
-      book: book,
-      chapter: chapter,
+      text: text,
       verse: verse,
       user: user,
     });
@@ -54,8 +53,7 @@ export class BookmarkService {
     const saveBookmark = await this.bookMarkRepo.save(bookmark);
 
     const response: Bookmark = {
-      book: book,
-      chapter: chapter,
+      text: text,
       verse: verse,
       createdAt: new Date(),
     };
@@ -79,8 +77,7 @@ export class BookmarkService {
 
     return bookmarks.map((b) => ({
       id: b.id,
-      book: b.book,
-      chapter: b.chapter,
+      text: b.text,
       verse: b.verse,
       createdAt: b.createdAt,
     }));

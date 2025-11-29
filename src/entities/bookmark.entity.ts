@@ -17,14 +17,11 @@ export class BookMarks {
   @JoinColumn({ name: 'user_id' })
   user: User;
 
-  @Column({ name: 'book' })
-  book: string;
-
-  @Column({ name: 'chapter' })
-  chapter: number;
+  @Column({ name: 'text' })
+  text: string;
 
   @Column({ name: 'verse' })
-  verse: number;
+  verse: string;
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
