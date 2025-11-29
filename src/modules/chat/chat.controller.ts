@@ -34,6 +34,40 @@ export class ChatController {
   @ApiResponse({
     status: HttpStatus.CREATED,
     description: 'Message sent and response received',
+    schema: {
+      example: {
+        conversation: {
+          _id: '507f1f77bcf86cd799439011',
+          userId: 'uuid-1234',
+          title: 'New Conversation',
+          messages: [
+            {
+              sender: 'user',
+              content: 'How can I deal with anxiety?',
+              timestamp: '2025-11-29T16:00:00.000Z',
+              references: [],
+            },
+            {
+              sender: 'ai',
+              content:
+                "I understand you're dealing with anxiety. The Bible offers wonderful guidance...",
+              timestamp: '2025-11-29T16:00:05.000Z',
+              references: [
+                {
+                  book: 'Philippians',
+                  chapter: 4,
+                  verse: 6,
+                  text: 'Do not be anxious about anything...',
+                },
+              ],
+            },
+          ],
+          isActive: true,
+          createdAt: '2025-11-29T16:00:00.000Z',
+          updatedAt: '2025-11-29T16:00:05.000Z',
+        },
+      },
+    },
   })
   @HttpCode(HttpStatus.CREATED)
   async sendMessage(
@@ -62,6 +96,42 @@ export class ChatController {
   @ApiResponse({
     status: HttpStatus.OK,
     description: 'List of user conversations',
+    schema: {
+      example: {
+        conversations: [
+          {
+            _id: '507f1f77bcf86cd799439011',
+            userId: 'uuid-1234',
+            title: 'Dealing with Anxiety',
+            messages: [
+              {
+                sender: 'user',
+                content: 'How can I deal with anxiety?',
+                timestamp: '2025-11-29T16:00:00.000Z',
+              },
+            ],
+            isActive: true,
+            createdAt: '2025-11-29T16:00:00.000Z',
+            updatedAt: '2025-11-29T16:00:05.000Z',
+          },
+          {
+            _id: '507f1f77bcf86cd799439012',
+            userId: 'uuid-1234',
+            title: 'Prayer Guidance',
+            messages: [
+              {
+                sender: 'user',
+                content: 'How should I pray?',
+                timestamp: '2025-11-28T10:00:00.000Z',
+              },
+            ],
+            isActive: true,
+            createdAt: '2025-11-28T10:00:00.000Z',
+            updatedAt: '2025-11-28T10:00:10.000Z',
+          },
+        ],
+      },
+    },
   })
   async getConversations(
     @Req() req: Request & { user: UserPayload & { jti?: string; id?: string } },
@@ -89,6 +159,38 @@ export class ChatController {
   @ApiResponse({
     status: HttpStatus.OK,
     description: 'Specific conversation details',
+    schema: {
+      example: {
+        _id: '507f1f77bcf86cd799439011',
+        userId: 'uuid-1234',
+        title: 'Dealing with Anxiety',
+        messages: [
+          {
+            sender: 'user',
+            content: 'How can I deal with anxiety?',
+            timestamp: '2025-11-29T16:00:00.000Z',
+            references: [],
+          },
+          {
+            sender: 'ai',
+            content:
+              "I understand you're dealing with anxiety. The Bible offers wonderful guidance in Philippians 4:6-7...",
+            timestamp: '2025-11-29T16:00:05.000Z',
+            references: [
+              {
+                book: 'Philippians',
+                chapter: 4,
+                verse: 6,
+                text: 'Do not be anxious about anything, but in every situation, by prayer and petition, with thanksgiving, present your requests to God.',
+              },
+            ],
+          },
+        ],
+        isActive: true,
+        createdAt: '2025-11-29T16:00:00.000Z',
+        updatedAt: '2025-11-29T16:00:05.000Z',
+      },
+    },
   })
   async getConversation(
     @Param('id') id: string,
@@ -116,6 +218,11 @@ export class ChatController {
   @ApiResponse({
     status: HttpStatus.OK,
     description: 'Conversation deleted successfully',
+    schema: {
+      example: {
+        message: 'Conversation deleted successfully',
+      },
+    },
   })
   async deleteConversation(
     @Param('id') id: string,

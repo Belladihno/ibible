@@ -143,6 +143,9 @@ export class UserController {
           profilePicture: null,
           phoneNumber: null,
           about: 'I love reading the Bible daily.',
+          aiSettings: {
+            tone: 'friendly',
+          },
           timestamp: '2025-11-20T00:00:00.000Z',
         },
       },
@@ -163,6 +166,7 @@ export class UserController {
       about: user.about,
       phoneNumber: user.phoneNumber,
       profilePicture: user.profilePicture,
+      aiSettings: user.aiSettings,
       timestamp: new Date().toISOString(),
     };
     return {
@@ -642,6 +646,9 @@ export class UserController {
         about: 'I love reading the Bible daily.',
         phoneNumber: '+1234567890',
         profilePicture: 'https://example.com/profile.jpg',
+        aiSettings: {
+          tone: 'friendly',
+        },
         authProvider: 'EMAIL',
         emailVerified: true,
         isActive: true,
@@ -681,6 +688,7 @@ export class UserController {
         about: user.about,
         phoneNumber: user.phoneNumber,
         profilePicture: user.profilePicture,
+        aiSettings: user.aiSettings,
         timestamp: new Date().toISOString(),
       },
     };
