@@ -101,7 +101,7 @@ export class MeditationService {
     session.completedAt = now;
     session.durationSeconds = durationSeconds;
     session.completed = true;
-    // session.notes = dto.notes || null;
+    session.notes = dto.notes || null;
 
     await this.meditationSessionRepo.save(session);
 

@@ -308,9 +308,71 @@ export class UserController {
     };
   }
 
-  @Post('google')
+  @Post('google/signup')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Authenticate with Google ID token' })
+  @ApiOperation({ summary: 'Sign up with Google ID token' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['idToken'],
+      properties: {
+        idToken: {
+          type: 'string',
+          description: 'Google ID token from client-side OAuth',
+          example: 'eyJhbGciOiJSUzI1NiIsImtpZCI6...',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Successfully authenticated with Google',
+    schema: {
+      example: {
+        statusCode: HttpStatus.OK,
+        message: SystemMessages.USER_SIGNUP_SUCCESS,
+        data: {
+          user: {
+            id: 'uuid-1234',
+            email: 'user@gmail.com',
+            fullName: 'John Doe',
+            profilePicture: 'https://lh3.googleusercontent.com/...',
+            phoneNumber: null,
+            about: null,
+          },
+          tokens: {
+            accessToken: 'eyJhbGci...',
+            refreshToken: 'eyJhbGci.refresh...',
+            expiresIn: 604800,
+            tokenType: 'Bearer',
+          },
+          timestamp: '2025-11-26T00:00:00.000Z',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: HttpStatus.UNAUTHORIZED,
+    description: 'Invalid Google ID token',
+  })
+  @ApiResponse({
+    status: HttpStatus.BAD_REQUEST,
+    description: 'Email already exists with different provider',
+  })
+  async googleAuth(@Body() body: { idToken: string }) {
+    const result = await this.users.googleSignUp({
+      idToken: body.idToken,
+    });
+    return {
+      statusCode: HttpStatus.OK,
+      message: SystemMessages.USER_SIGNUP_SUCCESS,
+      data: { ...result, timestamp: new Date().toISOString() },
+    };
+  }
+
+  @Post('google/login')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Login with Google ID token' })
   @ApiBody({
     schema: {
       type: 'object',
@@ -359,8 +421,8 @@ export class UserController {
     status: HttpStatus.BAD_REQUEST,
     description: 'Email already exists with different provider',
   })
-  async googleAuth(@Body() body: { idToken: string }) {
-    const result = await this.users.verifyGoogleToken({
+  async googleLogin(@Body() body: { idToken: string }) {
+    const result = await this.users.googleLogin({
       idToken: body.idToken,
     });
     return {
