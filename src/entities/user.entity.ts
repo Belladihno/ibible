@@ -5,6 +5,7 @@ import {
   PreferredLanguages,
   PreferredBibleVersion,
   PreferredAIVoice,
+  UserTone,
 } from 'src/modules/user/enums/user.enums';
 import { Entity, Column, Index, OneToMany } from 'typeorm';
 import { Prayer } from './prayer.entity';
@@ -105,6 +106,15 @@ export class User extends BaseEntity {
     default: PreferredAIVoice.FEMALE,
   })
   preferredVoice: string;
+
+  @Column({
+    name: 'ai_settings',
+    type: 'jsonb',
+    default: { tone: UserTone.FRIENDLY },
+  })
+  aiSettings: {
+    tone: UserTone;
+  };
 
   @Column({
     name: 'meditation_time_morning',

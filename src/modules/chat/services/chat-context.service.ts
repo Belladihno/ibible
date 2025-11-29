@@ -10,6 +10,11 @@ import {
   IMemoriesService,
   IDiscoverService,
 } from '../interfaces/external-modules.interface';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { User } from '../../../entities/user.entity';
+import { getToneInstruction } from '../constants/tone-prompts';
+import { UserTone } from '../../user/enums/user.enums';
 
 @Injectable()
 export class ChatContextService {
@@ -18,9 +23,11 @@ export class ChatContextService {
   constructor(
     @InjectModel(ChatConversation.name)
     private chatConversationModel: Model<ChatConversationDocument>,
+    @InjectRepository(User)
+    private userRepository: Repository<User>,
     // In the future, these would be real services injected via tokens
     // For now we can use optional or mock implementations
-  ) {}
+  ) { }
 
   // Mock implementations for missing services
   private memoriesService: IMemoriesService = {
@@ -38,13 +45,16 @@ export class ChatContextService {
     conversationId: string,
     userMessage: string,
   ): Promise<string> {
-    const [history, emotions, memories] = await Promise.all([
+    const [history, emotions, memories, user] = await Promise.all([
       this.getRecentHistory(conversationId),
       this.discoverService.getRecentEmotions(userId, 3),
       this.memoriesService.getRecentMemories(userId, 2),
+      this.userRepository.findOne({ where: { id: userId } }),
     ]);
 
-    return this.formatSystemPrompt(history, emotions, memories);
+    const userTone = user?.aiSettings?.tone || UserTone.FRIENDLY;
+
+    return this.formatSystemPrompt(history, emotions, memories, userTone);
   }
 
   private async getRecentHistory(conversationId: string): Promise<string> {
@@ -68,9 +78,15 @@ export class ChatContextService {
     history: string,
     emotions: string[],
     memories: string[],
+    tone: UserTone,
   ): string {
+    const toneInstruction = getToneInstruction(tone);
+
     return `
 You are Rea, a compassionate and wise Bible companion.
+
+Tone Preference:
+${toneInstruction}
 
 User Context:
 - Recent Emotions: ${emotions.join(', ')}
@@ -84,6 +100,7 @@ Instructions:
 2. Address the user's current emotional state.
 3. Use the context provided to personalize your response.
 4. If relevant, quote scripture to encourage or guide.
+5. IMPORTANT: Follow the tone preference specified above in all your responses.
 `;
   }
 }

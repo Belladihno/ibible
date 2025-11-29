@@ -31,3 +31,12 @@ export enum PreferredAIVoice {
   FEMALE = 'female',
   MALE = 'male',
 }
+
+export enum UserTone {
+  FRIENDLY = 'friendly',
+  PROFESSIONAL = 'professional',
+  CASUAL = 'casual',
+  ENCOURAGING = 'encouraging',
+  SCHOLARLY = 'scholarly',
+  CONCISE = 'concise',
+}

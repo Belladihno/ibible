@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
+import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { ChatService } from './chat.service';
@@ -16,6 +17,7 @@ import {
   ChatMessage,
   ChatMessageSchema,
 } from '../../schemas/chat-message.schema';
+import { User } from '../../entities/user.entity';
 import Redis from 'ioredis';
 import appConfig from '../../config/auth.config';
 
@@ -25,6 +27,7 @@ import appConfig from '../../config/auth.config';
       { name: ChatConversation.name, schema: ChatConversationSchema },
       { name: ChatMessage.name, schema: ChatMessageSchema },
     ]),
+    TypeOrmModule.forFeature([User]),
     JwtModule.register({
       secret: appConfig().jwtSecret,
       signOptions: { expiresIn: '1h' },
