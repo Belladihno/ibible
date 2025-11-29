@@ -146,7 +146,7 @@ export class PrayerController {
     };
   }
 
-  @Get(':id')
+  @Get('pray/:id')
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth()
   @ApiOperation({
