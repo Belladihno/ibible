@@ -39,9 +39,8 @@ export class BookmarkController {
         statusCode: HttpStatus.CREATED,
         message: SYM.BOOKMARK_CREATED,
         data: {
-          book: 'Genesis',
-          chapter: 1,
-          verse: 1,
+          text: 'Jesus wept',
+          verse: 'john 3:16',
           createdAt: '2025-11-20T00:00:00.000Z',
         },
       },
@@ -83,16 +82,15 @@ export class BookmarkController {
         data: [
           {
             id: 'uuid-1234-5678',
-            book: 'Genesis',
-            chapter: 1,
-            verse: 1,
+            text: 'Jesus wept',
+            verse: 'john 3:16',
             createdAt: '2025-11-24T12:00:00.000Z',
           },
           {
             id: 'uuid-8765-4321',
-            book: 'Exodus',
-            chapter: 2,
-            verse: 3,
+            text: 'In the beginnig God created Heaven and earth',
+      
+            verse: 'Genesis 1:1',
             createdAt: '2025-11-24T12:05:00.000Z',
           },
         ],

@@ -6,6 +6,7 @@ import { User } from 'src/entities/user.entity';
 import { BadRequestException } from '@nestjs/common';
 import { BookmarkService } from './bookmark.service';
 import { CreateBookmarkDto } from './dto/create-bookmark.dto';
+import * as SYM from 'src/shared/constants/systemMessages';
 
 describe('BookmarkService', () => {
   let service: BookmarkService;
@@ -34,50 +35,65 @@ describe('BookmarkService', () => {
     }).compile();
 
     service = module.get<BookmarkService>(BookmarkService);
-    bookMarkRepo = module.get<Repository<BookMarks>>(
-      getRepositoryToken(BookMarks),
-    );
-    userRepo = module.get<Repository<User>>(getRepositoryToken(User));
+    bookMarkRepo = module.get(getRepositoryToken(BookMarks));
+    userRepo = module.get(getRepositoryToken(User));
   });
 
   afterEach(() => {
     jest.clearAllMocks();
   });
 
+  // -------------------------------------------------------------------
+  // CREATE BOOKMARK
+  // -------------------------------------------------------------------
   describe('createBookmark', () => {
     it('should throw BadRequestException if createDto is empty', async () => {
       await expect(
         service.createBookmark(null as any, 'user-id'),
-      ).rejects.toThrow(BadRequestException);
+      ).rejects.toThrow(new BadRequestException(SYM.PAYLOAD_CANNOT_BE_EMPTY));
+    });
+
+    it('should throw BadRequestException if text or verse is missing', async () => {
+      const dto = { text: '', verse: '' } as any;
+
+      await expect(service.createBookmark(dto, 'user-id')).rejects.toThrow(
+        new BadRequestException(SYM.BOOK_CHAPTER_VERSE_REQUIRED),
+      );
     });
 
     it('should throw BadRequestException if user not found', async () => {
       mockUserRepo.findOne.mockResolvedValue(null);
-      const dto: CreateBookmarkDto = { book: 'Genesis', chapter: 1, verse: 1 };
+
+      const dto: CreateBookmarkDto = { text: 'sample', verse: 'John 3:16' };
+
       await expect(service.createBookmark(dto, 'user-id')).rejects.toThrow(
-        BadRequestException,
+        new BadRequestException(SYM.USER_NOT_FOUND),
       );
     });
 
     it('should throw Error if bookmark already exists', async () => {
       const user = { id: 'user-id' };
-      mockUserRepo.findOne.mockResolvedValue(user);
-      mockBookMarkRepo.findOne.mockResolvedValue({ id: 'bookmark-id' });
 
-      const dto: CreateBookmarkDto = { book: 'Genesis', chapter: 1, verse: 1 };
+      mockUserRepo.findOne.mockResolvedValue(user);
+      mockBookMarkRepo.findOne.mockResolvedValue({ id: 'b1' });
+
+      const dto: CreateBookmarkDto = { text: 'sample', verse: 'John 3:16' };
+
       await expect(service.createBookmark(dto, 'user-id')).rejects.toThrow(
-        'Verse already bookmarked',
+        SYM.VERSE_ALREADY_BOOKMARKED,
       );
     });
 
     it('should create and return a bookmark', async () => {
       const user = { id: 'user-id' };
-      const dto: CreateBookmarkDto = { book: 'Genesis', chapter: 1, verse: 1 };
+      const dto: CreateBookmarkDto = { text: 'sample', verse: 'John 3:16' };
+
       const createdBookmark = {
-        ...dto,
-        user,
         id: 'bookmark-id',
+        text: dto.text,
+        verse: dto.verse,
         createdAt: new Date(),
+        user,
       };
 
       mockUserRepo.findOne.mockResolvedValue(user);
@@ -86,36 +102,40 @@ describe('BookmarkService', () => {
       mockBookMarkRepo.save.mockResolvedValue(createdBookmark);
 
       const result = await service.createBookmark(dto, 'user-id');
-      expect(result).toEqual(expect.objectContaining(dto));
+
+      expect(result.text).toBe(dto.text);
+      expect(result.verse).toBe(dto.verse);
+      expect(result.createdAt).toBeDefined();
     });
   });
 
+  // -------------------------------------------------------------------
+  // GET BOOKMARKS
+  // -------------------------------------------------------------------
   describe('GetBookmarks', () => {
     it('should throw BadRequestException if user not found', async () => {
       mockUserRepo.findOne.mockResolvedValue(null);
+
       await expect(service.GetBookmarks('user-id')).rejects.toThrow(
-        BadRequestException,
+        new BadRequestException(SYM.USER_NOT_FOUND),
       );
     });
 
-    it('should return bookmarks array', async () => {
+    it('should return array of bookmarks', async () => {
       const user = { id: 'user-id' };
+
       const bookmarks = [
         {
           id: '1',
-          book: 'Genesis',
-          chapter: 1,
-          verse: 1,
+          text: 'Fear not',
+          verse: 'Isaiah 41:10',
           createdAt: new Date(),
-          user,
         },
         {
           id: '2',
-          book: 'Exodus',
-          chapter: 2,
-          verse: 3,
+          text: 'Love is patient',
+          verse: '1 Corinthians 13:4',
           createdAt: new Date(),
-          user,
         },
       ];
 
@@ -123,27 +143,35 @@ describe('BookmarkService', () => {
       mockBookMarkRepo.find.mockResolvedValue(bookmarks);
 
       const result = await service.GetBookmarks('user-id');
-      expect(result).toHaveLength(2);
-      expect(result[0]).toHaveProperty('book', 'Genesis');
+
+      expect(result.length).toBe(2);
+      expect(result[0].text).toBe('Fear not');
+      expect(result[1].verse).toBe('1 Corinthians 13:4');
     });
   });
 
+  // -------------------------------------------------------------------
+  // DELETE BOOKMARK
+  // -------------------------------------------------------------------
   describe('deleteBookmarks', () => {
     it('should throw BadRequestException if bookmark not found', async () => {
       mockBookMarkRepo.findOne.mockResolvedValue(null);
+
       await expect(service.deleteBookmarks('bookmark-id')).rejects.toThrow(
-        BadRequestException,
+        new BadRequestException(SYM.BOOKMARK_NOT_FOUND),
       );
     });
 
     it('should delete bookmark successfully', async () => {
       const bookmark = { id: 'bookmark-id' };
+
       mockBookMarkRepo.findOne.mockResolvedValue(bookmark);
       mockBookMarkRepo.delete.mockResolvedValue({});
 
       await expect(
         service.deleteBookmarks('bookmark-id'),
       ).resolves.toBeUndefined();
+
       expect(mockBookMarkRepo.delete).toHaveBeenCalledWith('bookmark-id');
     });
   });
