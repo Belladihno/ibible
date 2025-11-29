@@ -1,4 +1,4 @@
-import { VerseResponse } from "../interfaces/discover.interface";
+import { VerseResponse } from '../interfaces/discover.interface';
 
 export function extractSafeVerses(raw: string) {
   raw = raw.replace(/```json|```/g, '').trim();
@@ -15,5 +15,5 @@ export function extractSafeVerses(raw: string) {
   // Wrap in brackets to make a valid JSON array
   const safeJson = `[${matches.join(',')}]`;
 
-  return JSON.parse(safeJson) as VerseResponse[];;
+  return JSON.parse(safeJson) as VerseResponse[];
 }
