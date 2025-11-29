@@ -19,7 +19,7 @@ export class ChatService {
     private geminiService: GeminiService,
     private chatContextService: ChatContextService,
     @Inject('REDIS_CLIENT') private readonly redis: Redis,
-  ) { }
+  ) {}
 
   async createConversation(userId: string, title?: string) {
     const conversation = new this.chatConversationModel({
