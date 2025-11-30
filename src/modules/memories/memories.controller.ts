@@ -10,19 +10,20 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { MemoriesService } from './memories.service';
-import { AuthGuard } from '../../guards/auth.guard';
+import { AuthGuard } from '@nestjs/passport';
 import { CurrentUserId } from '../../decorators/current-user-id.decorator';
 import { CreateMemoryDto } from './dto/create-memory.dto';
 import { UpdateMemoryDto } from './dto/update-memory.dto';
-import { ApiTags, ApiOperation, ApiResponse, ApiBody } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiBody,ApiBearerAuth } from '@nestjs/swagger';
 
 @ApiTags('Memories')
-@UseGuards(AuthGuard)
 @Controller('memories')
 export class MemoriesController {
   constructor(private readonly memoriesService: MemoriesService) {}
 
   @Post()
+  @UseGuards(AuthGuard("jwt"))
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Create new memory' })
   @ApiBody({ type: CreateMemoryDto, description: 'Create memory request body' })
   @ApiResponse({
@@ -59,6 +60,8 @@ export class MemoriesController {
   }
 
   @Get()
+  @UseGuards(AuthGuard("jwt"))
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'List memories (paginated)' })
   @ApiResponse({
     status: 200,
@@ -96,6 +99,8 @@ export class MemoriesController {
   }
 
   @Get(':id')
+  @UseGuards(AuthGuard("jwt"))
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Get specific memory' })
   @ApiResponse({
     status: 200,
@@ -125,6 +130,8 @@ export class MemoriesController {
   }
 
   @Patch(':id')
+  @UseGuards(AuthGuard("jwt"))
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Update memory' })
   @ApiBody({
     type: UpdateMemoryDto,
@@ -157,6 +164,8 @@ export class MemoriesController {
   }
 
   @Delete(':id')
+  @UseGuards(AuthGuard("jwt"))
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Delete memory' })
   @ApiResponse({
     status: 200,
