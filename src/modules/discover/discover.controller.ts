@@ -16,8 +16,9 @@ import {
 } from '@nestjs/swagger';
 import { DiscoverService } from './discover.service';
 import { LogEmotionDto } from './dto/log-emotion.dto';
-import { AuthGuard } from 'src/guards/auth.guard';
+import { AuthGuard } from '@nestjs/passport';
 import * as SYM from 'src/shared/constants/systemMessages';
+import { JwtPayload } from 'src/shared/interfaces/jwt-payload.interface';
 
 @ApiTags('Discover')
 @Controller('discover')
@@ -25,7 +26,7 @@ export class DiscoverController {
   constructor(private readonly discoverService: DiscoverService) {}
 
   @Post('/emotion')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth()
   @ApiOperation({
     summary:
@@ -56,8 +57,16 @@ export class DiscoverController {
       },
     },
   })
-  async createEmotion(@Body() logEmotionDto: LogEmotionDto, @Request() req) {
-    const userId = req.user.id;
+  async createEmotion(
+    @Body() logEmotionDto: LogEmotionDto,
+    @Request() req: { user: JwtPayload & { userId?: string; id?: string } },
+  ) {
+    // Safely extract userId from possible JWT payload keys
+    const userId = req.user.userId ?? req.user.sub ?? req.user.id;
+
+    if (!userId) {
+      throw new Error('Invalid user id');
+    }
 
     const verses = await this.discoverService.createEmotion(
       logEmotionDto,
@@ -75,7 +84,7 @@ export class DiscoverController {
   }
 
   @Get('emotions/history')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Retrieve all logged emotions for a user' })
   @ApiResponse({
@@ -113,8 +122,16 @@ export class DiscoverController {
       },
     },
   })
-  async getHistory(@Request() req) {
-    const userId = req.user.id;
+  async getHistory(
+    @Request() req: { user: JwtPayload & { userId?: string; id?: string } },
+  ) {
+    // Safely extract userId
+    const userId = req.user.userId ?? req.user.sub ?? req.user.id;
+
+    if (!userId) {
+      throw new Error('Invalid user id');
+    }
+
     const history = await this.discoverService.getEmotionHistory(userId);
 
     return {
