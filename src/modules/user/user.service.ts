@@ -689,12 +689,9 @@ export class UserService {
           `${payload.given_name || ''} ${payload.family_name || ''}`.trim(),
         profilePicture: payload.picture,
         authProvider: AuthProvider.GOOGLE,
-        emailVerified: false,
+        emailVerified: true,
       });
       user = await this.repo.save(user);
-
-      const otp = await this.generateEmailVerificationToken(user.id);
-      await this.sendVerificationEmail(user.email, otp, user.fullName);
 
       const tokens = await this.generateTokens(user);
       return { user, tokens };
@@ -703,61 +700,6 @@ export class UserService {
       if (
         error instanceof UnauthorizedException ||
         error instanceof ConflictException
-      ) {
-        throw error;
-      }
-      throw new UnauthorizedException(`Invalid Google token: ${error.message}`);
-    }
-  }
-
-  async googleLogin({ idToken }: { idToken: string }) {
-    try {
-      const clientIds: string[] = [
-        this.configService.get<string>('GOOGLE_CLIENT_ID_WEB'),
-        this.configService.get<string>('GOOGLE_CLIENT_ID_ANDROID'),
-        this.configService.get<string>('GOOGLE_CLIENT_ID_IOS'),
-      ].filter((id): id is string => !!id);
-
-      const ticket = await this.client.verifyIdToken({
-        idToken: idToken,
-        audience: clientIds,
-      });
-
-      const payload = ticket.getPayload();
-
-      if (!payload?.email) {
-        throw new UnauthorizedException('Google token missing email');
-      }
-
-      // Find existing user
-      const user = await this.repo.findOne({
-        where: { email: payload.email },
-      });
-
-      if (!user) {
-        throw new NotFoundException(
-          'No account found with this email. Please sign up first.',
-        );
-      }
-
-      if (!user.emailVerified) {
-        throw new UnauthorizedException('Email is not verified');
-      }
-
-      // Check if user registered with Google
-      if (user.authProvider !== AuthProvider.GOOGLE) {
-        throw new UnauthorizedException(
-          'This email is registered with password login. Please use email and password.',
-        );
-      }
-
-      const tokens = await this.generateTokens(user);
-      return { user, tokens };
-    } catch (error) {
-      console.error('Google login error:', error);
-      if (
-        error instanceof UnauthorizedException ||
-        error instanceof NotFoundException
       ) {
         throw error;
       }
