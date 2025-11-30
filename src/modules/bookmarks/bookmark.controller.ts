@@ -89,7 +89,7 @@ export class BookmarkController {
           {
             id: 'uuid-8765-4321',
             text: 'In the beginnig God created Heaven and earth',
-      
+
             verse: 'Genesis 1:1',
             createdAt: '2025-11-24T12:05:00.000Z',
           },

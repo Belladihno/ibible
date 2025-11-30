@@ -425,8 +425,6 @@ export class UserController {
     status: HttpStatus.BAD_REQUEST,
     description: 'Email already exists with different provider',
   })
-  
-
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Refresh JWT token' })
