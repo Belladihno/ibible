@@ -3,26 +3,18 @@ import { IsNotEmpty, IsString, IsNumber, IsOptional } from 'class-validator';
 
 export class CreateBookmarkDto {
   @ApiProperty({
-    example: 'Joshua',
-    description: 'Bible book name',
+    example: 'jesus wept',
+    description: 'text of the bible verse',
   })
   @IsString()
   @IsNotEmpty()
-  book: string;
+  text: string;
 
   @ApiProperty({
-    example: 1,
-    description: 'Chapter number of the verse to bookmark',
-  })
-  @IsNumber()
-  @IsNotEmpty()
-  chapter: number;
-
-  @ApiProperty({
-    example: 5,
+    example: 'john3:16',
     description: 'Verse number to bookmark',
   })
   @IsNumber()
   @IsNotEmpty()
-  verse: number;
+  verse: string;
 }

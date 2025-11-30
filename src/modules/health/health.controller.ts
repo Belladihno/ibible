@@ -21,6 +21,10 @@ export class HealthController {
           checks: {
             database: { status: 'up', detail: 'Connection successful' },
             smtp: { status: 'up', detail: 'SMTP verified' },
+            mongodb: { status: 'up', detail: 'MongoDB connected' },
+            redis: { status: 'up', detail: 'Redis ping successful' },
+            gemini: { status: 'up', detail: 'Gemini API responded' },
+            bibleApi: { status: 'up', detail: 'Bible API responded' },
           },
           timestamp: '2025-11-20T00:00:00.000Z',
         },
