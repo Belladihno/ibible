@@ -396,7 +396,7 @@ export class UserController {
     schema: {
       example: {
         statusCode: HttpStatus.OK,
-        message: SystemMessages.USER_LOGIN_SUCCESS,
+        message: SystemMessages.USER_SIGNUP_SUCCESS,
         data: {
           user: {
             id: 'uuid-1234',
@@ -425,16 +425,7 @@ export class UserController {
     status: HttpStatus.BAD_REQUEST,
     description: 'Email already exists with different provider',
   })
-  async googleLogin(@Body() body: { idToken: string }) {
-    const result = await this.users.googleLogin({
-      idToken: body.idToken,
-    });
-    return {
-      statusCode: HttpStatus.OK,
-      message: SystemMessages.USER_LOGIN_SUCCESS,
-      data: { ...result, timestamp: new Date().toISOString() },
-    };
-  }
+  
 
   @Post('refresh')
   @HttpCode(HttpStatus.OK)

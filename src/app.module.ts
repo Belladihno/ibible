@@ -12,6 +12,7 @@ import { EmailModule } from './modules/email';
 import { SwaggerSyncModule } from 'nestjs-swagger-sync';
 import { BibleModule } from './modules/bible/bible.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
+import { MemoriesModule } from './modules/memories/memories.module';
 import { UserModule } from 'src/modules/user/user.module';
 import { BibleVerseModule } from './modules/bible/bible-verse/daily-verse.module';
 import { ChatModule } from './modules/chat/chat.module';
@@ -86,6 +87,7 @@ import { StreaksController } from './modules/streaks/streaks.controller';
     UserModule,
     BibleModule,
     NotificationsModule,
+    MemoriesModule,
     BibleVerseModule,
     BookmarkModule,
     ChatModule,

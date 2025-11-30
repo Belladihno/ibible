@@ -10,6 +10,7 @@ import { createParamDecorator, ExecutionContext } from '@nestjs/common';
 
 interface RequestWithUser {
   user?: {
+    userId?: string;
     id?: string;
     sub?: string;
   };
@@ -18,6 +19,8 @@ interface RequestWithUser {
 export const CurrentUserId = createParamDecorator(
   (_data: unknown, ctx: ExecutionContext): string | undefined => {
     const request = ctx.switchToHttp().getRequest<RequestWithUser>();
-    return request.user?.id ?? request.user?.sub;
+    const user = request.user || {};
+
+    return user.userId ?? user.sub ?? user.id;
   },
 );
