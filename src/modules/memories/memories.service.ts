@@ -113,6 +113,7 @@ export class MemoriesService {
     const doc = await this.memoryModel.findById(id).exec();
     return this.clean(doc);
   }
+  
 
   async update(
     id: string,
@@ -145,4 +146,46 @@ export class MemoriesService {
     const doc = await this.memoryModel.findByIdAndDelete(id).exec();
     return this.clean(doc);
   }
+
+  async search(
+  userId: string,
+  keyword: string,
+  page = 1,
+  limit = 10,
+) {
+  if (!keyword || keyword.trim() === '') {
+    return { results: [], total: 0, page, limit };
+  }
+
+  const skip = (page - 1) * limit;
+
+  const query = {
+    userId,
+    $or: [
+      { title: { $regex: keyword, $options: 'i' } },
+      { body: { $regex: keyword, $options: 'i' } },
+      { tags: { $regex: keyword, $options: 'i' } },
+      { verseRefs: { $regex: keyword, $options: 'i' } },
+    ]
+  };
+
+  const [results, total] = await Promise.all([
+    this.memoryModel
+      .find(query)
+      .sort('-createdAt')
+      .skip(skip)
+      .limit(limit)
+      .lean(),
+    
+    this.memoryModel.countDocuments(query)
+  ]);
+
+  return {
+    results: results.map(r => this.clean(r)),
+    total,
+    page,
+    limit,
+  };
+}
+
 }

@@ -97,6 +97,29 @@ export class MemoriesController {
       parseInt(limit, 10),
     );
   }
+   @Get('search')
+@UseGuards(AuthGuard('jwt'))
+@ApiBearerAuth()
+@ApiOperation({ summary: 'Search memories by keyword' })
+@ApiResponse({
+  status: 200,
+  description: 'Returns the user profile',
+  schema: {
+    type: 'object',
+    properties: {
+      id: { type: 'string' },
+      email: { type: 'string' },
+    },
+  },
+})
+async search(
+  @CurrentUserId() userId: string,
+  @Query('q') q: string,
+  @Query('page') page = '1',
+  @Query('limit') limit = '10',
+) {
+  return this.memoriesService.search(userId, q, Number(page), Number(limit));
+}
 
   @Get(':id')
   @UseGuards(AuthGuard("jwt"))
@@ -180,4 +203,6 @@ export class MemoriesController {
   remove(@Param('id') id: string) {
     return this.memoriesService.remove(id);
   }
+
+ 
 }
