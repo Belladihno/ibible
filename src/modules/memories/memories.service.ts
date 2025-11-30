@@ -194,37 +194,37 @@ export class MemoriesService {
     return this.clean(doc);
   }
   async getTimeline(userId: string): Promise<{
-  results: Partial<Memory>[];
-  total: number;
-}> {
-  const results = await this.memoryModel
-    .find({ userId })
-    .sort('createdAt') // Ascending order for chronological timeline
-    .lean()
-    .exec();
+    results: Partial<Memory>[];
+    total: number;
+  }> {
+    const results = await this.memoryModel
+      .find({ userId })
+      .sort('createdAt') // Ascending order for chronological timeline
+      .lean()
+      .exec();
 
-  const cleaned = results.map((r) => {
-    const obj = { ...(r as Record<string, unknown>) } as Record
-      string,
-      unknown
-    >;
-    if (obj._id != null) {
-      const rawId = obj._id as unknown;
-      if (
-        typeof rawId === 'object' &&
-        rawId &&
-        typeof (rawId as any).toString === 'function'
-      ) {
-        obj.id = (rawId as any).toString();
-      } else {
-        obj.id = String(rawId);
+    const cleaned = results.map((r) => {
+      const obj = { ...(r as Record<string, unknown>) } as Record<
+        string,
+        unknown
+      >;
+      if (obj._id != null) {
+        const rawId = obj._id as unknown;
+        if (
+          typeof rawId === 'object' &&
+          rawId &&
+          typeof (rawId as any).toString === 'function'
+        ) {
+          obj.id = (rawId as any).toString();
+        } else {
+          obj.id = String(rawId);
+        }
+        delete obj._id;
       }
-      delete obj._id;
-    }
-    if (obj.__v !== undefined) delete obj.__v;
-    return obj as Partial<Memory>;
-  });
+      if (obj.__v !== undefined) delete obj.__v;
+      return obj as Partial<Memory>;
+    });
 
-  return { results: cleaned, total: cleaned.length };
- }
+    return { results: cleaned, total: cleaned.length };
+  }
 }

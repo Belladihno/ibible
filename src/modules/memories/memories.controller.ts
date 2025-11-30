@@ -103,6 +103,7 @@ export class MemoriesController {
       parseInt(limit, 10),
     );
   }
+
   @Get('search')
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth()
@@ -125,6 +126,36 @@ export class MemoriesController {
     @Query('limit') limit = '10',
   ) {
     return this.memoriesService.search(userId, q, Number(page), Number(limit));
+  }
+
+  @Get('timeline')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get chronological timeline of memories' })
+  @ApiResponse({
+    status: 200,
+    description: 'Chronological list of memories',
+    schema: {
+      example: {
+        results: [
+          {
+            id: '656f1cabc1234567890abcd',
+            title: 'First answered prayer',
+            body: 'God answered my prayer for a job in an unexpected way.',
+            tags: ['prayer', 'job'],
+            verseRefs: ['John3:16'],
+            visibility: 'private',
+            createdAt: '2025-11-01T00:00:00.000Z',
+            updatedAt: '2025-11-01T00:00:00.000Z',
+          },
+        ],
+        total: 1,
+      },
+    },
+  })
+  timeline(@CurrentUserId() userId: string) {
+    if (!userId) throw new Error('Unauthenticated');
+    return this.memoriesService.getTimeline(userId);
   }
 
   @Get(':id')
@@ -184,34 +215,6 @@ export class MemoriesController {
   })
   completeFollowUp(@Param('id') id: string) {
     return this.memoriesService.completeFollowUp(id);
-  @Get('timeline')
-  @UseGuards(AuthGuard('jwt'))
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Get chronological timeline of memories' })
-  @ApiResponse({
-    status: 200,
-    description: 'Chronological list of memories',
-    schema: {
-      example: {
-        results: [
-          {
-            id: '656f1cabc1234567890abcd',
-            title: 'First answered prayer',
-            body: 'God answered my prayer for a job in an unexpected way.',
-            tags: ['prayer', 'job'],
-            verseRefs: ['John3:16'],
-            visibility: 'private',
-            createdAt: '2025-11-01T00:00:00.000Z',
-            updatedAt: '2025-11-01T00:00:00.000Z',
-          },
-        ],
-        total: 1,
-      },
-    },
-  })
-  timeline(@CurrentUserId() userId: string) {
-    if (!userId) throw new Error('Unauthenticated');
-    return this.memoriesService.getTimeline(userId);
   }
 
   @Patch(':id')
