@@ -158,6 +158,32 @@ export class MemoriesController {
     return this.memoriesService.findById(id);
   }
 
+  @Post(':id/followup')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Mark follow-up as completed' })
+  @ApiResponse({
+    status: 200,
+    description: 'Updated memory with completed follow-up',
+    schema: {
+      example: {
+        id: '656f1cabc1234567890abcd',
+        title: 'First answered prayer',
+        followUp: {
+          scheduledAt: '2025-12-30T00:00:00.000Z',
+          reminderDeltaDays: 30,
+          isCompleted: true,
+        },
+        updatedAt: '2025-11-02T00:00:00.000Z',
+      },
+    },
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Memory not found',
+  })
+  completeFollowUp(@Param('id') id: string) {
+    return this.memoriesService.completeFollowUp(id);
   @Get('timeline')
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth()

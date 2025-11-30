@@ -182,6 +182,17 @@ export class MemoriesService {
     };
   }
 
+  async completeFollowUp(id: string): Promise<Partial<Memory> | null> {
+    const doc = await this.memoryModel
+      .findByIdAndUpdate(id, { 'followUp.isCompleted': true }, { new: true })
+      .exec();
+
+    if (!doc) {
+      return null; // Or throw NotFoundException if you prefer
+    }
+
+    return this.clean(doc);
+  }
   async getTimeline(userId: string): Promise<{
   results: Partial<Memory>[];
   total: number;
