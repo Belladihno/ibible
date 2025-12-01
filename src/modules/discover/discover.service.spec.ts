@@ -4,6 +4,7 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { UserEmotion } from 'src/entities/user-emotions.entity';
 import { User } from 'src/entities/user.entity';
 import { GeminiService } from '../chat/services/gemini.service';
+import { RedisService } from '../redis/redis.service';
 
 describe('DiscoverService', () => {
   let service: DiscoverService;
@@ -23,6 +24,13 @@ describe('DiscoverService', () => {
         {
           provide: GeminiService,
           useValue: {},
+        },
+        {
+          provide: RedisService,
+          useValue: {
+            get: jest.fn(),
+            set: jest.fn(),
+          },
         },
       ],
     }).compile();

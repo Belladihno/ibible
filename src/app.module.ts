@@ -30,6 +30,7 @@ import { DiscoverModule } from './modules/discover/discover.module';
 import { StreaksModule } from './modules/streaks/streaks.module';
 // import { StreaksService } from './modules/streaks/streaks.service';
 import { StreaksController } from './modules/streaks/streaks.controller';
+import { RedisModule } from './modules/redis/redis.module';
 
 @Module({
   imports: [
@@ -96,6 +97,7 @@ import { StreaksController } from './modules/streaks/streaks.controller';
     PrayerModule,
     DiscoverModule,
     StreaksModule,
+    RedisModule,
   ],
   controllers: [AppController],
   providers: [
