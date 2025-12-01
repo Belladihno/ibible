@@ -7,6 +7,7 @@ import {
   Body,
   Query,
   Request,
+  Param,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -21,6 +22,8 @@ import { MeditationHistoryDto } from './dto/meditation-history.dto';
 import { UpdateMeditationPreferencesDto } from './dto/update-preferences.dto';
 import { StartSessionDto } from './dto/start-session.dto';
 import { CompleteSessionDto } from './dto/complete-session.dto';
+import { SendChatMessageDto } from './dto/send-chat-message.dto';
+import { CurrentUserId } from 'src/decorators/current-user-id.decorator';
 
 @ApiTags('Meditation')
 @ApiBearerAuth()
@@ -42,7 +45,9 @@ export class MeditationController {
   }
 
   @Post('start')
-  @ApiOperation({ summary: 'Start a new meditation session' })
+  @ApiOperation({
+    summary: 'Start meditation session with optional initial reflection',
+  })
   @ApiResponse({ status: 201, description: 'Session started successfully' })
   @ApiUnauthorizedResponse({ description: 'Unauthorized' })
   async startSession(@Request() req: any, @Body() dto: StartSessionDto) {
@@ -50,13 +55,30 @@ export class MeditationController {
     return this.meditationService.startSession(userId, dto);
   }
 
-  @Post('complete')
-  @ApiOperation({ summary: 'Complete a meditation session' })
-  @ApiResponse({ status: 200, description: 'Session completed successfully' })
-  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
-  async completeSession(@Request() req: any, @Body() dto: CompleteSessionDto) {
-    const userId = req.user.sub;
-    return this.meditationService.completeSession(userId, dto);
+  @Post(':sessionId/chat')
+  @ApiOperation({ summary: 'Send chat message in meditation session' })
+  async sendChatMessage(
+    @CurrentUserId() userId: string,
+    @Param('sessionId') sessionId: string,
+    @Body() dto: SendChatMessageDto,
+  ) {
+    return this.meditationService.sendChatMessage(
+      userId,
+      sessionId,
+      dto.message,
+    );
+  }
+
+  @Post(':sessionId/complete')
+  @ApiOperation({ summary: 'Complete meditation session' })
+  async completeSession(
+    @CurrentUserId() userId: string,
+    @Param('sessionId') sessionId: string,
+    // @Body() dto: CompleteSessionDto,
+  ) {
+    return this.meditationService.completeSession(userId, {
+      sessionId,
+    });
   }
 
   @Get('history')
@@ -66,6 +88,15 @@ export class MeditationController {
   async getHistory(@Request() req: any, @Query() dto: MeditationHistoryDto) {
     const userId = req.user.sub;
     return this.meditationService.getHistory(userId, dto);
+  }
+
+  @Get(':sessionId')
+  @ApiOperation({ summary: 'Get meditation session by ID with chat history' })
+  async getSessionById(
+    @CurrentUserId() userId: string,
+    @Param('sessionId') sessionId: string,
+  ) {
+    return this.meditationService.getSessionById(userId, sessionId);
   }
 
   @Patch('preferences')

@@ -1,4 +1,4 @@
-import { Injectable, Inject } from '@nestjs/common';
+import { Injectable, Inject, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import {
@@ -44,14 +44,21 @@ export class ChatService {
     }
 
     // Find or create a conversation for this user
-    let conversation = await this.chatConversationModel
-      .findOne({
+    let conversation: ChatConversationDocument | null;
+
+    if (createMessageDto.conversationId) {
+      const existingConversation = await this.chatConversationModel.findOne({
+        _id: createMessageDto.conversationId,
         userId,
         isActive: true,
-      })
-      .sort({ createdAt: -1 });
+      });
 
-    if (!conversation) {
+      if (!existingConversation) {
+        throw new NotFoundException('Conversation not found');
+      }
+      conversation = existingConversation;
+    } else {
+      // Start a new conversation if no ID is provided
       conversation = await this.createConversation(userId);
     }
 
