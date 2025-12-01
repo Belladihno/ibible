@@ -11,6 +11,7 @@ describe('MeditationController', () => {
   let service: MeditationService;
 
   const mockUserId = 'user-123';
+  const mockSessionId = 'session-123';
   const mockRequest = {
     user: { sub: mockUserId },
   };
@@ -23,6 +24,8 @@ describe('MeditationController', () => {
     updatePreferences: jest.fn(),
     getStreak: jest.fn(),
     getStatistics: jest.fn(),
+    sendChatMessage: jest.fn(), // Add new method
+    getSessionById: jest.fn(), // Add new method
   };
 
   beforeEach(async () => {
@@ -76,7 +79,7 @@ describe('MeditationController', () => {
   });
 
   describe('startSession', () => {
-    it('should call service with userId and dto', async () => {
+    it('should call service with userId and dto without initial reflection', async () => {
       const dto = { sessionType: 'morning' };
       const mockResult = {
         sessionId: 'session-123',
@@ -86,23 +89,73 @@ describe('MeditationController', () => {
           reference: 'Psalm 46:10',
           text: 'Be still, and know that I am God.',
         },
+        initialChatMessage: null,
       };
 
-      jest.spyOn(service, 'startSession').mockResolvedValue(mockResult);
+      jest.spyOn(service, 'startSession').mockResolvedValue(mockResult as any);
 
       const result = await controller.startSession(mockRequest, dto);
 
       expect(service.startSession).toHaveBeenCalledWith(mockUserId, dto);
       expect(result).toEqual(mockResult);
     });
+
+    it('should call service with userId and dto with initial reflection', async () => {
+      const dto = {
+        sessionType: 'morning',
+        initialReflection: 'This verse speaks to me deeply',
+      };
+      const mockResult = {
+        sessionId: 'session-123',
+        startedAt: new Date(),
+        durationMinutes: 10,
+        verse: {
+          reference: 'Psalm 46:10',
+          text: 'Be still, and know that I am God.',
+        },
+        initialChatMessage: 'Thank you for sharing your thoughts...',
+      };
+
+      jest.spyOn(service, 'startSession').mockResolvedValue(mockResult as any);
+
+      const result = await controller.startSession(mockRequest, dto);
+
+      expect(service.startSession).toHaveBeenCalledWith(mockUserId, dto);
+      expect(result).toEqual(mockResult);
+      expect(result.initialChatMessage).not.toBeNull();
+    });
+  });
+
+  describe('sendChatMessage', () => {
+    it('should call service with userId, sessionId and message', async () => {
+      const dto = { message: 'I struggle with being still' };
+      const mockResult = {
+        reply: "That's a common challenge. What makes it difficult for you?",
+        timestamp: new Date(),
+      };
+
+      jest.spyOn(service, 'sendChatMessage').mockResolvedValue(mockResult);
+
+      const result = await controller.sendChatMessage(
+        mockUserId,
+        mockSessionId,
+        dto,
+      );
+
+      expect(service.sendChatMessage).toHaveBeenCalledWith(
+        mockUserId,
+        mockSessionId,
+        dto.message,
+      );
+      expect(result).toEqual(mockResult);
+    });
   });
 
   describe('completeSession', () => {
-    it('should call service with userId and dto', async () => {
-      const dto = { sessionId: 'session-123' };
+    it('should call service with userId and sessionId', async () => {
       const mockResult = {
         message: 'Session completed successfully',
-        sessionId: 'session-123',
+        sessionId: mockSessionId,
         completedAt: new Date(),
         durationSeconds: 600,
         streak: 1,
@@ -110,10 +163,103 @@ describe('MeditationController', () => {
 
       jest.spyOn(service, 'completeSession').mockResolvedValue(mockResult);
 
-      const result = await controller.completeSession(mockRequest, dto);
+      const result = await controller.completeSession(
+        mockUserId,
+        mockSessionId,
+      );
 
-      expect(service.completeSession).toHaveBeenCalledWith(mockUserId, dto);
+      expect(service.completeSession).toHaveBeenCalledWith(mockUserId, {
+        sessionId: mockSessionId,
+      });
       expect(result).toEqual(mockResult);
+    });
+  });
+
+  describe('getSessionById', () => {
+    it('should call service with userId and sessionId for incomplete session', async () => {
+      const mockResult = {
+        session: {
+          id: mockSessionId,
+          verseReference: 'Psalm 46:10',
+          verseText: 'Be still, and know that I am God.',
+          startedAt: new Date(),
+          completedAt: null, // Incomplete session
+          durationSeconds: null,
+          completed: false,
+          initialReflection: 'This verse speaks to me',
+          chatCount: 4,
+        },
+        chatHistory: [
+          {
+            id: 'chat-1',
+            role: 'user',
+            message: 'This verse speaks to me',
+            createdAt: new Date(),
+          },
+          {
+            id: 'chat-2',
+            role: 'assistant',
+            message: 'Thank you for sharing...',
+            createdAt: new Date(),
+          },
+        ],
+      };
+
+      jest
+        .spyOn(service, 'getSessionById')
+        .mockResolvedValue(mockResult as any); // Use 'as any' to bypass type check
+
+      const result = await controller.getSessionById(mockUserId, mockSessionId);
+
+      expect(service.getSessionById).toHaveBeenCalledWith(
+        mockUserId,
+        mockSessionId,
+      );
+      expect(result).toEqual(mockResult);
+      expect(result.chatHistory).toHaveLength(2);
+    });
+
+    it('should call service with userId and sessionId for completed session', async () => {
+      const mockResult = {
+        session: {
+          id: mockSessionId,
+          verseReference: 'Psalm 46:10',
+          verseText: 'Be still, and know that I am God.',
+          startedAt: new Date(),
+          completedAt: new Date(), // Completed session
+          durationSeconds: 600,
+          completed: true,
+          initialReflection: 'This verse speaks to me',
+          chatCount: 4,
+        },
+        chatHistory: [
+          {
+            id: 'chat-1',
+            role: 'user',
+            message: 'This verse speaks to me',
+            createdAt: new Date(),
+          },
+          {
+            id: 'chat-2',
+            role: 'assistant',
+            message: 'Thank you for sharing...',
+            createdAt: new Date(),
+          },
+        ],
+      };
+
+      jest
+        .spyOn(service, 'getSessionById')
+        .mockResolvedValue(mockResult as any);
+
+      const result = await controller.getSessionById(mockUserId, mockSessionId);
+
+      expect(service.getSessionById).toHaveBeenCalledWith(
+        mockUserId,
+        mockSessionId,
+      );
+      expect(result).toEqual(mockResult);
+      expect(result.session.completed).toBe(true);
     });
   });
 
@@ -151,6 +297,29 @@ describe('MeditationController', () => {
 
       expect(service.getHistory).toHaveBeenCalledWith(mockUserId, dto);
       expect(result).toEqual(mockResult);
+    });
+
+    it('should return sessions with chat previews', async () => {
+      const dto = { page: 1, limit: 20 };
+      const mockResult = {
+        data: [
+          {
+            id: 'session-1',
+            verseReference: 'Psalm 46:10',
+            completedAt: new Date(),
+            chatCount: 6,
+            chatPreview: "That's a beautiful insight. What does...",
+          },
+        ],
+        pagination: { page: 1, limit: 20, total: 1, totalPages: 1 },
+      };
+
+      jest.spyOn(service, 'getHistory').mockResolvedValue(mockResult as any);
+
+      const result = await controller.getHistory(mockRequest, dto);
+
+      expect(service.getHistory).toHaveBeenCalledWith(mockUserId, dto);
+      expect(result.data[0]).toHaveProperty('chatPreview');
     });
   });
 

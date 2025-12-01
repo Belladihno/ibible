@@ -10,7 +10,8 @@ import { StartSessionDto } from './dto/start-session.dto';
 import { CompleteSessionDto } from './dto/complete-session.dto';
 import { MeditationVerseService } from './meditation-verse.service';
 import * as SystemMessages from 'src/shared/constants/systemMessages';
-
+import { MeditationChat } from 'src/entities/meditation-chat.entity';
+import { ReflectionGeminiService } from './services/meditation-gemini-service';
 @Injectable()
 export class MeditationService {
   constructor(
@@ -18,7 +19,10 @@ export class MeditationService {
     private meditationPlanRepo: Repository<MeditationPlan>,
     @InjectRepository(MeditationSession)
     private meditationSessionRepo: Repository<MeditationSession>,
-    private readonly meditationVerseService: MeditationVerseService, // Add this
+    @InjectRepository(MeditationChat)
+    private chatRepo: Repository<MeditationChat>,
+    private readonly meditationVerseService: MeditationVerseService,
+    private readonly reflectionGeminiService: ReflectionGeminiService,
   ) {}
 
   async getDailyMeditation(userId: string) {
@@ -26,7 +30,6 @@ export class MeditationService {
 
     const verseData = await this.getTodaysVerse();
 
-    // Check if user has completed today's meditation
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const tomorrow = new Date(today);
@@ -68,15 +71,95 @@ export class MeditationService {
       verseReference: verseData.reference,
       verseText: verseData.text,
       completed: false,
+      initialReflection: dto.initialReflection || null,
+      chatCount: 0,
     });
 
     await this.meditationSessionRepo.save(session);
+
+    let initialChatMessage: string | null = null;
+
+    if (dto.initialReflection) {
+      await this.chatRepo.save({
+        sessionId: session.id,
+        userId,
+        role: 'user',
+        message: dto.initialReflection,
+      });
+
+      const aiGreeting = await this.reflectionGeminiService.generateReflection({
+        verseReference: verseData.reference,
+        verseText: verseData.text,
+        userReflection: dto.initialReflection,
+      });
+
+      await this.chatRepo.save({
+        sessionId: session.id,
+        userId,
+        role: 'assistant',
+        message: aiGreeting,
+      });
+
+      session.chatCount = 2;
+      await this.meditationSessionRepo.save(session);
+
+      initialChatMessage = aiGreeting;
+    }
 
     return {
       sessionId: session.id,
       startedAt: session.startedAt,
       durationMinutes: plan.durationMinutes,
       verse: verseData,
+      initialChatMessage,
+    };
+  }
+
+  async sendChatMessage(userId: string, sessionId: string, message: string) {
+    const session = await this.meditationSessionRepo.findOne({
+      where: { id: sessionId, userId },
+    });
+
+    if (!session) {
+      throw new NotFoundException('Session not found');
+    }
+
+    await this.chatRepo.save({
+      sessionId,
+      userId,
+      role: 'user',
+      message,
+    });
+
+    const history = await this.chatRepo.find({
+      where: { sessionId },
+      order: { createdAt: 'ASC' },
+    });
+
+    const aiResponse =
+      await this.reflectionGeminiService.generateContinuedReflection({
+        verseReference: session.verseReference,
+        verseText: session.verseText,
+        history: history.map((h) => ({
+          role: h.role,
+          message: h.message,
+        })),
+        newUserMessage: message,
+      });
+
+    await this.chatRepo.save({
+      sessionId,
+      userId,
+      role: 'assistant',
+      message: aiResponse,
+    });
+
+    session.chatCount = history.length + 2;
+    await this.meditationSessionRepo.save(session);
+
+    return {
+      reply: aiResponse,
+      timestamp: new Date(),
     };
   }
 
@@ -119,11 +202,47 @@ export class MeditationService {
       streak,
     };
   }
+
+  async getSessionById(userId: string, sessionId: string) {
+    const session = await this.meditationSessionRepo.findOne({
+      where: { id: sessionId, userId },
+    });
+
+    if (!session) {
+      throw new NotFoundException('Session not found');
+    }
+
+    const chatHistory = await this.chatRepo.find({
+      where: { sessionId },
+      order: { createdAt: 'ASC' },
+    });
+
+    return {
+      session: {
+        id: session.id,
+        verseReference: session.verseReference,
+        verseText: session.verseText,
+        startedAt: session.startedAt,
+        completedAt: session.completedAt,
+        durationSeconds: session.durationSeconds,
+        completed: session.completed,
+        initialReflection: session.initialReflection,
+        chatCount: session.chatCount,
+      },
+      chatHistory: chatHistory.map((chat) => ({
+        id: chat.id,
+        role: chat.role,
+        message: chat.message,
+        createdAt: chat.createdAt,
+      })),
+    };
+  }
+
   async getHistory(userId: string, dto: MeditationHistoryDto) {
     const { page = 1, limit = 20, startDate, endDate } = dto;
     const skip = (page - 1) * limit;
 
-    const whereCondition: any = { userId }; // Removed completed: true
+    const whereCondition: any = { userId, completed: true };
 
     if (startDate || endDate) {
       whereCondition.completedAt = Between(
@@ -134,13 +253,29 @@ export class MeditationService {
 
     const [sessions, total] = await this.meditationSessionRepo.findAndCount({
       where: whereCondition,
-      order: { createdAt: 'DESC' },
+      order: { completedAt: 'DESC' },
       skip,
       take: limit,
     });
 
+    const sessionsWithPreviews = await Promise.all(
+      sessions.map(async (session) => {
+        const lastChat = await this.chatRepo.findOne({
+          where: { sessionId: session.id },
+          order: { createdAt: 'DESC' },
+        });
+
+        return {
+          ...session,
+          chatPreview: lastChat
+            ? lastChat.message.substring(0, 100) + '...'
+            : null,
+        };
+      }),
+    );
+
     return {
-      data: sessions,
+      data: sessionsWithPreviews,
       pagination: {
         page,
         limit,

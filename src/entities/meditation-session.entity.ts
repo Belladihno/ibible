@@ -41,4 +41,11 @@ export class MeditationSession extends BaseEntity {
 
   @Column({ type: 'jsonb', nullable: false, default: {} })
   notes: Record<string, any> | null;
+
+  @Column({ name: 'initial_reflection', type: 'text', nullable: true })
+  initialReflection: string | null;
+
+  // NEW: Chat message count
+  @Column({ name: 'chat_count', default: 0 })
+  chatCount: number;
 }

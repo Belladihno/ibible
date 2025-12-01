@@ -312,9 +312,9 @@ export class UserController {
     };
   }
 
-  @Post('google/signup')
+  @Post('google')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Sign up with Google ID token' })
+  @ApiOperation({ summary: 'Authenticate with Google ID token' })
   @ApiBody({
     schema: {
       type: 'object',
@@ -364,7 +364,7 @@ export class UserController {
     description: 'Email already exists with different provider',
   })
   async googleAuth(@Body() body: { idToken: string }) {
-    const result = await this.users.googleSignUp({
+    const result = await this.users.googleAuth({
       idToken: body.idToken,
     });
     return {
@@ -372,90 +372,6 @@ export class UserController {
       message: SystemMessages.USER_SIGNUP_SUCCESS,
       data: { ...result, timestamp: new Date().toISOString() },
     };
-  }
-
-  @Post('google/login')
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Login with Google ID token' })
-  @ApiBody({
-    schema: {
-      type: 'object',
-      required: ['idToken'],
-      properties: {
-        idToken: {
-          type: 'string',
-          description: 'Google ID token from client-side OAuth',
-          example: 'eyJhbGciOiJSUzI1NiIsImtpZCI6...',
-        },
-      },
-    },
-  })
-  @ApiResponse({
-    status: HttpStatus.OK,
-    description: 'Successfully authenticated with Google',
-    schema: {
-      example: {
-        statusCode: HttpStatus.OK,
-        message: SystemMessages.USER_SIGNUP_SUCCESS,
-        data: {
-          user: {
-            id: 'uuid-1234',
-            email: 'user@gmail.com',
-            fullName: 'John Doe',
-            profilePicture: 'https://lh3.googleusercontent.com/...',
-            phoneNumber: null,
-            about: null,
-          },
-          tokens: {
-            accessToken: 'eyJhbGci...',
-            refreshToken: 'eyJhbGci.refresh...',
-            expiresIn: 604800,
-            tokenType: 'Bearer',
-          },
-          timestamp: '2025-11-26T00:00:00.000Z',
-        },
-      },
-    },
-  })
-  @ApiResponse({
-    status: HttpStatus.UNAUTHORIZED,
-    description: 'Invalid Google ID token',
-  })
-  @ApiResponse({
-    status: HttpStatus.BAD_REQUEST,
-    description: 'Email already exists with different provider',
-  })
-  @Post('refresh')
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Refresh JWT token' })
-  @ApiHeader({ name: 'Authorization', description: 'Bearer <refreshToken>' })
-  @ApiResponse({
-    status: 200,
-    description: 'Token successfully refreshed',
-    schema: {
-      example: {
-        accessToken: 'eyJhbGci...',
-        refreshToken: 'eyJhbGci.refresh...',
-        expiresIn: 900,
-        tokenType: 'Bearer',
-      },
-    },
-  })
-  @ApiResponse({
-    status: HttpStatus.UNAUTHORIZED,
-    description: 'Invalid refresh token',
-  })
-  async refreshToken(@HeadersDecorator('authorization') authorization: string) {
-    if (!authorization) {
-      throw new BadRequestException('Missing Authorization header');
-    }
-    const [scheme, token] = authorization.split(' ');
-    if (!token || scheme.toLowerCase() !== 'bearer') {
-      throw new BadRequestException(
-        'Invalid Authorization header format. Expected: Bearer <token>',
-      );
-    }
-    return this.users.refreshToken(token);
   }
 
   @Post('forgot-password')
