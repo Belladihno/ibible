@@ -45,54 +45,17 @@ export class BibleService {
     };
   };
 
-  getChapter = async (chapterId: string): Promise<Record<string, unknown>> => {
-    try {
-      const cacheKey = `bible:chapter:${this.BIBLE_ID}:${chapterId}:content=json:clean`;
-
-      const cached = await this.redis.get(cacheKey);
-      if (cached) return JSON.parse(cached) as Record<string, unknown>;
-
-      const url = `${API_BASE}/bibles/${this.BIBLE_ID}/passages/${encodeURIComponent(
-        chapterId,
-      )}?content-type=json`;
-      const res = await fetch(url, { headers: this.getHeaders() });
-      if (!res.ok) throw new Error('Failed to fetch chapter');
-      const raw = (await res.json()) as PassageResponse;
-      const data = raw.data;
-      const content = Array.isArray(data?.content)
-        ? extractVerses(data.content)
-        : [];
-
-      const cleanData = {
-        id: data?.id,
-        orgId: data?.orgId,
-        bibleId: data?.bibleId,
-        bookId: data?.bookId,
-        chapterIds: data?.chapterIds,
-        reference: data?.reference,
-        content,
-      };
-      await this.redis.set(
-        cacheKey,
-        JSON.stringify(cleanData),
-        'EX',
-        60 * 60 * 24 * 7,
-      ); // 7 days
-      return cleanData;
-    } catch (err) {
-      this.logger.error('getChapter error', err);
-      throw new InternalServerErrorException('Could not fetch chapter');
-    }
-  };
-
-  getVerse = async (verseId: string): Promise<Record<string, unknown>> => {
+  getVerse = async (
+    verseId: string,
+    translation = 'kjv',
+  ): Promise<Record<string, unknown>> => {
     try {
       // verseId will be like: "genesis2:2" or "john3:16"
       const ref = verseId.toLowerCase();
 
       const cacheKey = `bible:verse:${ref}`;
 
-      const url = `https://bible-api.com/${ref}?translation=kjv`;
+      const url = `https://bible-api.com/${ref}?translation=${translation}`;
       const response = await fetch(url);
 
       if (!response.ok) {
@@ -125,13 +88,14 @@ export class BibleService {
   getBookChapter = async (
     book: string,
     chapter: number,
+    translation = 'kjv',
   ): Promise<Record<string, unknown>> => {
     try {
       const bookLower = book.toLowerCase();
       const ref = `${bookLower}${chapter}`;
       const cacheKey = `bible:book_chapter:${ref}`;
 
-      const url = `https://bible-api.com/${ref}?translation=kjv`;
+      const url = `https://bible-api.com/${ref}?translation=${translation}`;
       const response = await fetch(url);
 
       if (!response.ok) {
@@ -186,21 +150,102 @@ export class BibleService {
 
   getBibleVersions = async (): Promise<Record<string, unknown>> => {
     try {
-      const cacheKey = 'bible:versions';
-      const cached = await this.redis.get(cacheKey);
-      if (cached) return JSON.parse(cached) as Record<string, unknown>;
+      // const cacheKey = 'bible:versions';
+      // const cached = await this.redis.get(cacheKey);
+      // if (cached) return JSON.parse(cached) as Record<string, unknown>;
 
-      const url = `${API_BASE}/bibles`;
-      const res = await fetch(url, { headers: this.getHeaders() });
-      if (!res.ok) throw new Error('Failed to fetch Bible versions');
-      const data = (await res.json()) as Record<string, unknown>;
-      await this.redis.set(
-        cacheKey,
-        JSON.stringify(data),
-        'EX',
-        60 * 60 * 24 * 7,
-      ); // 7 days
-      return data;
+      // const url = `${API_BASE}/bibles`;
+      // const res = await fetch(url, { headers: this.getHeaders() });
+      // if (!res.ok) throw new Error('Failed to fetch Bible versions');
+      // const data = (await res.json()) as Record<string, unknown>;
+      // await this.redis.set(
+      //   cacheKey,
+      //   JSON.stringify(data),
+      //   'EX',
+      //   60 * 60 * 24 * 7,
+      // ); // 7 days
+
+      const versions = [
+        {
+          language: 'Cherokee',
+          name: 'Cherokee New Testament',
+          identifier: 'cherokee',
+        },
+        {
+          language: 'Chinese',
+          name: 'Chinese Union Version',
+          identifier: 'cuv',
+        },
+        { language: 'Czech', name: 'Bible kralická', identifier: 'bkr' },
+        {
+          language: 'English',
+          name: 'American Standard Version (1901)',
+          identifier: 'asv',
+        },
+        {
+          language: 'English',
+          name: 'Bible in Basic English',
+          identifier: 'bbe',
+        },
+        { language: 'English', name: 'Darby Bible', identifier: 'darby' },
+        {
+          language: 'English',
+          name: 'Douay-Rheims 1899 American Edition',
+          identifier: 'dra',
+        },
+        { language: 'English', name: 'King James Version', identifier: 'kjv' },
+        {
+          language: 'English',
+          name: 'World English Bible (default)',
+          identifier: 'web',
+        },
+        {
+          language: 'English',
+          name: "Young's Literal Translation",
+          identifier: 'ylt',
+        },
+        {
+          language: 'English (UK)',
+          name: 'Open English Bible, Commonwealth Edition',
+          identifier: 'oeb-cw',
+        },
+        {
+          language: 'English (UK)',
+          name: 'World English Bible, British Edition',
+          identifier: 'webbe',
+        },
+        {
+          language: 'English (US)',
+          name: 'Open English Bible, US Edition',
+          identifier: 'oeb-us',
+        },
+        {
+          language: 'Latin',
+          name: 'Clementine Latin Vulgate',
+          identifier: 'clementine',
+        },
+        {
+          language: 'Portuguese',
+          name: 'João Ferreira de Almeida',
+          identifier: 'almeida',
+        },
+        {
+          language: 'Romanian',
+          name: 'Romanian Cornilescu Version',
+          identifier: 'rccv',
+        },
+      ];
+
+      // 🔥 Transform into Swagger format
+      const formatted = versions.map((v) => ({
+        id: v.identifier,
+        name: v.name,
+        abbreviation: v.identifier,
+        language: v.language,
+        updatedAt: new Date().toISOString(),
+      }));
+
+      return { data: formatted };
     } catch (err) {
       this.logger.error('getBibleVersions error', err);
       throw new InternalServerErrorException('Could not fetch Bible versions');
