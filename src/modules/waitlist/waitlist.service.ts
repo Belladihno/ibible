@@ -4,17 +4,22 @@ import {
   InternalServerErrorException,
 } from '@nestjs/common';
 
+import { InjectQueue } from '@nestjs/bullmq';
+import { Queue } from 'bullmq';
 import { CreateWaitlistEntryDto } from './dto/create-waitlist-entry.dto';
 import { WaitListEntryModelAction } from 'src/actions/model-actions';
 import { EmailService } from 'src/modules/email/email.service';
 import { EmailTemplateId } from 'src/modules/email/constants/email-template.enum';
 import { EmailPayload } from 'src/shared/types/email.types';
+import { WaitlistSyncJob } from 'src/shared/interfaces/sales.interface';
 
 @Injectable()
 export class WaitlistService {
   constructor(
     private readonly WaitlEntryModelAction: WaitListEntryModelAction,
     private readonly emailService: EmailService,
+    @InjectQueue('waitlist-sync')
+    private readonly waitlistQueue: Queue<WaitlistSyncJob>,
   ) {}
 
   async create(createWaitlistEntryDto: CreateWaitlistEntryDto) {
@@ -49,6 +54,22 @@ export class WaitlistService {
       };
 
       await this.emailService.sendMail(emailPayload);
+
+      // Queue background job to sync with sales tools
+      await this.waitlistQueue.add(
+        'sync-to-sales-tools',
+        {
+          email: entry.email,
+          name: entry.name,
+        },
+        {
+          attempts: 3,
+          backoff: {
+            type: 'exponential',
+            delay: 2000,
+          },
+        },
+      );
 
       return {
         message: 'Success! User added to the waitlist.',
