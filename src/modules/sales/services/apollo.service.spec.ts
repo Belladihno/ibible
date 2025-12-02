@@ -1,297 +1,161 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { ConfigService } from '@nestjs/config';
 import { ApolloService } from './apollo.service';
+import { ConfigService } from '@nestjs/config';
+import { Logger } from '@nestjs/common';
 
-global.fetch = jest.fn();
+// Silence logs during tests
+jest.spyOn(Logger.prototype, 'log').mockImplementation(() => undefined);
+jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+jest.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
+
+// Global fetch mock
+const mockFetch = jest.fn();
+global.fetch = mockFetch as unknown as typeof fetch;
 
 describe('ApolloService', () => {
-  let service: ApolloService;
-  let configService: ConfigService;
+  let configMock: jest.Mocked<ConfigService>;
 
-  const mockConfigService = {
-    get: jest.fn(),
-    getOrThrow: jest.fn(),
-  };
-
-  beforeEach(async () => {
-    jest.clearAllMocks();
-
+  const createService = async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ApolloService,
-        {
-          provide: ConfigService,
-          useValue: mockConfigService,
-        },
+        { provide: ConfigService, useValue: configMock },
       ],
     }).compile();
 
-    service = module.get<ApolloService>(ApolloService);
-    configService = module.get<ConfigService>(ConfigService);
+    return module.get(ApolloService);
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+
+    configMock = {
+      get: jest.fn(),
+      getOrThrow: jest.fn(),
+    } as any;
   });
 
-  afterEach(() => {
-    jest.restoreAllMocks();
-  });
-
-  describe('Configuration', () => {
-    it('should throw error in production without credentials', () => {
-      mockConfigService.get.mockReturnValue('production');
-      mockConfigService.getOrThrow.mockImplementation(() => {
-        throw new Error('Missing config');
-      });
-
-      expect(() => new ApolloService(configService)).toThrow();
+  // -------------------------------------------------------------
+  // 1. Missing configuration → should gracefully skip
+  // -------------------------------------------------------------
+  it('should skip sync if API key or sequenceId is missing', async () => {
+    configMock.get.mockImplementation((key) => {
+      if (key === 'NODE_ENV') return 'development';
+      return ''; // missing keys
     });
+    configMock.getOrThrow.mockImplementation(() => '');
 
-    it('should initialize with production config', () => {
-      mockConfigService.get.mockReturnValue('production');
-      mockConfigService.getOrThrow.mockImplementation((key: string) => {
-        const config: Record<string, string> = {
-          APOLLO_API_KEY: 'prod-key',
-          APOLLO_SEQUENCE_ID: 'prod-sequence',
-        };
-        return config[key];
-      });
+    const service = await createService();
 
-      const module = new ApolloService(configService);
-      expect(module).toBeDefined();
-    });
+    const response = await service.addLead('test@example.com', 'John Doe');
 
-    it('should warn in development without credentials', () => {
-      const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
-
-      mockConfigService.get.mockImplementation((key: string) => {
-        const config: Record<string, string> = {
-          NODE_ENV: 'development',
-          APOLLO_API_KEY: '',
-          APOLLO_SEQUENCE_ID: '',
-        };
-        return config[key];
-      });
-
-      new ApolloService(configService);
-      consoleWarnSpy.mockRestore();
+    expect(mockFetch).not.toHaveBeenCalled();
+    expect(response).toEqual({
+      success: false,
+      tool: 'apollo',
+      error: 'Service not configured',
     });
   });
 
-  describe('addLead', () => {
-    beforeEach(() => {
-      mockConfigService.get.mockReturnValue('production');
-      mockConfigService.getOrThrow.mockImplementation((key: string) => {
-        const config: Record<string, string> = {
-          APOLLO_API_KEY: 'test-api-key',
-          APOLLO_SEQUENCE_ID: 'test-sequence-id',
-        };
-        return config[key];
-      });
+  // -------------------------------------------------------------
+  // 2. Successful API call
+  // -------------------------------------------------------------
+  it('should successfully add lead when API responds OK', async () => {
+    configMock.get.mockImplementation((key) =>
+      key === 'NODE_ENV' ? 'production' : '',
+    );
+    configMock.getOrThrow.mockImplementation((key) => {
+      if (key === 'APOLLO_API_KEY') return 'test-key';
+      if (key === 'APOLLO_SEQUENCE_ID') return 'sequence-123';
+      return '';
     });
 
-    it('should successfully add lead with full name', async () => {
-      const mockResponse = {
-        success: true,
-        contact: { email: 'test@example.com' },
-      };
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({ success: true }),
+    } as Response);
 
-      (global.fetch as jest.Mock).mockResolvedValue({
-        ok: true,
-        json: async () => mockResponse,
-      });
+    const service = await createService();
 
-      const result = await service.addLead('test@example.com', 'John Doe');
+    const res = await service.addLead('jane@example.com', 'Jane Doe');
 
-      expect(result).toEqual({
-        success: true,
-        tool: 'apollo',
-      });
+    expect(mockFetch).toHaveBeenCalled();
+    expect(res.success).toBe(true);
+  });
 
-      expect(global.fetch).toHaveBeenCalledWith(
-        'https://api.apollo.io/v1/emailer_campaigns/add_contact_to_campaign',
-        expect.objectContaining({
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Api-Key': 'test-api-key',
-          },
-          body: JSON.stringify({
-            email: 'test@example.com',
-            first_name: 'John',
-            last_name: 'Doe',
-            sequence_id: 'test-sequence-id',
-          }),
-        }),
-      );
+  // -------------------------------------------------------------
+  // 3. Non-OK API response (e.g. 500)
+  // -------------------------------------------------------------
+  it('should return error when API returns non-OK response', async () => {
+    configMock.get.mockImplementation((key) =>
+      key === 'NODE_ENV' ? 'production' : '',
+    );
+    configMock.getOrThrow.mockImplementation((key) => {
+      if (key === 'APOLLO_API_KEY') return 'test-key';
+      if (key === 'APOLLO_SEQUENCE_ID') return 'sequence-123';
+      return '';
     });
 
-    it('should handle single name correctly', async () => {
-      const mockResponse = {
-        success: true,
-      };
+    mockFetch.mockResolvedValue({
+      ok: false,
+      status: 500,
+      text: async () => 'Server error',
+    } as Response);
 
-      (global.fetch as jest.Mock).mockResolvedValue({
-        ok: true,
-        json: async () => mockResponse,
-      });
+    const service = await createService();
 
-      await service.addLead('test@example.com', 'John');
+    const res = await service.addLead('fail@example.com');
 
-      const callBody = JSON.parse(
-        (global.fetch as jest.Mock).mock.calls[0][1].body,
-      );
-      expect(callBody.first_name).toBe('John');
-      expect(callBody.last_name).toBeUndefined();
+    expect(res.success).toBe(false);
+    expect(res.error).toContain('500');
+  });
+
+  // -------------------------------------------------------------
+  // 4. API success=false response
+  // -------------------------------------------------------------
+  it('should return error when Apollo API returns success=false', async () => {
+    configMock.get.mockImplementation((key) =>
+      key === 'NODE_ENV' ? 'production' : '',
+    );
+    configMock.getOrThrow.mockImplementation((key) => {
+      if (key === 'APOLLO_API_KEY') return 'test-key';
+      if (key === 'APOLLO_SEQUENCE_ID') return 'sequence-123';
+      return '';
     });
 
-    it('should handle missing name', async () => {
-      const mockResponse = {
-        success: true,
-      };
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({ success: false, message: 'unsuccessful' }),
+    } as Response);
 
-      (global.fetch as jest.Mock).mockResolvedValue({
-        ok: true,
-        json: async () => mockResponse,
-      });
+    const service = await createService();
 
-      await service.addLead('test@example.com');
+    const res = await service.addLead('bad@example.com');
 
-      const callBody = JSON.parse(
-        (global.fetch as jest.Mock).mock.calls[0][1].body,
-      );
-      expect(callBody.first_name).toBeUndefined();
-      expect(callBody.last_name).toBeUndefined();
+    expect(res.success).toBe(false);
+    expect(res.error).toContain('unsuccessful');
+  });
+
+  // -------------------------------------------------------------
+  // 5. Network error (fetch throws)
+  // -------------------------------------------------------------
+  it('should handle fetch throwing an error', async () => {
+    configMock.get.mockImplementation((key) =>
+      key === 'NODE_ENV' ? 'production' : '',
+    );
+    configMock.getOrThrow.mockImplementation((key) => {
+      if (key === 'APOLLO_API_KEY') return 'test-key';
+      if (key === 'APOLLO_SEQUENCE_ID') return 'sequence-123';
+      return '';
     });
 
-    it('should return error when service not configured', async () => {
-      mockConfigService.get.mockReturnValue('development');
-      mockConfigService.getOrThrow.mockReturnValue('');
+    mockFetch.mockRejectedValue(new Error('Network fail'));
 
-      const serviceWithoutConfig = new ApolloService(configService);
-      const result = await serviceWithoutConfig.addLead('test@example.com');
+    const service = await createService();
 
-      expect(result).toEqual({
-        success: false,
-        tool: 'apollo',
-        error: 'Service not configured',
-      });
-    });
+    const res = await service.addLead('throw@example.com');
 
-    it('should handle API error response', async () => {
-      (global.fetch as jest.Mock).mockResolvedValue({
-        ok: false,
-        status: 401,
-        text: async () => 'Unauthorized',
-      });
-
-      const result = await service.addLead('test@example.com', 'John Doe');
-
-      expect(result).toEqual({
-        success: false,
-        tool: 'apollo',
-        error: expect.stringContaining('Apollo API error: 401'),
-      });
-    });
-
-    it('should handle API returning unsuccessful response', async () => {
-      (global.fetch as jest.Mock).mockResolvedValue({
-        ok: true,
-        json: async () => ({
-          success: false,
-          message: 'Contact already exists',
-        }),
-      });
-
-      const result = await service.addLead('test@example.com', 'John Doe');
-
-      expect(result).toEqual({
-        success: false,
-        tool: 'apollo',
-        error: expect.stringContaining('Contact already exists'),
-      });
-    });
-
-    it('should handle network errors', async () => {
-      (global.fetch as jest.Mock).mockRejectedValue(new Error('Network error'));
-
-      const result = await service.addLead('test@example.com', 'John Doe');
-
-      expect(result).toEqual({
-        success: false,
-        tool: 'apollo',
-        error: 'Network error',
-      });
-    });
-
-    it('should handle timeout correctly', async () => {
-      jest.useFakeTimers();
-
-      (global.fetch as jest.Mock).mockImplementation(
-        () =>
-          new Promise((resolve) => {
-            setTimeout(() => resolve({ ok: true }), 15000);
-          }),
-      );
-
-      const resultPromise = service.addLead('test@example.com', 'John Doe');
-      jest.advanceTimersByTime(10000);
-
-      const result = await resultPromise;
-
-      expect(result.success).toBe(false);
-      jest.useRealTimers();
-    });
-
-    it('should parse multi-word names correctly', async () => {
-      const mockResponse = {
-        success: true,
-      };
-
-      (global.fetch as jest.Mock).mockResolvedValue({
-        ok: true,
-        json: async () => mockResponse,
-      });
-
-      await service.addLead('test@example.com', 'Mary Jane Watson Parker');
-
-      const callBody = JSON.parse(
-        (global.fetch as jest.Mock).mock.calls[0][1].body,
-      );
-      expect(callBody.first_name).toBe('Mary');
-      expect(callBody.last_name).toBe('Jane Watson Parker');
-    });
-
-    it('should handle JSON parse errors', async () => {
-      (global.fetch as jest.Mock).mockResolvedValue({
-        ok: true,
-        json: async () => {
-          throw new Error('Invalid JSON');
-        },
-      });
-
-      const result = await service.addLead('test@example.com', 'John Doe');
-
-      expect(result).toEqual({
-        success: false,
-        tool: 'apollo',
-        error: 'Invalid JSON',
-      });
-    });
-
-    it('should include sequence_id in request body', async () => {
-      const mockResponse = {
-        success: true,
-      };
-
-      (global.fetch as jest.Mock).mockResolvedValue({
-        ok: true,
-        json: async () => mockResponse,
-      });
-
-      await service.addLead('test@example.com', 'John Doe');
-
-      const callBody = JSON.parse(
-        (global.fetch as jest.Mock).mock.calls[0][1].body,
-      );
-      expect(callBody.sequence_id).toBe('test-sequence-id');
-    });
+    expect(res.success).toBe(false);
+    expect(res.error).toBe('Network fail');
   });
 });

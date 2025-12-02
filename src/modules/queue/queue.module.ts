@@ -22,7 +22,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
           connectTimeout: 10000,
           // Enable offline queue
           enableOfflineQueue: true,
-          maxRetriesPerRequest: 3,
+          maxRetriesPerRequest: null,
         },
         // Global job options
         defaultJobOptions: {

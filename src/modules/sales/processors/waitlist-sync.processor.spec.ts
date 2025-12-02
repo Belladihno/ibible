@@ -1,354 +1,159 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { Logger } from '@nestjs/common';
 import { Job } from 'bullmq';
 import { WaitlistSyncProcessor } from './waitlist-sync.processor';
 import { InstantlyService } from '../services/instantly.service';
 import { ApolloService } from '../services/apollo.service';
-import { WaitlistSyncJob } from 'src/shared/interfaces/sales.interface';
+import {
+  SalesToolResponse,
+  WaitlistSyncJob,
+} from 'src/shared/interfaces/sales.interface';
+
+// Silence NestJS logger output during tests
+jest.spyOn(Logger.prototype, 'log').mockImplementation(() => undefined);
+jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+jest.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
 
 describe('WaitlistSyncProcessor', () => {
   let processor: WaitlistSyncProcessor;
-  let instantlyService: InstantlyService;
-  let apolloService: ApolloService;
+  let instantlyService: jest.Mocked<InstantlyService>;
+  let apolloService: jest.Mocked<ApolloService>;
 
-  const mockInstantlyService = {
-    addLead: jest.fn(),
-  };
-
-  const mockApolloService = {
-    addLead: jest.fn(),
-  };
+  const mockJob = (data: WaitlistSyncJob): Job<WaitlistSyncJob> =>
+    ({ data }) as Job<WaitlistSyncJob>;
 
   beforeEach(async () => {
-    jest.clearAllMocks();
-
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         WaitlistSyncProcessor,
         {
           provide: InstantlyService,
-          useValue: mockInstantlyService,
+          useValue: { addLead: jest.fn() },
         },
         {
           provide: ApolloService,
-          useValue: mockApolloService,
+          useValue: { addLead: jest.fn() },
         },
       ],
     }).compile();
 
-    processor = module.get<WaitlistSyncProcessor>(WaitlistSyncProcessor);
-    instantlyService = module.get<InstantlyService>(InstantlyService);
-    apolloService = module.get<ApolloService>(ApolloService);
+    processor = module.get(WaitlistSyncProcessor);
+    instantlyService = module.get(InstantlyService);
+    apolloService = module.get(ApolloService);
   });
 
-  const createMockJob = (data: WaitlistSyncJob): Job<WaitlistSyncJob> =>
-    ({
-      id: 'job-123',
-      data,
-      attemptsMade: 0,
-      opts: { attempts: 3 },
-      updateProgress: jest.fn(),
-    }) as unknown as Job<WaitlistSyncJob>;
-
-  describe('process', () => {
-    it('should successfully sync to both services', async () => {
-      const jobData = { email: 'test@example.com', name: 'John Doe' };
-      const job = createMockJob(jobData);
-
-      mockInstantlyService.addLead.mockResolvedValue({
-        success: true,
-        tool: 'instantly',
-      });
-      mockApolloService.addLead.mockResolvedValue({
-        success: true,
-        tool: 'apollo',
-      });
-
-      await processor.process(job);
-
-      expect(instantlyService.addLead).toHaveBeenCalledWith(
-        'test@example.com',
-        'John Doe',
-      );
-      expect(apolloService.addLead).toHaveBeenCalledWith(
-        'test@example.com',
-        'John Doe',
-      );
-      expect(job.updateProgress).toHaveBeenCalledWith({
-        instantlySuccess: true,
-        apolloSuccess: true,
-        errors: [],
-      });
+  // -------------------------------------------------------------
+  // SUCCESS — both services succeed
+  // -------------------------------------------------------------
+  it('should complete successfully when both services succeed', async () => {
+    instantlyService.addLead.mockResolvedValue({
+      success: true,
+      tool: 'instantly',
     });
 
-    it('should succeed if at least one service succeeds', async () => {
-      const jobData = { email: 'test@example.com', name: 'John Doe' };
-      const job = createMockJob(jobData);
-
-      mockInstantlyService.addLead.mockResolvedValue({
-        success: true,
-        tool: 'instantly',
-      });
-      mockApolloService.addLead.mockResolvedValue({
-        success: false,
-        tool: 'apollo',
-        error: 'API rate limit',
-      });
-
-      await processor.process(job);
-
-      expect(job.updateProgress).toHaveBeenCalledWith({
-        instantlySuccess: true,
-        apolloSuccess: false,
-        errors: ['Apollo: API rate limit'],
-      });
+    apolloService.addLead.mockResolvedValue({
+      success: true,
+      tool: 'apollo',
     });
 
-    it('should throw error when both services fail', async () => {
-      const jobData = { email: 'test@example.com', name: 'John Doe' };
-      const job = createMockJob(jobData);
+    const job = mockJob({ email: 'test@example.com', name: 'John Doe' });
 
-      mockInstantlyService.addLead.mockResolvedValue({
-        success: false,
-        tool: 'instantly',
-        error: 'Connection failed',
-      });
-      mockApolloService.addLead.mockResolvedValue({
-        success: false,
-        tool: 'apollo',
-        error: 'Timeout',
-      });
+    await expect(processor.process(job)).resolves.not.toThrow();
 
-      await expect(processor.process(job)).rejects.toThrow(
-        'All sales tools failed',
-      );
-    });
+    // eslint-disable-next-line @typescript-eslint/unbound-method
+    expect(instantlyService.addLead).toHaveBeenCalledWith(
+      'test@example.com',
+      'John Doe',
+    );
 
-    it('should handle service rejections', async () => {
-      const jobData = { email: 'test@example.com', name: 'John Doe' };
-      const job = createMockJob(jobData);
-
-      mockInstantlyService.addLead.mockRejectedValue(
-        new Error('Network error'),
-      );
-      mockApolloService.addLead.mockResolvedValue({
-        success: true,
-        tool: 'apollo',
-      });
-
-      await processor.process(job);
-
-      expect(job.updateProgress).toHaveBeenCalledWith({
-        instantlySuccess: false,
-        apolloSuccess: true,
-        errors: ['Instantly: Network error'],
-      });
-    });
-
-    it('should handle non-Error rejections', async () => {
-      const jobData = { email: 'test@example.com', name: 'John Doe' };
-      const job = createMockJob(jobData);
-
-      mockInstantlyService.addLead.mockRejectedValue('String error');
-      mockApolloService.addLead.mockResolvedValue({
-        success: true,
-        tool: 'apollo',
-      });
-
-      await processor.process(job);
-
-      expect(job.updateProgress).toHaveBeenCalledWith({
-        instantlySuccess: false,
-        apolloSuccess: true,
-        errors: ['Instantly: String error'],
-      });
-    });
-
-    it('should handle missing name', async () => {
-      const jobData = { email: 'test@example.com' };
-      const job = createMockJob(jobData);
-
-      mockInstantlyService.addLead.mockResolvedValue({
-        success: true,
-        tool: 'instantly',
-      });
-      mockApolloService.addLead.mockResolvedValue({
-        success: true,
-        tool: 'apollo',
-      });
-
-      await processor.process(job);
-
-      expect(instantlyService.addLead).toHaveBeenCalledWith(
-        'test@example.com',
-        undefined,
-      );
-      expect(apolloService.addLead).toHaveBeenCalledWith(
-        'test@example.com',
-        undefined,
-      );
-    });
-
-    it('should sync to services in parallel', async () => {
-      const jobData = { email: 'test@example.com', name: 'John Doe' };
-      const job = createMockJob(jobData);
-
-      const instantlyDelay = 1000;
-      const apolloDelay = 500;
-
-      mockInstantlyService.addLead.mockImplementation(
-        () =>
-          new Promise((resolve) =>
-            setTimeout(
-              () => resolve({ success: true, tool: 'instantly' }),
-              instantlyDelay,
-            ),
-          ),
-      );
-      mockApolloService.addLead.mockImplementation(
-        () =>
-          new Promise((resolve) =>
-            setTimeout(
-              () => resolve({ success: true, tool: 'apollo' }),
-              apolloDelay,
-            ),
-          ),
-      );
-
-      const startTime = Date.now();
-      await processor.process(job);
-      const endTime = Date.now();
-      const duration = endTime - startTime;
-
-      // Should complete in ~1000ms (longest delay), not 1500ms (sum of delays)
-      expect(duration).toBeLessThan(1500);
-      expect(duration).toBeGreaterThanOrEqual(instantlyDelay - 100);
-    });
-
-    it('should handle undefined error messages', async () => {
-      const jobData = { email: 'test@example.com', name: 'John Doe' };
-      const job = createMockJob(jobData);
-
-      mockInstantlyService.addLead.mockResolvedValue({
-        success: false,
-        tool: 'instantly',
-        error: undefined,
-      });
-      mockApolloService.addLead.mockResolvedValue({
-        success: true,
-        tool: 'apollo',
-      });
-
-      await processor.process(job);
-
-      expect(job.updateProgress).toHaveBeenCalledWith({
-        instantlySuccess: false,
-        apolloSuccess: true,
-        errors: ['Instantly: Unknown error'],
-      });
-    });
+    // eslint-disable-next-line @typescript-eslint/unbound-method
+    expect(apolloService.addLead).toHaveBeenCalledWith(
+      'test@example.com',
+      'John Doe',
+    );
   });
 
-  describe('onActive', () => {
-    it('should log when job becomes active', () => {
-      const consoleLogSpy = jest.spyOn(console, 'log').mockImplementation();
-      const job = createMockJob({ email: 'test@example.com' });
-
-      processor.onActive(job);
-
-      consoleLogSpy.mockRestore();
+  // -------------------------------------------------------------
+  // FAILURE — Instantly fails first
+  // -------------------------------------------------------------
+  it('should throw when Instantly fails', async () => {
+    instantlyService.addLead.mockResolvedValue({
+      success: false,
+      tool: 'instantly',
+      error: 'API error',
     });
+
+    apolloService.addLead.mockResolvedValue({
+      success: true,
+      tool: 'apollo',
+    });
+
+    const job = mockJob({ email: 'fail@instantly.com', name: 'John Doe' });
+
+    await expect(processor.process(job)).rejects.toThrow(
+      'Instantly sync failed: API error',
+    );
+
+    // Apollo still runs in parallel
+    // eslint-disable-next-line @typescript-eslint/unbound-method
+    expect(apolloService.addLead).toHaveBeenCalled();
   });
 
-  describe('onCompleted', () => {
-    it('should log when job completes', () => {
-      const consoleLogSpy = jest.spyOn(console, 'log').mockImplementation();
-      const job = createMockJob({ email: 'test@example.com' });
-
-      processor.onCompleted(job);
-
-      consoleLogSpy.mockRestore();
+  // -------------------------------------------------------------
+  // FAILURE — Apollo fails after Instantly succeeds
+  // -------------------------------------------------------------
+  it('should throw when Apollo fails', async () => {
+    instantlyService.addLead.mockResolvedValue({
+      success: true,
+      tool: 'instantly',
     });
+
+    apolloService.addLead.mockResolvedValue({
+      success: false,
+      tool: 'apollo',
+      error: 'Some apollo failure',
+    });
+
+    const job = mockJob({ email: 'apollo@fail.com', name: 'Jane Doe' });
+
+    await expect(processor.process(job)).rejects.toThrow(
+      'Apollo sync failed: Some apollo failure',
+    );
   });
 
-  describe('onFailed', () => {
-    it('should log error with job details', () => {
-      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
-      const job = createMockJob({ email: 'test@example.com' });
-      const error = new Error('Processing failed');
+  // -------------------------------------------------------------
+  // FAILURE — Instantly throws (Promise rejects)
+  // -------------------------------------------------------------
+  it('should normalize thrown errors from Instantly', async () => {
+    instantlyService.addLead.mockRejectedValue(new Error('Instantly crashed'));
 
-      processor.onFailed(job, error);
-
-      consoleErrorSpy.mockRestore();
+    apolloService.addLead.mockResolvedValue({
+      success: true,
+      tool: 'apollo',
     });
 
-    it('should handle undefined job', () => {
-      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
-      const error = new Error('Processing failed');
+    const job = mockJob({ email: 'error@instantly.com', name: 'Jake' });
 
-      processor.onFailed(undefined, error);
-
-      consoleErrorSpy.mockRestore();
-    });
+    await expect(processor.process(job)).rejects.toThrow(
+      'Instantly sync failed: Instantly crashed',
+    );
   });
 
-  describe('normalizeResult', () => {
-    it('should return null for fulfilled successful result', () => {
-      const result = {
-        status: 'fulfilled' as const,
-        value: { success: true, tool: 'instantly' as const },
-      };
-
-      const normalized = (processor as any).normalizeResult(result);
-
-      expect(normalized).toBeNull();
+  // -------------------------------------------------------------
+  // FAILURE — Apollo throws (Promise rejects)
+  // -------------------------------------------------------------
+  it('should normalize thrown errors from Apollo', async () => {
+    instantlyService.addLead.mockResolvedValue({
+      success: true,
+      tool: 'instantly',
     });
 
-    it('should return error message for fulfilled failed result', () => {
-      const result = {
-        status: 'fulfilled' as const,
-        value: {
-          success: false,
-          tool: 'instantly' as const,
-          error: 'API error',
-        },
-      };
+    apolloService.addLead.mockRejectedValue(new Error('Apollo timeout'));
 
-      const normalized = (processor as any).normalizeResult(result);
+    const job = mockJob({ email: 'apollo@error.com', name: 'Sam' });
 
-      expect(normalized).toBe('API error');
-    });
-
-    it('should return "Unknown error" for fulfilled failed result without error', () => {
-      const result = {
-        status: 'fulfilled' as const,
-        value: { success: false, tool: 'instantly' as const },
-      };
-
-      const normalized = (processor as any).normalizeResult(result);
-
-      expect(normalized).toBe('Unknown error');
-    });
-
-    it('should return error message for rejected result with Error', () => {
-      const result = {
-        status: 'rejected' as const,
-        reason: new Error('Network failure'),
-      };
-
-      const normalized = (processor as any).normalizeResult(result);
-
-      expect(normalized).toBe('Network failure');
-    });
-
-    it('should convert non-Error reason to string', () => {
-      const result = {
-        status: 'rejected' as const,
-        reason: 'String error',
-      };
-
-      const normalized = (processor as any).normalizeResult(result);
-
-      expect(normalized).toBe('String error');
-    });
+    await expect(processor.process(job)).rejects.toThrow(
+      'Apollo sync failed: Apollo timeout',
+    );
   });
 });

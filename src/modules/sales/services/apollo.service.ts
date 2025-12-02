@@ -21,11 +21,10 @@ export class ApolloService {
       this.sequenceId =
         this.configService.getOrThrow<string>('APOLLO_SEQUENCE_ID');
     } else {
-      this.apiKey = this.configService.get<string>('APOLLO_API_KEY', '');
-      this.sequenceId = this.configService.get<string>(
-        'APOLLO_SEQUENCE_ID',
-        '',
-      );
+      // In non-production, missing keys should NOT break the app.
+      this.apiKey = this.configService.get<string>('APOLLO_API_KEY', '') ?? '';
+      this.sequenceId =
+        this.configService.get<string>('APOLLO_SEQUENCE_ID', '') ?? '';
 
       if (!this.apiKey || !this.sequenceId) {
         this.logger.warn(
@@ -36,10 +35,12 @@ export class ApolloService {
   }
 
   async addLead(email: string, name?: string): Promise<SalesToolResponse> {
+    // EARLY RETURN — required by tests
     if (!this.apiKey || !this.sequenceId) {
       this.logger.warn(
         `Apollo.io not configured - skipping lead sync for ${email}`,
       );
+
       return {
         success: false,
         tool: 'apollo',
@@ -97,6 +98,7 @@ export class ApolloService {
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : 'Unknown error';
+
       this.logger.error(
         `Failed to add lead to Apollo for email ${email}: ${errorMessage}`,
       );
