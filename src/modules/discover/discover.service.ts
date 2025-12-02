@@ -23,7 +23,7 @@ export class DiscoverService {
 
   async createEmotion(
     logEmotionDto: LogEmotionDto,
-    userId: string,
+    userId?: string,
   ): Promise<VerseResponse[]> {
     const { emotion } = logEmotionDto;
 
@@ -31,10 +31,13 @@ export class DiscoverService {
       throw new BadRequestException(SYM.EMOTION_REQUIRED);
     }
 
-    const user = await this.userRepo.findOne({ where: { id: userId } });
+    let user;
+    if (userId) {
+      user = await this.userRepo.findOne({ where: { id: userId } });
 
-    if (!user) {
-      throw new BadRequestException(SYM.USER_NOT_FOUND);
+      if (!user) {
+        throw new BadRequestException(SYM.USER_NOT_FOUND);
+      }
     }
 
     // Check cache first
@@ -76,13 +79,16 @@ export class DiscoverService {
     // Save the verses to Redis for future requests
     await this.redisService.set(cacheKey, verses, 3600); // cache for 1 hour
 
-    const userEmotion = this.userEmotionRepo.create({
-      user: user,
-      emotion: emotion,
-      loggedAt: new Date(),
-    });
+    // Only persist emotion history for authenticated users
+    if (user) {
+      const userEmotion = this.userEmotionRepo.create({
+        user: user,
+        emotion: emotion,
+        loggedAt: new Date(),
+      });
 
-    await this.userEmotionRepo.save(userEmotion);
+      await this.userEmotionRepo.save(userEmotion);
+    }
 
     return verses;
   }

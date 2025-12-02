@@ -26,8 +26,6 @@ export class DiscoverController {
   constructor(private readonly discoverService: DiscoverService) {}
 
   @Post('/emotion')
-  @UseGuards(AuthGuard('jwt'))
-  @ApiBearerAuth()
   @ApiOperation({
     summary:
       'Log a user emotion and return Bible verses related to that emotion',
@@ -59,14 +57,12 @@ export class DiscoverController {
   })
   async createEmotion(
     @Body() logEmotionDto: LogEmotionDto,
-    @Request() req: { user: JwtPayload & { userId?: string; id?: string } },
+    @Request() req: { user?: JwtPayload & { userId?: string; id?: string } },
   ) {
-    // Safely extract userId from possible JWT payload keys
-    const userId = req.user.userId ?? req.user.sub ?? req.user.id;
-
-    if (!userId) {
-      throw new Error('Invalid user id');
-    }
+    // Safely extract optional userId from possible JWT payload keys
+    const userId = req?.user
+      ? (req.user.userId ?? req.user.sub ?? req.user.id)
+      : undefined;
 
     const verses = await this.discoverService.createEmotion(
       logEmotionDto,
