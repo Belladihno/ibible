@@ -60,6 +60,10 @@ interface UpdateMemoryPayload extends Partial<Memory> {
 @Injectable()
 export class MemoriesService {
   private readonly logger = new Logger(MemoriesService.name);
+  private memoryCache = new Map<
+    string,
+    { data: CleanedMemory; expires: number }
+  >();
 
   constructor(
     @InjectModel(Memory.name)
@@ -69,7 +73,31 @@ export class MemoriesService {
     @Optional()
     @InjectQueue('memories-processing')
     private readonly aiQueue?: Queue,
-  ) {}
+  ) {
+    // Log service initialization
+    this.logger.log('MemoriesService initialized');
+
+    // Check Redis service availability
+    if (this.redisService) {
+      this.logger.log('✅ RedisService is AVAILABLE for caching');
+    } else {
+      this.logger.warn('⚠️ RedisService is NOT available - caching disabled');
+    }
+
+    // Check AI service availability
+    if (this.aiMemoryService) {
+      this.logger.log('✅ AiMemoryService is AVAILABLE');
+    } else {
+      this.logger.warn('⚠️ AiMemoryService is NOT available');
+    }
+
+    // Check Queue availability
+    if (this.aiQueue) {
+      this.logger.log('✅ BullMQ Queue is AVAILABLE');
+    } else {
+      this.logger.warn('⚠️ BullMQ Queue is NOT available');
+    }
+  }
 
   private clean(doc: unknown): CleanedMemory | null {
     if (!doc) return null;
@@ -246,16 +274,20 @@ export class MemoriesService {
     userId: string,
     payload: CreateMemoryPayload,
   ): Promise<CleanedMemory | null> {
+    this.logger.debug(`Creating memory for user ${userId}`);
+
     // If AI service is available, generate a rephrased version
     let aiRephrase: { text?: string; source?: string } | undefined;
 
     if (this.aiMemoryService && payload.body && !payload.skipAI) {
       try {
+        this.logger.debug('Attempting AI rephrase for new memory');
         const rephrasedText = await this.aiMemoryService.rephraseMemory(
           payload.title ?? '',
           payload.body ?? '',
         );
         aiRephrase = { text: rephrasedText, source: 'gemini' };
+        this.logger.debug('AI rephrase successful');
       } catch (error: unknown) {
         const errorMessage =
           error instanceof Error ? error.message : 'Unknown error';
@@ -265,18 +297,26 @@ export class MemoriesService {
         );
         aiRephrase = undefined;
       }
+    } else if (payload.skipAI) {
+      this.logger.debug('AI rephrase skipped (skipAI: true)');
     }
 
     // Check for duplicate using Redis if available
     if (this.redisService && payload.body) {
       const contentHash = this.hashContent(payload.body);
       const duplicateKey = `memory:duplicate:${userId}:${contentHash}`;
-      const duplicate =
-        await this.redisService.get<DuplicateCheck>(duplicateKey);
+      this.logger.debug(`Checking duplicate with key: ${duplicateKey}`);
 
-      if (duplicate?.memoryId) {
-        this.logger.warn(`Possible duplicate memory from user ${userId}`);
-        return this.findById(duplicate.memoryId);
+      try {
+        const duplicate =
+          await this.redisService.get<DuplicateCheck>(duplicateKey);
+
+        if (duplicate?.memoryId) {
+          this.logger.warn(`Possible duplicate memory from user ${userId}`);
+          return this.findById(duplicate.memoryId);
+        }
+      } catch (error) {
+        this.logger.error('Redis duplicate check failed:', error);
       }
     }
 
@@ -284,36 +324,77 @@ export class MemoriesService {
     const saved = await doc.save();
     const cleaned = this.clean(saved);
 
+    this.logger.debug(`Memory created with ID: ${cleaned?.id}`);
+
     // Cache duplicate check
     if (this.redisService && payload.body && cleaned?.id) {
       const contentHash = this.hashContent(payload.body);
       const duplicateKey = `memory:duplicate:${userId}:${contentHash}`;
-      await this.redisService.set(
-        duplicateKey,
-        {
-          memoryId: cleaned.id,
-          timestamp: new Date(),
-        },
-        300,
-      );
+
+      try {
+        await this.redisService.set(
+          duplicateKey,
+          {
+            memoryId: cleaned.id,
+            timestamp: new Date(),
+          },
+          300,
+        );
+        this.logger.debug(`Duplicate check cached for key: ${duplicateKey}`);
+      } catch (error) {
+        this.logger.error('Failed to cache duplicate check:', error);
+      }
     }
 
     return cleaned;
   }
 
   async findById(id: string): Promise<CleanedMemory | null> {
+    this.logger.debug(`=== FIND BY ID: ${id} ===`);
+
+    // First check in-memory cache
+    const memoryCached = this.memoryCache.get(id);
+    if (memoryCached && memoryCached.expires > Date.now()) {
+      this.logger.debug(`✅ In-memory Cache HIT for ${id}`);
+      return memoryCached.data;
+    }
+
     // Try Redis cache first
     if (this.redisService) {
       const cacheKey = `memory:${id}`;
-      const cached = await this.redisService.get<CleanedMemory>(cacheKey);
 
-      if (cached) {
-        this.logger.debug(`Cache HIT for memory ${id}`);
-        return cached;
+      try {
+        this.logger.debug(`🔍 Checking Redis cache for key: ${cacheKey}`);
+
+        const cached = await this.redisService.get<CleanedMemory>(cacheKey);
+
+        if (cached) {
+          this.logger.debug(`✅ Redis Cache HIT for memory ${id}`);
+
+          // Also store in in-memory cache for faster access
+          this.memoryCache.set(id, {
+            data: cached,
+            expires: Date.now() + 60000, // 1 minute in-memory cache
+          });
+
+          return cached;
+        }
+
+        this.logger.debug(`❌ Redis Cache MISS for memory ${id}`);
+      } catch (redisError) {
+        this.logger.error(
+          `Redis error when checking cache for ${id}:`,
+          redisError,
+        );
+        // Continue to database if Redis fails
       }
+    } else {
+      this.logger.debug(
+        `⚠️ RedisService is NOT available, skipping Redis cache`,
+      );
     }
 
-    this.logger.debug(`Cache MISS for memory ${id}`);
+    this.logger.debug(`📋 Fetching memory ${id} from database`);
 
     const doc = await this.memoryModel.findById(id).exec();
     const cleaned = this.clean(doc);
@@ -321,13 +402,34 @@ export class MemoriesService {
     // Cache in Redis
     if (this.redisService && cleaned) {
       const cacheKey = `memory:${id}`;
-      await this.redisService.set(cacheKey, cleaned, 300);
+
+      try {
+        this.logger.debug(
+          `💾 Attempting to set Redis cache for key: ${cacheKey}`,
+        );
+
+        await this.redisService.set(cacheKey, cleaned, 300);
+        this.logger.debug(`✅ Redis Cache SET for memory ${id} (TTL: 300s)`);
+      } catch (setError) {
+        this.logger.error(`Failed to set Redis cache for ${id}:`, setError);
+      }
+    }
+
+    // Always store in in-memory cache
+    if (cleaned) {
+      this.memoryCache.set(id, {
+        data: cleaned,
+        expires: Date.now() + 60000, // 1 minute in-memory cache
+      });
+      this.logger.debug(`✅ In-memory Cache SET for ${id}`);
     }
 
     return cleaned;
   }
 
   async findByIdWithAuth(id: string, userId: string): Promise<CleanedMemory> {
+    this.logger.debug(`Finding memory ${id} with auth for user ${userId}`);
+
     const memory = await this.findById(id);
 
     if (!memory) {
@@ -352,20 +454,34 @@ export class MemoriesService {
     page: number;
     limit: number;
   }> {
+    this.logger.debug(
+      `Finding all memories for user ${userId}, page ${page}, limit ${limit}`,
+    );
+
     const skip = (page - 1) * limit;
 
     // Try Redis cache first
     if (this.redisService) {
       const cacheKey = `memory:${userId}:list:${page}:${limit}`;
-      const cached = await this.redisService.get<{
-        results: CleanedMemory[];
-        total: number;
-        page: number;
-        limit: number;
-      }>(cacheKey);
 
-      if (cached) {
-        return cached;
+      try {
+        this.logger.debug(`🔍 Checking Redis for list cache: ${cacheKey}`);
+
+        const cached = await this.redisService.get<{
+          results: CleanedMemory[];
+          total: number;
+          page: number;
+          limit: number;
+        }>(cacheKey);
+
+        if (cached) {
+          this.logger.debug(`✅ Redis List Cache HIT for user ${userId}`);
+          return cached;
+        }
+
+        this.logger.debug(`❌ Redis List Cache MISS for user ${userId}`);
+      } catch (error) {
+        this.logger.error('Redis list cache check failed:', error);
       }
     }
 
@@ -389,7 +505,15 @@ export class MemoriesService {
     // Cache in Redis
     if (this.redisService) {
       const cacheKey = `memory:${userId}:list:${page}:${limit}`;
-      await this.redisService.set(cacheKey, response, 60);
+
+      try {
+        await this.redisService.set(cacheKey, response, 60);
+        this.logger.debug(
+          `✅ Redis List Cache SET for user ${userId} (TTL: 60s)`,
+        );
+      } catch (error) {
+        this.logger.error('Failed to set list cache:', error);
+      }
     }
 
     return response;
@@ -399,12 +523,15 @@ export class MemoriesService {
     id: string,
     payload: UpdateMemoryPayload,
   ): Promise<CleanedMemory | null> {
+    this.logger.debug(`Updating memory ${id}`);
+
     // If AI service is available and body or title is being updated, rephrase
     if (
       this.aiMemoryService &&
       (payload.body || payload.title || payload.forceAIReprocess)
     ) {
       try {
+        this.logger.debug('Attempting AI rephrase for updated memory');
         const doc = await this.memoryModel.findById(id).exec();
         const title = payload.title ?? doc?.title ?? '';
         const body = payload.body ?? doc?.body ?? '';
@@ -419,6 +546,7 @@ export class MemoriesService {
           source: 'gemini',
           status: 'completed',
         };
+        this.logger.debug('AI rephrase successful for update');
       } catch (error: unknown) {
         const errorMessage =
           error instanceof Error ? error.message : 'Unknown error';
@@ -434,30 +562,60 @@ export class MemoriesService {
 
     // Invalidate cache
     if (this.redisService && cleaned) {
-      await this.redisService.delete(`memory:${id}`);
-      if (cleaned.userId) {
-        await this.redisService.deletePattern(
-          `memory:${cleaned.userId}:list:*`,
-        );
+      try {
+        await this.redisService.delete(`memory:${id}`);
+        this.logger.debug(`✅ Invalidated Redis cache for memory ${id}`);
+
+        if (cleaned.userId) {
+          await this.redisService.deletePattern(
+            `memory:${cleaned.userId}:list:*`,
+          );
+          this.logger.debug(
+            `✅ Invalidated list cache for user ${cleaned.userId}`,
+          );
+        }
+      } catch (error) {
+        this.logger.error('Cache invalidation failed:', error);
       }
     }
+
+    // Also invalidate in-memory cache
+    this.memoryCache.delete(id);
+    this.logger.debug(`✅ Invalidated in-memory cache for ${id}`);
 
     return cleaned;
   }
 
   async remove(id: string): Promise<CleanedMemory | null> {
+    this.logger.debug(`Removing memory ${id}`);
+
     const doc = await this.memoryModel.findByIdAndDelete(id).exec();
     const cleaned = this.clean(doc);
 
     // Invalidate cache
     if (this.redisService && cleaned) {
-      await this.redisService.delete(`memory:${id}`);
-      if (cleaned.userId) {
-        await this.redisService.deletePattern(
-          `memory:${cleaned.userId}:list:*`,
+      try {
+        await this.redisService.delete(`memory:${id}`);
+        this.logger.debug(
+          `✅ Invalidated Redis cache for deleted memory ${id}`,
         );
+
+        if (cleaned.userId) {
+          await this.redisService.deletePattern(
+            `memory:${cleaned.userId}:list:*`,
+          );
+          this.logger.debug(
+            `✅ Invalidated list cache for user ${cleaned.userId}`,
+          );
+        }
+      } catch (error) {
+        this.logger.error('Cache invalidation failed on delete:', error);
       }
     }
+
+    // Also invalidate in-memory cache
+    this.memoryCache.delete(id);
+    this.logger.debug(`✅ Invalidated in-memory cache for deleted ${id}`);
 
     return cleaned;
   }
@@ -473,6 +631,10 @@ export class MemoriesService {
     page: number;
     limit: number;
   }> {
+    this.logger.debug(
+      `Searching memories for user ${userId}, keyword: "${keyword}"`,
+    );
+
     if (!keyword?.trim()) {
       return { results: [], total: 0, page, limit };
     }
@@ -511,6 +673,8 @@ export class MemoriesService {
   }
 
   async completeFollowUp(id: string): Promise<CleanedMemory | null> {
+    this.logger.debug(`Completing follow-up for memory ${id}`);
+
     const doc = await this.memoryModel
       .findByIdAndUpdate(id, { 'followUp.isCompleted': true }, { new: true })
       .exec();
@@ -523,8 +687,18 @@ export class MemoriesService {
 
     // Invalidate cache
     if (this.redisService) {
-      await this.redisService.delete(`memory:${id}`);
+      try {
+        await this.redisService.delete(`memory:${id}`);
+        this.logger.debug(
+          `✅ Invalidated cache for memory ${id} after follow-up`,
+        );
+      } catch (error) {
+        this.logger.error('Cache invalidation failed on follow-up:', error);
+      }
     }
+
+    // Also invalidate in-memory cache
+    this.memoryCache.delete(id);
 
     return cleaned;
   }
@@ -533,6 +707,8 @@ export class MemoriesService {
     results: CleanedMemory[];
     total: number;
   }> {
+    this.logger.debug(`Getting timeline for user ${userId}`);
+
     const results = await this.memoryModel
       .find({ userId })
       .sort('createdAt')
@@ -544,5 +720,61 @@ export class MemoriesService {
       .filter((r): r is CleanedMemory => r !== null);
 
     return { results: cleaned, total: cleaned.length };
+  }
+
+  // Redis connection test method
+  async testRedisConnection(): Promise<{
+    redisAvailable: boolean;
+    connectionTest: boolean;
+    setTest: boolean;
+    getTest: boolean;
+    inMemoryCacheSize: number;
+  }> {
+    const testKey = `memories:test:${Date.now()}`;
+    const testValue = { test: 'value', timestamp: new Date().toISOString() };
+
+    const result = {
+      redisAvailable: !!this.redisService,
+      connectionTest: false,
+      setTest: false,
+      getTest: false,
+      inMemoryCacheSize: this.memoryCache.size,
+    };
+
+    if (!this.redisService) {
+      this.logger.warn('RedisService is not available (undefined)');
+      return result;
+    }
+
+    try {
+      // Test connection by setting a value
+      this.logger.debug(`Testing Redis SET with key: ${testKey}`);
+      await this.redisService.set(testKey, testValue, 10);
+      result.setTest = true;
+
+      // Test retrieval
+      this.logger.debug(`Testing Redis GET with key: ${testKey}`);
+      const retrieved = await this.redisService.get<any>(testKey);
+      result.getTest = !!retrieved && retrieved.test === 'value';
+
+      result.connectionTest = true;
+
+      this.logger.debug(`Redis test result: ${JSON.stringify(result)}`);
+    } catch (error) {
+      this.logger.error('Redis connection test failed:', error);
+    }
+
+    return result;
+  }
+
+  // Get cache statistics
+  getCacheStats(): {
+    inMemoryCacheSize: number;
+    redisAvailable: boolean;
+  } {
+    return {
+      inMemoryCacheSize: this.memoryCache.size,
+      redisAvailable: !!this.redisService,
+    };
   }
 }
