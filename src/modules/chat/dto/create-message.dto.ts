@@ -4,7 +4,7 @@ import { IsNotEmpty, IsString, IsOptional } from 'class-validator';
 export class CreateMessageDto {
   @ApiProperty({
     description: 'The message content',
-    example: 'Hello, can you help me understand Philippians 4:6?',
+    example: 'Hello, can you help me understand Revelation 3:21',
   })
   @IsString()
   @IsNotEmpty()

@@ -1,3 +1,4 @@
+// modules/memories/memories.controller.ts
 import {
   Controller,
   Post,
@@ -8,12 +9,9 @@ import {
   Body,
   Query,
   UseGuards,
+  ParseIntPipe,
 } from '@nestjs/common';
-import { MemoriesService } from './memories.service';
 import { AuthGuard } from '@nestjs/passport';
-import { CurrentUserId } from '../../decorators/current-user-id.decorator';
-import { CreateMemoryDto } from './dto/create-memory.dto';
-import { UpdateMemoryDto } from './dto/update-memory.dto';
 import {
   ApiTags,
   ApiOperation,
@@ -21,6 +19,10 @@ import {
   ApiBody,
   ApiBearerAuth,
 } from '@nestjs/swagger';
+import { MemoriesService } from './memories.service';
+import { CurrentUserId } from '../../decorators/current-user-id.decorator';
+import { CreateMemoryDto } from './dto/create-memory.dto';
+import { UpdateMemoryDto } from './dto/update-memory.dto';
 
 @ApiTags('Memories')
 @Controller('memories')
@@ -31,38 +33,33 @@ export class MemoriesController {
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Create new memory' })
-  @ApiBody({ type: CreateMemoryDto, description: 'Create memory request body' })
+  @ApiBody({ type: CreateMemoryDto })
   @ApiResponse({
     status: 201,
     description: 'Created memory',
-    schema: {
-      example: {
-        id: '656f1cabc1234567890abcd',
-        userId: 'user_123',
-        title: 'First answered prayer',
-        body: 'God answered my prayer for a job in an unexpected way.',
-        tags: ['prayer', 'job'],
-        verseRefs: ['John3:16'],
-        visibility: 'private',
-        followUp: {
-          scheduledAt: '2025-12-30T00:00:00.000Z',
-          reminderDeltaDays: 30,
-          isCompleted: false,
-        },
-        aiRephrase: { text: 'God provided a job when I least expected it.' },
-        createdAt: '2025-11-01T00:00:00.000Z',
-        updatedAt: '2025-11-01T00:00:00.000Z',
-      },
-    },
   })
-  create(@CurrentUserId() userId: string, @Body() payload: CreateMemoryDto) {
-    if (!userId) throw new Error('Unauthenticated');
-    if (payload.followUp && payload.followUp.scheduledAt) {
-      payload.followUp.scheduledAt = new Date(
-        payload.followUp.scheduledAt as any,
-      ) as any;
+  async create(
+    @CurrentUserId() userId: string,
+    @Body() payload: CreateMemoryDto,
+  ) {
+    if (!userId) {
+      throw new Error('Unauthenticated');
     }
-    return this.memoriesService.create(userId, payload as any);
+
+    // Convert DTO to service payload with proper Date objects
+    const servicePayload = {
+      ...payload,
+      followUp: payload.followUp
+        ? {
+            ...payload.followUp,
+            scheduledAt: payload.followUp.scheduledAt
+              ? new Date(payload.followUp.scheduledAt)
+              : undefined,
+          }
+        : undefined,
+    };
+
+    return this.memoriesService.create(userId, servicePayload);
   }
 
   @Get()
@@ -72,89 +69,36 @@ export class MemoriesController {
   @ApiResponse({
     status: 200,
     description: 'Paginated list of memories',
-    schema: {
-      example: {
-        results: [
-          {
-            id: '656f1cabc1234567890abcd',
-            title: 'First answered prayer',
-            body: 'God answered my prayer for a job in an unexpected way.',
-            tags: ['prayer', 'job'],
-            verseRefs: ['John3:16'],
-            visibility: 'private',
-            createdAt: '2025-11-01T00:00:00.000Z',
-            updatedAt: '2025-11-01T00:00:00.000Z',
-          },
-        ],
-        total: 1,
-        page: 1,
-        limit: 10,
-      },
-    },
   })
-  list(
+  async list(
     @CurrentUserId() userId: string,
-    @Query('page') page = '1',
-    @Query('limit') limit = '10',
+    @Query('page', new ParseIntPipe({ optional: true })) page = 1,
+    @Query('limit', new ParseIntPipe({ optional: true })) limit = 10,
   ) {
-    return this.memoriesService.findAll(
-      userId,
-      parseInt(page, 10),
-      parseInt(limit, 10),
-    );
+    return this.memoriesService.findAll(userId, page, limit);
   }
 
   @Get('search')
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Search memories by keyword' })
-  @ApiResponse({
-    status: 200,
-    description: 'Returns the user profile',
-    schema: {
-      type: 'object',
-      properties: {
-        id: { type: 'string' },
-        email: { type: 'string' },
-      },
-    },
-  })
   async search(
     @CurrentUserId() userId: string,
     @Query('q') q: string,
-    @Query('page') page = '1',
-    @Query('limit') limit = '10',
+    @Query('page', new ParseIntPipe({ optional: true })) page = 1,
+    @Query('limit', new ParseIntPipe({ optional: true })) limit = 10,
   ) {
-    return this.memoriesService.search(userId, q, Number(page), Number(limit));
+    return this.memoriesService.search(userId, q, page, limit);
   }
 
   @Get('timeline')
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get chronological timeline of memories' })
-  @ApiResponse({
-    status: 200,
-    description: 'Chronological list of memories',
-    schema: {
-      example: {
-        results: [
-          {
-            id: '656f1cabc1234567890abcd',
-            title: 'First answered prayer',
-            body: 'God answered my prayer for a job in an unexpected way.',
-            tags: ['prayer', 'job'],
-            verseRefs: ['John3:16'],
-            visibility: 'private',
-            createdAt: '2025-11-01T00:00:00.000Z',
-            updatedAt: '2025-11-01T00:00:00.000Z',
-          },
-        ],
-        total: 1,
-      },
-    },
-  })
-  timeline(@CurrentUserId() userId: string) {
-    if (!userId) throw new Error('Unauthenticated');
+  async timeline(@CurrentUserId() userId: string) {
+    if (!userId) {
+      throw new Error('Unauthenticated');
+    }
     return this.memoriesService.getTimeline(userId);
   }
 
@@ -162,30 +106,10 @@ export class MemoriesController {
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get specific memory' })
-  @ApiResponse({
-    status: 200,
-    description: 'Memory object',
-    schema: {
-      example: {
-        id: '656f1cabc1234567890abcd',
-        userId: 'user_123',
-        title: 'First answered prayer',
-        body: 'God answered my prayer for a job in an unexpected way.',
-        tags: ['prayer', 'job'],
-        verseRefs: ['John3:16'],
-        visibility: 'private',
-        followUp: {
-          scheduledAt: '2025-12-30T00:00:00.000Z',
-          reminderDeltaDays: 30,
-          isCompleted: false,
-        },
-        aiRephrase: { text: 'God provided a job when I least expected it.' },
-        createdAt: '2025-11-01T00:00:00.000Z',
-        updatedAt: '2025-11-01T00:00:00.000Z',
-      },
-    },
-  })
-  get(@Param('id') id: string) {
+  async get(@Param('id') id: string, @CurrentUserId() userId?: string) {
+    if (userId) {
+      return this.memoriesService.findByIdWithAuth(id, userId);
+    }
     return this.memoriesService.findById(id);
   }
 
@@ -193,27 +117,7 @@ export class MemoriesController {
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Mark follow-up as completed' })
-  @ApiResponse({
-    status: 200,
-    description: 'Updated memory with completed follow-up',
-    schema: {
-      example: {
-        id: '656f1cabc1234567890abcd',
-        title: 'First answered prayer',
-        followUp: {
-          scheduledAt: '2025-12-30T00:00:00.000Z',
-          reminderDeltaDays: 30,
-          isCompleted: true,
-        },
-        updatedAt: '2025-11-02T00:00:00.000Z',
-      },
-    },
-  })
-  @ApiResponse({
-    status: 404,
-    description: 'Memory not found',
-  })
-  completeFollowUp(@Param('id') id: string) {
+  async completeFollowUp(@Param('id') id: string) {
     return this.memoriesService.completeFollowUp(id);
   }
 
@@ -221,51 +125,29 @@ export class MemoriesController {
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update memory' })
-  @ApiBody({
-    type: UpdateMemoryDto,
-    description: 'Fields to update on the memory',
-  })
-  @ApiResponse({
-    status: 200,
-    description: 'Updated memory object',
-    schema: {
-      example: {
-        id: '656f1cabc1234567890abcd',
-        title: 'Updated title',
-        body: 'Updated body',
-        tags: ['prayer'],
-        verseRefs: ['John3:16'],
-        visibility: 'private',
-        followUp: {
-          scheduledAt: '2025-12-30T00:00:00.000Z',
-          reminderDeltaDays: 30,
-          isCompleted: false,
-        },
-        aiRephrase: { text: 'Updated AI rephrase' },
-        createdAt: '2025-11-01T00:00:00.000Z',
-        updatedAt: '2025-11-02T00:00:00.000Z',
-      },
-    },
-  })
-  update(@Param('id') id: string, @Body() payload: UpdateMemoryDto) {
-    return this.memoriesService.update(id, payload as any);
+  @ApiBody({ type: UpdateMemoryDto })
+  async update(@Param('id') id: string, @Body() payload: UpdateMemoryDto) {
+    // Convert DTO to service payload with proper Date objects
+    const servicePayload = {
+      ...payload,
+      followUp: payload.followUp
+        ? {
+            ...payload.followUp,
+            scheduledAt: payload.followUp.scheduledAt
+              ? new Date(payload.followUp.scheduledAt)
+              : undefined,
+          }
+        : undefined,
+    };
+
+    return this.memoriesService.update(id, servicePayload);
   }
 
   @Delete(':id')
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Delete memory' })
-  @ApiResponse({
-    status: 200,
-    description: 'Deleted memory (returned document)',
-    schema: {
-      example: {
-        id: '656f1cabc1234567890abcd',
-        title: 'First answered prayer',
-      },
-    },
-  })
-  remove(@Param('id') id: string) {
+  async remove(@Param('id') id: string) {
     return this.memoriesService.remove(id);
   }
 }

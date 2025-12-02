@@ -1,29 +1,9 @@
+// modules/memories/schemas/memory.schema.ts (add this field)
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document } from 'mongoose';
 
-@Schema({
-  timestamps: true,
-  toJSON: {
-    transform: (_doc: unknown, ret: Record<string, unknown>) => {
-      if (ret._id != null) {
-        const rawId = ret._id as unknown;
-        if (
-          typeof rawId === 'object' &&
-          rawId &&
-          typeof (rawId as any).toString === 'function'
-        ) {
-          ret.id = (rawId as any).toString();
-        } else {
-          ret.id = String(rawId);
-        }
-        delete (ret as any)._id;
-      }
-      if ((ret as any).__v !== undefined) delete (ret as any).__v;
-      return ret;
-    },
-  },
-})
-export class Memory {
+@Schema({ timestamps: true })
+export class Memory extends Document {
   @Prop({ required: true })
   userId: string;
 
@@ -33,30 +13,62 @@ export class Memory {
   @Prop({ required: true })
   body: string;
 
-  @Prop([String])
-  tags?: string[];
+  @Prop({ type: [String], default: [] })
+  tags: string[];
 
-  @Prop([String])
-  verseRefs?: string[];
+  @Prop({ type: [String], default: [] })
+  verseRefs: string[];
 
-  @Prop({ default: 'private' })
-  visibility?: 'private' | 'public';
+  @Prop({ enum: ['private', 'public', 'shared'], default: 'private' })
+  visibility: 'private' | 'public' | 'shared';
 
-  @Prop({ type: Object })
+  @Prop({
+    type: {
+      scheduledAt: Date,
+      reminderDeltaDays: Number,
+      isCompleted: { type: Boolean, default: false },
+    },
+    default: null,
+  })
   followUp?: {
     scheduledAt?: Date;
     reminderDeltaDays?: number;
     isCompleted?: boolean;
   };
 
-  @Prop({ type: Object })
-  aiRephrase?: { text?: string; source?: any };
+  @Prop({
+    type: {
+      text: String,
+      status: {
+        type: String,
+        enum: ['pending', 'processing', 'completed', 'failed'],
+        default: 'pending',
+      },
+      jobId: String,
+      processedAt: Date,
+      error: String,
+      source: String,
+    },
+    default: null,
+  })
+  aiRephrase?: {
+    text?: string;
+    status?: 'pending' | 'processing' | 'completed' | 'failed';
+    jobId?: string;
+    processedAt?: Date;
+    error?: string;
+    source?: string;
+  };
+
+  @Prop({ default: false })
+  skipAI?: boolean;
+
+  @Prop()
+  createdAt?: Date;
+
+  @Prop()
+  updatedAt?: Date;
 }
 
 export type MemoryDocument = Memory & Document;
-
 export const MemorySchema = SchemaFactory.createForClass(Memory);
-MemorySchema.index(
-  { title: 'text', body: 'text' },
-  { weights: { title: 10, body: 5 } },
-);

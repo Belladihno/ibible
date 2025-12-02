@@ -1,30 +1,31 @@
+// modules/memories/dto/create-memory.dto.ts
 import { ApiProperty } from '@nestjs/swagger';
 import {
-  IsArray,
-  IsIn,
+  IsString,
   IsNotEmpty,
   IsOptional,
-  IsString,
+  IsArray,
+  IsIn,
   ValidateNested,
   IsNumber,
+  Min,
+  Max,
   IsDateString,
+  IsBoolean,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class FollowUpDto {
-  @ApiProperty({
-    required: false,
-    description: 'ISO date string for scheduledAt',
-    example: '2025-12-01T09:00:00.000Z',
-  })
+  @ApiProperty({ required: false })
   @IsOptional()
   @IsDateString()
   scheduledAt?: string;
 
-  @ApiProperty({ required: false, description: 'Days until reminder' })
+  @ApiProperty({ required: false })
   @IsOptional()
   @IsNumber()
-  @Type(() => Number)
+  @Min(1)
+  @Max(365)
   reminderDeltaDays?: number;
 }
 
@@ -32,39 +33,38 @@ export class CreateMemoryDto {
   @ApiProperty()
   @IsString()
   @IsNotEmpty()
-  @ApiProperty({ example: 'First miracle of the month' })
   title: string;
 
-  @ApiProperty({ example: 'Answered prayer for a new job' })
   @ApiProperty()
   @IsString()
   @IsNotEmpty()
   body: string;
 
-  @ApiProperty({ required: false, type: [String], example: ['prayer', 'job'] })
+  @ApiProperty({ required: false })
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
   tags?: string[];
 
-  @ApiProperty({ required: false, type: [String], example: ['John 3:16'] })
+  @ApiProperty({ required: false })
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
   verseRefs?: string[];
 
-  @ApiProperty({ required: false, example: 'private' })
+  @ApiProperty({ required: false, enum: ['private', 'public', 'shared'] })
   @IsOptional()
-  @IsIn(['private', 'public'])
-  visibility?: 'private' | 'public';
+  @IsIn(['private', 'public', 'shared'])
+  visibility?: 'private' | 'public' | 'shared';
 
-  @ApiProperty({
-    required: false,
-    type: FollowUpDto,
-    example: { scheduledAt: '2025-12-01T09:00:00.000Z', reminderDeltaDays: 30 },
-  })
+  @ApiProperty({ required: false })
   @IsOptional()
   @ValidateNested()
   @Type(() => FollowUpDto)
   followUp?: FollowUpDto;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsBoolean()
+  skipAI?: boolean;
 }
