@@ -31,6 +31,8 @@ import { StreaksModule } from './modules/streaks/streaks.module';
 // import { StreaksService } from './modules/streaks/streaks.service';
 import { StreaksController } from './modules/streaks/streaks.controller';
 import { RedisModule } from './modules/redis/redis.module';
+import { QueueModule } from './modules/queue/queue.module';
+import { SalesModule } from './modules/sales/sales.module';
 
 @Module({
   imports: [
@@ -56,6 +58,10 @@ import { RedisModule } from './modules/redis/redis.module';
       { name: ChatConversation.name, schema: ChatConversationSchema },
       { name: ChatMessage.name, schema: ChatMessageSchema },
     ]),
+
+    QueueModule,
+
+    SalesModule,
 
     ThrottlerModule.forRoot([
       {
