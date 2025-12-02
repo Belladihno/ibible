@@ -31,7 +31,7 @@ import { StreaksModule } from './modules/streaks/streaks.module';
 // import { StreaksService } from './modules/streaks/streaks.service';
 import { StreaksController } from './modules/streaks/streaks.controller';
 import { RedisModule } from './modules/redis/redis.module';
-import { BullModule } from '@nestjs/bullmq';
+import { QueueModule } from './modules/queue/queue.module';
 import { SalesModule } from './modules/sales/sales.module';
 
 @Module({
@@ -59,16 +59,9 @@ import { SalesModule } from './modules/sales/sales.module';
       { name: ChatMessage.name, schema: ChatMessageSchema },
     ]),
 
-    BullModule.forRootAsync({
-      imports: [ConfigModule],
-      useFactory: (configService: ConfigService) => ({
-        connection: {
-          host: configService.get<string>('REDIS_HOST'),
-          port: configService.get<number>('REDIS_PORT'),
-        },
-      }),
-      inject: [ConfigService],
-    }),
+    QueueModule,
+
+    SalesModule,
 
     ThrottlerModule.forRoot([
       {
@@ -111,7 +104,6 @@ import { SalesModule } from './modules/sales/sales.module';
     DiscoverModule,
     StreaksModule,
     RedisModule,
-    SalesModule,
   ],
   controllers: [AppController],
   providers: [

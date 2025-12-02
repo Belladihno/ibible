@@ -14,12 +14,39 @@ export class ApolloService {
   private readonly sequenceId: string;
 
   constructor(private readonly configService: ConfigService) {
-    this.apiKey = this.configService.getOrThrow<string>('APOLLO_API_KEY');
-    this.sequenceId =
-      this.configService.getOrThrow<string>('APOLLO_SEQUENCE_ID');
+    const nodeEnv = this.configService.get<string>('NODE_ENV', 'development');
+
+    if (nodeEnv === 'production') {
+      this.apiKey = this.configService.getOrThrow<string>('APOLLO_API_KEY');
+      this.sequenceId =
+        this.configService.getOrThrow<string>('APOLLO_SEQUENCE_ID');
+    } else {
+      this.apiKey = this.configService.get<string>('APOLLO_API_KEY', '');
+      this.sequenceId = this.configService.get<string>(
+        'APOLLO_SEQUENCE_ID',
+        '',
+      );
+
+      if (!this.apiKey || !this.sequenceId) {
+        this.logger.warn(
+          'Apollo.io credentials not configured - service will fail gracefully',
+        );
+      }
+    }
   }
 
   async addLead(email: string, name?: string): Promise<SalesToolResponse> {
+    if (!this.apiKey || !this.sequenceId) {
+      this.logger.warn(
+        `Apollo.io not configured - skipping lead sync for ${email}`,
+      );
+      return {
+        success: false,
+        tool: 'apollo',
+        error: 'Service not configured',
+      };
+    }
+
     const [firstName, ...lastNameParts] = (name || '').split(' ');
     const lastName = lastNameParts.join(' ') || undefined;
 
@@ -31,6 +58,9 @@ export class ApolloService {
     };
 
     try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
+
       const response = await fetch(
         `${this.apiUrl}/emailer_campaigns/add_contact_to_campaign`,
         {
@@ -40,8 +70,11 @@ export class ApolloService {
             'X-Api-Key': this.apiKey,
           },
           body: JSON.stringify(leadData),
+          signal: controller.signal,
         },
       );
+
+      clearTimeout(timeoutId);
 
       if (!response.ok) {
         const errorText = await response.text();
