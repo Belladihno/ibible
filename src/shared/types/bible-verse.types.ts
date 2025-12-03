@@ -20,6 +20,7 @@ export interface BibleApiResponse {
 }
 
 export interface BibleVerse {
+  id?: string;
   reference: string;
   book: string;
   chapter: number;
@@ -37,4 +38,34 @@ export interface RefreshVerseResponse {
   success: boolean;
   message: string;
   data: BibleVerse;
+}
+
+// New interfaces for AI features
+export interface DailyVerseWithSummary {
+  verse: BibleVerse;
+  summary: string;
+  verseId: string;
+  timestamp: string; // ✅ Add this
+}
+
+export interface DailyVerseSummaryResponse {
+  statusCode: number;
+  message: string;
+  success?: boolean;
+  data: DailyVerseWithSummary;
+}
+
+export interface ConversationMessage {
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: Date;
+}
+
+export interface Conversation {
+  id: string;
+  dailyVerseId: string;
+  userId: string;
+  messages: ConversationMessage[];
+  createdAt: Date;
+  updatedAt: Date;
 }
