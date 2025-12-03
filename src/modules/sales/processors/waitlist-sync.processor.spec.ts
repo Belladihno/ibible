@@ -4,6 +4,8 @@ import { Job } from 'bullmq';
 import { WaitlistSyncProcessor } from './waitlist-sync.processor';
 import { InstantlyService } from '../services/instantly.service';
 import { ApolloService } from '../services/apollo.service';
+import { getRepositoryToken } from '@nestjs/typeorm';
+import { WaitlistEntry } from 'src/entities/waitlist-entry.entity';
 import {
   SalesToolResponse,
   WaitlistSyncJob,
@@ -18,11 +20,14 @@ describe('WaitlistSyncProcessor', () => {
   let processor: WaitlistSyncProcessor;
   let instantlyService: jest.Mocked<InstantlyService>;
   let apolloService: jest.Mocked<ApolloService>;
+  let waitlistRepo: { update: jest.Mock };
 
   const mockJob = (data: WaitlistSyncJob): Job<WaitlistSyncJob> =>
-    ({ data }) as Job<WaitlistSyncJob>;
+    ({ data } as unknown) as Job<WaitlistSyncJob>;
 
   beforeEach(async () => {
+    waitlistRepo = { update: jest.fn() };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         WaitlistSyncProcessor,
@@ -33,6 +38,10 @@ describe('WaitlistSyncProcessor', () => {
         {
           provide: ApolloService,
           useValue: { addLead: jest.fn() },
+        },
+        {
+          provide: getRepositoryToken(WaitlistEntry),
+          useValue: waitlistRepo,
         },
       ],
     }).compile();
@@ -56,7 +65,7 @@ describe('WaitlistSyncProcessor', () => {
       tool: 'apollo',
     });
 
-    const job = mockJob({ email: 'test@example.com', name: 'John Doe' });
+    const job = mockJob({ id: 'entry-1', email: 'test@example.com', name: 'John Doe' });
 
     await expect(processor.process(job)).resolves.not.toThrow();
 
@@ -71,6 +80,10 @@ describe('WaitlistSyncProcessor', () => {
       'test@example.com',
       'John Doe',
     );
+
+    expect(waitlistRepo.update).toHaveBeenCalledWith('entry-1', {
+      salesSyncedAt: expect.any(Date),
+    });
   });
 
   // -------------------------------------------------------------

@@ -58,7 +58,7 @@ describe('WaitlistService', () => {
   // Test: create()
   // ----------------------------------------
   it('should create entry, send email, and queue job', async () => {
-    const entry = { email: 'jane@example.com', name: 'Jane Doe' };
+    const entry = { id: 'entry-1', email: 'jane@example.com', name: 'Jane Doe' };
     mockModelAction.create.mockResolvedValue(entry);
     mockQueue.add.mockResolvedValue({ id: 'job-1' });
 
@@ -71,7 +71,7 @@ describe('WaitlistService', () => {
     expect(mockEmailService.sendMail).toHaveBeenCalled();
     expect(mockQueue.add).toHaveBeenCalledWith(
       'sync-to-sales-tools',
-      { email: entry.email, name: entry.name },
+      { id: entry.id, email: entry.email, name: entry.name },
       expect.any(Object),
     );
     expect(res).toEqual({

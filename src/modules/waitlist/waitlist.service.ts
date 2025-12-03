@@ -53,6 +53,7 @@ export class WaitlistService {
         const job = await this.waitlistQueue.add(
           'sync-to-sales-tools',
           {
+            id: entry.id,
             email: entry.email,
             name: entry.name,
           },

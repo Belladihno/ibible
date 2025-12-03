@@ -9,6 +9,9 @@ export class WaitlistEntry extends BaseEntity {
   @Column({ nullable: true })
   name: string;
 
+  @Column({ type: 'timestamptz', nullable: true })
+  salesSyncedAt?: Date;
+
   @BeforeInsert()
   @BeforeUpdate()
   normalizeEmail() {

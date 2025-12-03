@@ -3,6 +3,9 @@ import { Logger } from '@nestjs/common';
 import { Job } from 'bullmq';
 import { InstantlyService } from '../services/instantly.service';
 import { ApolloService } from '../services/apollo.service';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { WaitlistEntry } from 'src/entities/waitlist-entry.entity';
 import {
   WaitlistSyncJob,
   SalesToolResponse,
@@ -15,6 +18,8 @@ export class WaitlistSyncProcessor extends WorkerHost {
   constructor(
     private readonly instantlyService: InstantlyService,
     private readonly apolloService: ApolloService,
+    @InjectRepository(WaitlistEntry)
+    private readonly waitlistRepo: Repository<WaitlistEntry>,
   ) {
     super();
   }
@@ -62,5 +67,23 @@ export class WaitlistSyncProcessor extends WorkerHost {
     }
 
     this.logger.log(`Completed waitlist sync for: ${email}`);
+
+    // Mark the waitlist entry as synced to sales tools if we have an id
+    const entryId = job.data?.id;
+
+    if (entryId != null) {
+      try {
+        await this.waitlistRepo.update(entryId, {
+          salesSyncedAt: new Date(),
+        });
+        this.logger.log(`Marked waitlist entry ${entryId} as salesSynced`);
+      } catch (error: unknown) {
+        this.logger.error(
+          `Failed to mark waitlist entry ${entryId} as salesSynced`,
+          error as Error,
+        );
+        // Do not throw here — syncing succeeded but marking failed; we don't want to trigger a retry
+      }
+    }
   }
 }
