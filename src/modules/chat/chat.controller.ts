@@ -25,14 +25,15 @@ import { UserPayload } from '../user/strategy/interface.d';
 @ApiTags('Chat')
 @Controller('chat')
 export class ChatController {
-  constructor(private readonly chatService: ChatService) { }
+  constructor(private readonly chatService: ChatService) {}
 
   @Post('message')
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Send a message to Rea (Bible AI companion)',
-    description: 'Send a message without conversationId to start a NEW chat. Include conversationId to CONTINUE an existing conversation.'
+    description:
+      'Send a message without conversationId to start a NEW chat. Include conversationId to CONTINUE an existing conversation.',
   })
   @ApiResponse({
     status: HttpStatus.CREATED,

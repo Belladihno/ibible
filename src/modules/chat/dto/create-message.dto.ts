@@ -11,7 +11,8 @@ export class CreateMessageDto {
   content: string;
 
   @ApiProperty({
-    description: 'Optional. Leave empty to start a NEW conversation. Provide an existing conversation ID to CONTINUE that conversation.',
+    description:
+      'Optional. Leave empty to start a NEW conversation. Provide an existing conversation ID to CONTINUE that conversation.',
     example: '507f1f77bcf86cd799439011',
     required: false,
   })

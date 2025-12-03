@@ -14,17 +14,14 @@ export class StreaksService {
     private activityRepo: Repository<StreakActivity>,
   ) {}
 
-  // POST /api/streak/ping - Update streak on app open
   async ping(userId: string) {
     return this.updateStreak(userId, 'app_open');
   }
 
-  // POST /api/streak/activity - Log specific activity
   async logActivity(userId: string, activityType: string) {
     return this.updateStreak(userId, activityType);
   }
 
-  // GET /api/streak - Get current streak
   async getStreak(userId: string) {
     let streak = await this.streakRepo.findOne({ where: { userId } });
 
@@ -45,11 +42,17 @@ export class StreaksService {
     );
     const isActive = daysSinceActive <= 1;
 
+    const lastActivity = await this.activityRepo.findOne({
+      where: { userId, activityDate: streak.lastActiveDate },
+      order: { createdAt: 'DESC' },
+    });
+
     return {
       currentStreak: isActive ? streak.currentStreak : 0,
       longestStreak: streak.longestStreak,
       totalDays: streak.totalDays,
       lastActiveDate: streak.lastActiveDate,
+      lastActivityType: lastActivity?.activityType || null,
       isActive,
     };
   }
@@ -91,7 +94,31 @@ export class StreaksService {
     return calendar.reverse();
   }
 
-  // GET /api/streak/activities - Detailed activity log
+  // Get activities for specific day
+  async getActivitiesByDate(userId: string, date: string) {
+    // Validate date format (YYYY-MM-DD)
+    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+    if (!dateRegex.test(date)) {
+      throw new Error('Invalid date format. Use YYYY-MM-DD');
+    }
+
+    const activities = await this.activityRepo.find({
+      where: {
+        userId,
+        activityDate: date,
+      },
+      order: { createdAt: 'ASC' },
+    });
+
+    return {
+      date,
+      activityCount: activities.length,
+      activities: activities.map((activity) => ({
+        type: activity.activityType,
+        timestamp: activity.createdAt,
+      })),
+    };
+  }
   async getActivities(userId: string, limit: number = 50) {
     return this.activityRepo.find({
       where: { userId },
@@ -114,7 +141,8 @@ export class StreaksService {
     } catch (error) {
       // Already logged today, just return current streak
       if (error.code === '23505') {
-        return this.getStreak(userId);
+        const streakData = await this.getStreak(userId);
+        return { ...streakData, activityType };
       }
       throw error;
     }
@@ -130,7 +158,7 @@ export class StreaksService {
         lastActiveDate: today,
         totalDays: 1,
       });
-      return { currentStreak: 1, longestStreak: 1, totalDays: 1 };
+      return { currentStreak: 1, longestStreak: 1, totalDays: 1, activityType };
     }
 
     // Calculate days difference
@@ -142,6 +170,7 @@ export class StreaksService {
         currentStreak: streak.currentStreak,
         longestStreak: streak.longestStreak,
         totalDays: streak.totalDays,
+        activityType,
       };
     } else if (daysDiff === 1) {
       // Consecutive day, increment
@@ -166,6 +195,7 @@ export class StreaksService {
       longestStreak: streak.longestStreak,
       totalDays: streak.totalDays,
       streakBroken: daysDiff > 1,
+      activityType,
     };
   }
 
