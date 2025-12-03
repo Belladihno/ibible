@@ -6,6 +6,9 @@ import { MeditationService } from './meditation.service';
 import { JwtModule } from '@nestjs/jwt';
 import { AuthGuard } from 'src/guards/auth.guard';
 import appConfig from 'src/config/auth.config';
+// import { GeminiService } from './services/meditation-gemini-service';
+import { ReflectionGeminiService } from './services/meditation-gemini-service';
+import { MeditationChat } from 'src/entities/meditation-chat.entity';
 import { MeditationPlan } from 'src/entities/meditation-plan.entity';
 import { MeditationVerseService } from './meditation-verse.service';
 import { MeditationSchedulerService } from './meditation-scheduler.service';
@@ -21,6 +24,7 @@ import { ScheduleModule } from '@nestjs/schedule';
       MeditationSession,
       MeditationDailyVerse,
       MeditationVerseLibrary,
+      MeditationChat,
     ]),
     JwtModule.register({
       secret: appConfig().jwtSecret,
@@ -34,6 +38,7 @@ import { ScheduleModule } from '@nestjs/schedule';
     MeditationService,
     MeditationVerseService,
     MeditationSchedulerService,
+    ReflectionGeminiService,
     AuthGuard,
   ],
 

@@ -31,13 +31,11 @@ export class ChatContextService {
 
   // Mock implementations for missing services
   private memoriesService: IMemoriesService = {
-    getRecentMemories: async () => [
-      'User mentioned feeling stressed about work last week.',
-    ],
+    getRecentMemories: async (_userId: string, _limit: number) => [],
   };
 
   private discoverService: IDiscoverService = {
-    getRecentEmotions: async () => ['Anxious', 'Hopeful'],
+    getRecentEmotions: async (_userId: string, _limit: number) => [],
   };
 
   async buildContext(

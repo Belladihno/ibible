@@ -8,6 +8,7 @@ import { User } from 'src/entities/user.entity';
 import { AuthGuard } from 'src/guards/auth.guard';
 import { JwtModule } from '@nestjs/jwt';
 import appConfig from 'src/config/auth.config';
+import { RedisService } from '../redis/redis.service';
 
 @Module({
   imports: [
@@ -18,6 +19,6 @@ import appConfig from 'src/config/auth.config';
     }),
   ],
   controllers: [DiscoverController],
-  providers: [DiscoverService, GeminiService, AuthGuard],
+  providers: [DiscoverService, GeminiService, AuthGuard, RedisService],
 })
 export class DiscoverModule {}

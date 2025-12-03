@@ -12,6 +12,7 @@ import { EmailModule } from './modules/email';
 import { SwaggerSyncModule } from 'nestjs-swagger-sync';
 import { BibleModule } from './modules/bible/bible.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
+import { MemoriesModule } from './modules/memories/memories.module';
 import { UserModule } from 'src/modules/user/user.module';
 import { BibleVerseModule } from './modules/bible/bible-verse/daily-verse.module';
 import { ChatModule } from './modules/chat/chat.module';
@@ -29,6 +30,9 @@ import { DiscoverModule } from './modules/discover/discover.module';
 import { StreaksModule } from './modules/streaks/streaks.module';
 // import { StreaksService } from './modules/streaks/streaks.service';
 import { StreaksController } from './modules/streaks/streaks.controller';
+import { RedisModule } from './modules/redis/redis.module';
+import { QueueModule } from './modules/queue/queue.module';
+import { SalesModule } from './modules/sales/sales.module';
 
 @Module({
   imports: [
@@ -54,6 +58,10 @@ import { StreaksController } from './modules/streaks/streaks.controller';
       { name: ChatConversation.name, schema: ChatConversationSchema },
       { name: ChatMessage.name, schema: ChatMessageSchema },
     ]),
+
+    QueueModule,
+
+    SalesModule,
 
     ThrottlerModule.forRoot([
       {
@@ -86,6 +94,7 @@ import { StreaksController } from './modules/streaks/streaks.controller';
     UserModule,
     BibleModule,
     NotificationsModule,
+    MemoriesModule,
     BibleVerseModule,
     BookmarkModule,
     ChatModule,
@@ -94,6 +103,7 @@ import { StreaksController } from './modules/streaks/streaks.controller';
     PrayerModule,
     DiscoverModule,
     StreaksModule,
+    RedisModule,
   ],
   controllers: [AppController],
   providers: [

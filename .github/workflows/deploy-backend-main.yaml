@@ -16,7 +16,7 @@ jobs:
 
   pr-validation:
     name: PR Validation - Build, Lint, Test
-    runs-on: [ self-hosted, linux, x64 ]
+    runs-on: [self-hosted, kefaslungu]
     if: github.event_name == 'pull_request'
 
     steps:
@@ -52,7 +52,7 @@ jobs:
 
   build-test:
     name: CI - Build, Lint, Test
-    runs-on: [ self-hosted, linux, x64 ]
+    runs-on: [self-hosted, kefaslungu]
     if: github.event_name == 'push'
 
     steps:
@@ -85,7 +85,7 @@ jobs:
   deploy:
     name: CD - Deploy to server
     needs: build-test
-    runs-on: [ self-hosted, linux, x64 ]
+    runs-on: [self-hosted, kefaslungu]
 
     steps:
     - name: Checkout Code

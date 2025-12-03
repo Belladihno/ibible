@@ -8,6 +8,7 @@ import { GeminiService } from '../chat/services/gemini.service';
 import { JwtService } from '@nestjs/jwt';
 import { AuthGuard } from 'src/guards/auth.guard';
 import { Reflector } from '@nestjs/core';
+import { RedisService } from '../redis/redis.service';
 
 describe('DiscoverController', () => {
   let controller: DiscoverController;
@@ -36,6 +37,13 @@ describe('DiscoverController', () => {
         {
           provide: AuthGuard,
           useValue: {},
+        },
+        {
+          provide: RedisService,
+          useValue: {
+            get: jest.fn(),
+            set: jest.fn(),
+          },
         },
         Reflector,
       ],

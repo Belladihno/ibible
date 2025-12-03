@@ -8,6 +8,7 @@ import * as SYM from 'src/shared/constants/systemMessages';
 import { GeminiService } from '../chat/services/gemini.service';
 import { VerseResponse } from 'src/shared/interfaces/discover.interface';
 import { extractSafeVerses } from 'src/shared/utils/gemini-parse';
+import { RedisService } from '../redis/redis.service';
 
 @Injectable()
 export class DiscoverService {
@@ -17,11 +18,12 @@ export class DiscoverService {
     @InjectRepository(User)
     private readonly userRepo: Repository<User>,
     private readonly geminiService: GeminiService,
+    private readonly redisService: RedisService,
   ) {}
 
   async createEmotion(
     logEmotionDto: LogEmotionDto,
-    userId: string,
+    userId?: string,
   ): Promise<VerseResponse[]> {
     const { emotion } = logEmotionDto;
 
@@ -29,10 +31,20 @@ export class DiscoverService {
       throw new BadRequestException(SYM.EMOTION_REQUIRED);
     }
 
-    const user = await this.userRepo.findOne({ where: { id: userId } });
+    let user;
+    if (userId) {
+      user = await this.userRepo.findOne({ where: { id: userId } });
 
-    if (!user) {
-      throw new BadRequestException(SYM.USER_NOT_FOUND);
+      if (!user) {
+        throw new BadRequestException(SYM.USER_NOT_FOUND);
+      }
+    }
+
+    // Check cache first
+    const cacheKey = `discover:emotion:${emotion.toLowerCase()}`;
+    const cachedVerses = await this.redisService.get<VerseResponse[]>(cacheKey);
+    if (cachedVerses) {
+      return cachedVerses;
     }
 
     const prompt = `
@@ -52,7 +64,6 @@ export class DiscoverService {
         `;
 
     const response = await this.geminiService.generateContent(prompt);
-    console.log(response);
     let verses: VerseResponse[] = [];
     try {
       verses = JSON.parse(response);
@@ -65,13 +76,19 @@ export class DiscoverService {
       }
     }
 
-    const userEmotion = this.userEmotionRepo.create({
-      user: user,
-      emotion: emotion,
-      loggedAt: new Date(),
-    });
+    // Save the verses to Redis for future requests
+    await this.redisService.set(cacheKey, verses, 3600); // cache for 1 hour
 
-    await this.userEmotionRepo.save(userEmotion);
+    // Only persist emotion history for authenticated users
+    if (user) {
+      const userEmotion = this.userEmotionRepo.create({
+        user: user,
+        emotion: emotion,
+        loggedAt: new Date(),
+      });
+
+      await this.userEmotionRepo.save(userEmotion);
+    }
 
     return verses;
   }

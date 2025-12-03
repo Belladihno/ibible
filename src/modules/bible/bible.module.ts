@@ -8,5 +8,6 @@ import { ReadingLog } from '../../entities/reading-log.entity';
   imports: [TypeOrmModule.forFeature([ReadingLog])],
   controllers: [BibleController],
   providers: [BibleService],
+  exports: [BibleService],
 })
 export class BibleModule {}

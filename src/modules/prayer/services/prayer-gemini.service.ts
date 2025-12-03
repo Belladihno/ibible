@@ -13,9 +13,11 @@ export class PrayerGeminiService {
   private readonly model: GenerativeModel;
 
   constructor(private configService: ConfigService) {
-    const apiKey = this.configService.get<string>('GEMINI_API_KEY');
+    const apiKey = this.configService.get<string>('PRAYER_GEMINI_API_KEY');
     if (!apiKey) {
-      throw new Error('GEMINI_API_KEY is required for PrayerGeminiService');
+      throw new Error(
+        'PRAYER_GEMINI_API_KEY is required for PrayerGeminiService',
+      );
     }
 
     const genAI = new GoogleGenerativeAI(apiKey);

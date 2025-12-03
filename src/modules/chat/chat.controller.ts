@@ -30,7 +30,11 @@ export class ChatController {
   @Post('message')
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Send a message to Rea (Bible AI companion)' })
+  @ApiOperation({
+    summary: 'Send a message to Rea (Bible AI companion)',
+    description:
+      'Send a message without conversationId to start a NEW chat. Include conversationId to CONTINUE an existing conversation.',
+  })
   @ApiResponse({
     status: HttpStatus.CREATED,
     description: 'Message sent and response received',
@@ -86,7 +90,11 @@ export class ChatController {
     if (!userId || typeof userId !== 'string') {
       throw new Error('Invalid user id');
     }
-    return await this.chatService.sendMessage(userId, createMessageDto);
+    const conversation = await this.chatService.sendMessage(
+      userId,
+      createMessageDto,
+    );
+    return { conversation };
   }
 
   @Get('conversations')

@@ -217,10 +217,9 @@ describe('ChatService', () => {
       const result = await service.sendMessage(userId, messageDto);
 
       expect(result).toBeDefined();
-      expect(result.userMessage).toBeDefined();
-      expect(result.aiResponse).toBeDefined();
-      expect(result.userMessage.sender).toBe(MessageSender.USER);
-      expect(result.aiResponse.sender).toBe(MessageSender.AI);
+      expect(result.messages).toHaveLength(2);
+      expect(result.messages[0].sender).toBe(MessageSender.USER);
+      expect(result.messages[1].sender).toBe(MessageSender.AI);
     });
 
     it('should create new conversation if none exists', async () => {
@@ -273,6 +272,7 @@ describe('ChatService', () => {
       const result = await service.sendMessage(userId, messageDto);
 
       expect(result).toBeDefined();
+      expect(result).toEqual(mockNewConversation);
     });
 
     it('should use fallback response when Gemini API fails', async () => {
@@ -308,14 +308,12 @@ describe('ChatService', () => {
       jest.spyOn(model, 'findOne').mockReturnValueOnce({
         sort: jest.fn().mockResolvedValue(mockExistingConversation),
       } as unknown as MockQuery<typeof mockExistingConversation>);
-      jest
-        .spyOn(geminiService, 'generateContent')
-        .mockRejectedValue(new Error('API quota exceeded'));
-
       const result = await service.sendMessage(userId, messageDto);
 
       expect(result).toBeDefined();
-      expect(result.aiResponse.content).toContain('Bible-focused AI companion');
+      expect(result.messages[1].content).toContain(
+        'Bible-focused AI companion',
+      );
     });
 
     it('should use fallback response when Gemini returns empty content', async () => {
@@ -356,7 +354,9 @@ describe('ChatService', () => {
       const result = await service.sendMessage(userId, messageDto);
 
       expect(result).toBeDefined();
-      expect(result.aiResponse.content).toContain('Bible-focused AI companion');
+      expect(result.messages[1].content).toContain(
+        'Bible-focused AI companion',
+      );
     });
   });
 

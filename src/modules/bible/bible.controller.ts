@@ -6,7 +6,7 @@ import {
   Post,
   Body,
   BadRequestException,
-  UseGuards,
+  // UseGuards,
 } from '@nestjs/common';
 import {
   ApiQuery,
@@ -16,14 +16,14 @@ import {
   ApiBadRequestResponse,
   ApiBody,
 } from '@nestjs/swagger';
-import { AuthGuard } from '@nestjs/passport';
-import { ApiBearerAuth } from '@nestjs/swagger';
+// import { AuthGuard } from '@nestjs/passport';
+// import { ApiBearerAuth } from '@nestjs/swagger';
 import { BibleService } from './bible.service';
 import { LogReadingSessionDto } from './dto/log-reading-session.dto';
 
 @ApiTags('Bible')
-@ApiBearerAuth()
-@UseGuards(AuthGuard('jwt'))
+// @ApiBearerAuth()
+// @UseGuards(AuthGuard('jwt'))
 @Controller('bible')
 export class BibleController {
   constructor(private readonly bibleService: BibleService) {}
@@ -173,8 +173,9 @@ export class BibleController {
   async getChapter(
     @Param('book') book: string,
     @Param('chapter') chapter: number,
+    @Query('translation') translation?: string,
   ): Promise<Record<string, unknown>> {
-    return this.bibleService.getBookChapter(book, chapter);
+    return this.bibleService.getBookChapter(book, chapter, translation);
   }
 
   // GET /bible/verse?verseId=genesis1:1
@@ -226,9 +227,10 @@ export class BibleController {
   @Get('verse')
   async getVerse(
     @Query('verseId') verseId: string,
+    @Query('translation') translation?: string,
   ): Promise<Record<string, unknown>> {
     if (!verseId) throw new BadRequestException('verseId is required');
-    return this.bibleService.getVerse(verseId);
+    return this.bibleService.getVerse(verseId, translation);
   }
   @ApiBadRequestResponse({ description: 'Missing query parameter' })
   @Get('search')
