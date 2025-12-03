@@ -32,6 +32,9 @@ export class InstantlyService {
         this.logger.warn(
           'Instantly.ai credentials not configured - service will fail gracefully',
         );
+        this.logger.warn(
+          'Set INSTANTLY_API_KEY and INSTANTLY_CAMPAIGN_ID in your .env file',
+        );
       }
     }
   }
@@ -44,7 +47,8 @@ export class InstantlyService {
       return {
         success: false,
         tool: 'instantly',
-        error: 'Service not configured',
+        error:
+          'Service not configured - missing INSTANTLY_API_KEY or INSTANTLY_CAMPAIGN_ID',
       };
     }
 
@@ -60,7 +64,11 @@ export class InstantlyService {
 
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+      this.logger.debug(`Attempting to add lead to Instantly: ${email}`);
+      this.logger.debug(`API URL: ${this.apiUrl}/lead/add`);
+      this.logger.debug(`Using API key: ${this.apiKey.substring(0, 10)}...`);
 
       const response = await fetch(`${this.apiUrl}/lead/add`, {
         method: 'POST',
@@ -76,6 +84,9 @@ export class InstantlyService {
 
       if (!response.ok) {
         const errorText = await response.text();
+        this.logger.error(
+          `Instantly API error: ${response.status} - ${errorText}`,
+        );
         throw new Error(
           `Instantly API error: ${response.status} - ${errorText}`,
         );

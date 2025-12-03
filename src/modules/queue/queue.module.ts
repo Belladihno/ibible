@@ -2,6 +2,8 @@ import { Global, Module } from '@nestjs/common';
 import { BullModule } from '@nestjs/bullmq';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { QueueName } from './queue-names.enum';
+import { QueueManagerService } from './queue.service';
+import { QueueController } from './queue.controller';
 import { MemoriesAiProcessor } from './processors/memories-ai.processor';
 
 @Global()
@@ -56,7 +58,8 @@ import { MemoriesAiProcessor } from './processors/memories-ai.processor';
       { name: QueueName.EMAIL_NOTIFICATION },
     ),
   ],
-  providers: [MemoriesAiProcessor],
-  exports: [BullModule],
+  providers: [QueueManagerService, MemoriesAiProcessor],
+  controllers: [QueueController],
+  exports: [BullModule, QueueManagerService],
 })
 export class QueueModule {}

@@ -3,6 +3,9 @@ import { Logger } from '@nestjs/common';
 import { Job } from 'bullmq';
 import { InstantlyService } from '../services/instantly.service';
 import { ApolloService } from '../services/apollo.service';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { WaitlistEntry } from 'src/entities/waitlist-entry.entity';
 import {
   WaitlistSyncJob,
   SalesToolResponse,
@@ -15,6 +18,8 @@ export class WaitlistSyncProcessor extends WorkerHost {
   constructor(
     private readonly instantlyService: InstantlyService,
     private readonly apolloService: ApolloService,
+    @InjectRepository(WaitlistEntry)
+    private readonly waitlistRepo: Repository<WaitlistEntry>,
   ) {
     super();
   }
@@ -36,31 +41,88 @@ export class WaitlistSyncProcessor extends WorkerHost {
     const { email, name } = job.data;
     this.logger.log(`Processing waitlist sync for: ${email}`);
 
-    // Sync to both tools in parallel
-    const [instantlyResult, apolloResult] = await Promise.allSettled([
-      this.instantlyService.addLead(email, name),
-      this.apolloService.addLead(email, name),
-    ]);
+    const entryId = job.data?.id;
+    let hasErrors = false;
+    const errorDetails: string[] = [];
 
-    const instantlyError = this.normalizeResult(instantlyResult);
-    const apolloError = this.normalizeResult(apolloResult);
+    try {
+      // Sync to both tools in parallel
+      const [instantlyResult, apolloResult] = await Promise.allSettled([
+        this.instantlyService.addLead(email, name),
+        this.apolloService.addLead(email, name),
+      ]);
 
-    if (!instantlyError) {
-      this.logger.log(`Successfully synced ${email} to Instantly`);
-    } else {
+      const instantlyError = this.normalizeResult(instantlyResult);
+      const apolloError = this.normalizeResult(apolloResult);
+
+      // Check if errors are due to missing configuration
+      const isInstantlyConfigError = instantlyError?.includes('not configured');
+      const isApolloConfigError = apolloError?.includes('not configured');
+
+      if (!instantlyError) {
+        this.logger.log(`Successfully synced ${email} to Instantly`);
+      } else if (isInstantlyConfigError) {
+        this.logger.warn(
+          `Skipped Instantly sync for ${email}: ${instantlyError}`,
+        );
+      } else {
+        hasErrors = true;
+        errorDetails.push(`Instantly: ${instantlyError}`);
+        this.logger.error(
+          `Failed to sync ${email} to Instantly: ${instantlyError}`,
+        );
+      }
+
+      if (!apolloError) {
+        this.logger.log(`Successfully synced ${email} to Apollo`);
+      } else if (isApolloConfigError) {
+        this.logger.warn(`Skipped Apollo sync for ${email}: ${apolloError}`);
+      } else {
+        hasErrors = true;
+        errorDetails.push(`Apollo: ${apolloError}`);
+        this.logger.error(`Failed to sync ${email} to Apollo: ${apolloError}`);
+      }
+
+      if (hasErrors) {
+        this.logger.warn(
+          `Waitlist sync for ${email} completed with errors: ${errorDetails.join(', ')}`,
+        );
+      } else {
+        this.logger.log(`Completed waitlist sync for: ${email}`);
+      }
+    } catch (error: unknown) {
+      hasErrors = true;
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
       this.logger.error(
-        `Failed to sync ${email} to Instantly: ${instantlyError}`,
+        `Unexpected error during sync for ${email}: ${errorMessage}`,
       );
-      throw new Error(`Instantly sync failed: ${instantlyError}`);
     }
 
-    if (!apolloError) {
-      this.logger.log(`Successfully synced ${email} to Apollo`);
-    } else {
-      this.logger.error(`Failed to sync ${email} to Apollo: ${apolloError}`);
-      throw new Error(`Apollo sync failed: ${apolloError}`);
-    }
+    // Always mark the sync attempt (success or failure)
+    // This prevents infinite retry loops
+    if (entryId != null) {
+      try {
+        const updateData: Partial<WaitlistEntry> = {
+          syncAttemptedAt: new Date(),
+        };
 
-    this.logger.log(`Completed waitlist sync for: ${email}`);
+        // Only set salesSyncedAt if there were no errors
+        if (!hasErrors) {
+          updateData.salesSyncedAt = new Date();
+        }
+
+        await this.waitlistRepo.update(entryId, updateData);
+        const logMsg = hasErrors
+          ? `Marked waitlist entry ${entryId} as attempted (with errors)`
+          : `Marked waitlist entry ${entryId} as salesSynced`;
+        this.logger.log(logMsg);
+      } catch (error: unknown) {
+        this.logger.error(
+          `Failed to update waitlist entry ${entryId}`,
+          error as Error,
+        );
+      }
+    }
   }
 }

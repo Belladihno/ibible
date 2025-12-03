@@ -25,6 +25,7 @@ export interface ApolloApiResponse {
 }
 
 export interface WaitlistSyncJob {
+  id?: string | number;
   email: string;
   name?: string;
 }
@@ -33,4 +34,16 @@ export interface SalesToolResponse {
   success: boolean;
   tool: 'instantly' | 'apollo';
   error?: string;
+}
+
+export interface JobSummary {
+  id?: string | number;
+  name?: string;
+  data: unknown;
+  state: string;
+  attemptsMade?: number;
+  failedReason?: string | null;
+  timestamp?: string | null;
+  processedOn?: string | null;
+  finishedOn?: string | null;
 }
