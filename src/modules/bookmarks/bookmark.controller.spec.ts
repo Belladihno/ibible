@@ -5,7 +5,7 @@ import { BookmarkController } from './bookmark.controller';
 import { BookmarkService } from './bookmark.service';
 import * as SYM from 'src/shared/constants/systemMessages';
 
-// Mock AuthGuard
+// Mock AuthGuard to automatically provide a user
 class MockAuthGuard implements CanActivate {
   canActivate(context: ExecutionContext): boolean {
     const req = context.switchToHttp().getRequest();
@@ -14,29 +14,17 @@ class MockAuthGuard implements CanActivate {
   }
 }
 
-// Mock BookmarkService
+// Mock BookmarkService methods
 const mockBookmarkService = {
   createBookmark: jest.fn((dto, userId) => ({
     text: dto.text,
     verse: dto.verse,
     createdAt: new Date().toISOString(),
   })),
-
   GetBookmarks: jest.fn(() => [
-    {
-      id: 'uuid-1',
-      text: 'In the beginning…',
-      verse: 'Genesis 1:1',
-      createdAt: new Date().toISOString(),
-    },
-    {
-      id: 'uuid-2',
-      text: 'For God so loved the world…',
-      verse: 'John 3:16',
-      createdAt: new Date().toISOString(),
-    },
+    { id: 'uuid-1', text: 'In the beginning…', verse: 'Genesis 1:1', createdAt: new Date().toISOString() },
+    { id: 'uuid-2', text: 'For God so loved the world…', verse: 'John 3:16', createdAt: new Date().toISOString() },
   ]),
-
   deleteBookmarks: jest.fn(),
 };
 
@@ -57,27 +45,21 @@ describe('BookmarkController', () => {
 
   it('should create a bookmark successfully', async () => {
     const dto = { text: 'Test text', verse: 'John 3:16' };
-
-    const result = await controller.createBookmark(dto, {
-      user: { id: 'user-id-123' },
-    });
+    const result = await controller.createBookmark(dto, { user: { id: 'user-id-123' } });
 
     expect(result.statusCode).toBe(201);
     expect(result.message).toBe(SYM.BOOKMARK_CREATED);
-
-    expect(result.data).toHaveProperty('text', 'Test text');
-    expect(result.data).toHaveProperty('verse', 'John 3:16');
+    expect(result.data.bookmark).toHaveProperty('text', 'Test text');
+    expect(result.data.bookmark).toHaveProperty('verse', 'John 3:16');
     expect(result.data).toHaveProperty('timestamp');
   });
 
   it('should fetch bookmarks successfully', async () => {
-    const result = await controller.getBookmark({
-      user: { id: 'user-id-123' },
-    });
+    const result = await controller.getBookmark({ user: { id: 'user-id-123' } });
 
     expect(result.statusCode).toBe(200);
     expect(result.message).toBe(SYM.BOOKMARK_FETCHED);
-    expect(result.data).toHaveLength(2);
+    expect(result.data.bookmarks.length).toBe(2);
   });
 
   it('should delete a bookmark successfully', async () => {

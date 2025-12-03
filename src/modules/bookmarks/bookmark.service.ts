@@ -53,8 +53,9 @@ export class BookmarkService {
     const saveBookmark = await this.bookMarkRepo.save(bookmark);
 
     const response: Bookmark = {
-      text: text,
-      verse: verse,
+      id: saveBookmark.id,
+      text: saveBookmark.text,
+      verse: saveBookmark.verse,
       createdAt: new Date(),
     };
 
