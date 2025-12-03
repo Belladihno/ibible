@@ -4,6 +4,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { QueueName } from './queue-names.enum';
 import { QueueManagerService } from './queue.service';
 import { QueueController } from './queue.controller';
+import { MemoriesAiProcessor } from './processors/memories-ai.processor';
 
 @Global()
 @Module({
@@ -16,26 +17,22 @@ import { QueueController } from './queue.controller';
           port: configService.get<number>('REDIS_PORT'),
           password: configService.get<string>('REDIS_PASSWORD'),
           db: configService.get<number>('REDIS_DB', 0),
-          // Add retry strategy
           retryStrategy: (times: number) => {
             const delay = Math.min(times * 50, 2000);
             return delay;
           },
-          // Connection timeout
           connectTimeout: 10000,
-          // Enable offline queue
           enableOfflineQueue: true,
           maxRetriesPerRequest: null,
         },
-        // Global job options
         defaultJobOptions: {
           removeOnComplete: {
-            age: 24 * 3600, // Keep completed jobs for 24 hours
-            count: 1000, // Keep last 1000 completed jobs
+            age: 24 * 3600,
+            count: 1000,
           },
           removeOnFail: {
-            age: 7 * 24 * 3600, // Keep failed jobs for 7 days
-            count: 5000, // Keep last 5000 failed jobs
+            age: 7 * 24 * 3600,
+            count: 5000,
           },
           attempts: 3,
           backoff: {
@@ -46,9 +43,22 @@ import { QueueController } from './queue.controller';
       }),
       inject: [ConfigService],
     }),
-    BullModule.registerQueue({ name: QueueName.WAITLIST_SYNC }),
+    BullModule.registerQueue(
+      { name: QueueName.WAITLIST_SYNC },
+      { name: QueueName.CHAT_PROCESSING },
+      {
+        name: QueueName.MEMORIES_PROCESSING,
+        defaultJobOptions: {
+          removeOnComplete: { age: 3600, count: 500 },
+          attempts: 2,
+          backoff: { type: 'exponential', delay: 3000 },
+        },
+      },
+      { name: QueueName.MEDITATION_REMINDER },
+      { name: QueueName.EMAIL_NOTIFICATION },
+    ),
   ],
-  providers: [QueueManagerService],
+  providers: [QueueManagerService, MemoriesAiProcessor],
   controllers: [QueueController],
   exports: [BullModule, QueueManagerService],
 })

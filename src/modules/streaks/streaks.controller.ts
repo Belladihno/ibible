@@ -1,9 +1,10 @@
-import { Controller, Get, Post, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Query, UseGuards, Param } from '@nestjs/common';
 import {
   ApiTags,
   ApiBearerAuth,
   ApiOperation,
   ApiQuery,
+  ApiParam,
 } from '@nestjs/swagger';
 import { StreaksService } from './streaks.service';
 import { AuthGuard } from 'src/guards/auth.guard';
@@ -54,6 +55,26 @@ export class StreaksController {
   async getStreak(@CurrentUserId() userId: string) {
     return this.streaksService.getStreak(userId);
   }
+
+  @Get('activities/date/:date')
+  @ApiOperation({
+    summary: 'Get activities for a specific date',
+    description:
+      'Returns all activities performed on a specific date with timestamps.',
+  })
+  @ApiParam({
+    name: 'date',
+    required: true,
+    description: 'Date in YYYY-MM-DD format',
+    example: '2025-12-03',
+  })
+  async getActivitiesByDate(
+    @CurrentUserId() userId: string,
+    @Param('date') date: string,
+  ) {
+    return this.streaksService.getActivitiesByDate(userId, date);
+  }
+
   @Get('history')
   @ApiOperation({
     summary: 'Get streak calendar history',

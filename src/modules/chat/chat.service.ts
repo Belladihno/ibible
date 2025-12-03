@@ -126,10 +126,7 @@ export class ChatService {
 
     await conversation.save();
 
-    return {
-      userMessage: conversation.messages[conversation.messages.length - 2],
-      aiResponse: conversation.messages[conversation.messages.length - 1],
-    };
+    return conversation;
   }
 
   private extractScriptureReferences(content: string): string[] {
