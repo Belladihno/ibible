@@ -9,7 +9,7 @@ import * as SYM from 'src/shared/constants/systemMessages';
 class MockAuthGuard implements CanActivate {
   canActivate(context: ExecutionContext): boolean {
     const req = context.switchToHttp().getRequest();
-    req.user = { id: 'user-id-123' }; 
+    req.user = { id: 'user-id-123' };
     return true;
   }
 }
