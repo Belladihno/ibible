@@ -30,10 +30,10 @@ export class InstantlyService {
 
       if (!this.apiKey || !this.campaignId) {
         this.logger.warn(
-          '⚠️  Instantly.ai credentials not configured - service will fail gracefully',
+          'Instantly.ai credentials not configured - service will fail gracefully',
         );
         this.logger.warn(
-          '💡 Set INSTANTLY_API_KEY and INSTANTLY_CAMPAIGN_ID in your .env file',
+          'Set INSTANTLY_API_KEY and INSTANTLY_CAMPAIGN_ID in your .env file',
         );
       }
     }
@@ -42,7 +42,7 @@ export class InstantlyService {
   async addLead(email: string, name?: string): Promise<SalesToolResponse> {
     if (!this.apiKey || !this.campaignId) {
       this.logger.warn(
-        `⚠️  Instantly.ai not configured - skipping lead sync for ${email}`,
+        `Instantly.ai not configured - skipping lead sync for ${email}`,
       );
       return {
         success: false,
@@ -66,9 +66,9 @@ export class InstantlyService {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 10000);
 
-      this.logger.debug(`🔄 Attempting to add lead to Instantly: ${email}`);
-      this.logger.debug(`📍 API URL: ${this.apiUrl}/lead/add`);
-      this.logger.debug(`🔑 Using API key: ${this.apiKey.substring(0, 10)}...`);
+      this.logger.debug(`Attempting to add lead to Instantly: ${email}`);
+      this.logger.debug(`API URL: ${this.apiUrl}/lead/add`);
+      this.logger.debug(`Using API key: ${this.apiKey.substring(0, 10)}...`);
 
       const response = await fetch(`${this.apiUrl}/lead/add`, {
         method: 'POST',
@@ -85,7 +85,7 @@ export class InstantlyService {
       if (!response.ok) {
         const errorText = await response.text();
         this.logger.error(
-          `❌ Instantly API error: ${response.status} - ${errorText}`,
+          `Instantly API error: ${response.status} - ${errorText}`,
         );
         throw new Error(
           `Instantly API error: ${response.status} - ${errorText}`,
@@ -100,7 +100,7 @@ export class InstantlyService {
         );
       }
 
-      this.logger.log(`✅ Lead successfully added to Instantly: ${email}`);
+      this.logger.log(`Lead successfully added to Instantly: ${email}`);
       return {
         success: true,
         tool: 'instantly',
@@ -109,7 +109,7 @@ export class InstantlyService {
       const errorMessage =
         error instanceof Error ? error.message : 'Unknown error';
       this.logger.error(
-        `❌ Failed to add lead to Instantly for email ${email}: ${errorMessage}`,
+        `Failed to add lead to Instantly for email ${email}: ${errorMessage}`,
       );
 
       return {

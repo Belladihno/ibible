@@ -43,7 +43,7 @@ export interface JobSummary {
   state: string;
   attemptsMade?: number;
   failedReason?: string | null;
-  timestamp?: number;
-  processedOn?: number | null;
-  finishedOn?: number | null;
+  timestamp?: string | null;
+  processedOn?: string | null;
+  finishedOn?: string | null;
 }

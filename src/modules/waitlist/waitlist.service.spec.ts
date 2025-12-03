@@ -58,14 +58,18 @@ describe('WaitlistService', () => {
   // Test: create()
   // ----------------------------------------
   it('should create entry, send email, and queue job', async () => {
-    const entry = { id: 'entry-1', email: 'jane@example.com', name: 'Jane Doe' };
+    const entry = {
+      id: 'entry-1',
+      email: 'jane@example.com',
+      name: 'Jane Doe',
+    };
     mockModelAction.create.mockResolvedValue(entry);
     mockQueue.add.mockResolvedValue({ id: 'job-1' });
 
     const res = await service.create({ email: entry.email, name: entry.name });
 
     expect(mockModelAction.create).toHaveBeenCalledWith({
-      createPayload: entry,
+      createPayload: { email: entry.email, name: entry.name },
       transactionOptions: { useTransaction: false },
     });
     expect(mockEmailService.sendMail).toHaveBeenCalled();

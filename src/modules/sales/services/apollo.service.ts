@@ -27,10 +27,10 @@ export class ApolloService {
 
       if (!this.apiKey || !this.sequenceId) {
         this.logger.warn(
-          '⚠️  Apollo.io credentials not configured - service will fail gracefully',
+          'Apollo.io credentials not configured - service will fail gracefully',
         );
         this.logger.warn(
-          '💡 Set APOLLO_API_KEY and APOLLO_SEQUENCE_ID in your .env file',
+          'Set APOLLO_API_KEY and APOLLO_SEQUENCE_ID in your .env file',
         );
       }
     }
@@ -39,7 +39,7 @@ export class ApolloService {
   async addLead(email: string, name?: string): Promise<SalesToolResponse> {
     if (!this.apiKey || !this.sequenceId) {
       this.logger.warn(
-        `⚠️  Apollo.io not configured - skipping lead sync for ${email}`,
+        `Apollo.io not configured - skipping lead sync for ${email}`,
       );
 
       return {
@@ -65,14 +65,12 @@ export class ApolloService {
       const timeoutId = setTimeout(() => controller.abort(), 10000);
 
       // Try the emailer campaigns endpoint first (for adding to sequence)
+      this.logger.debug(`Attempting to add lead to Apollo sequence: ${email}`);
       this.logger.debug(
-        `🔄 Attempting to add lead to Apollo sequence: ${email}`,
+        `API URL: ${this.apiUrl}/emailer_campaigns/add_contact_to_campaign`,
       );
-      this.logger.debug(
-        `📍 API URL: ${this.apiUrl}/emailer_campaigns/add_contact_to_campaign`,
-      );
-      this.logger.debug(`🔑 API Key: ${this.apiKey.substring(0, 10)}...`);
-      this.logger.debug(`📧 Sequence ID: ${this.sequenceId}`);
+      this.logger.debug(`API Key: ${this.apiKey.substring(0, 10)}...`);
+      this.logger.debug(`Sequence ID: ${this.sequenceId}`);
 
       const response = await fetch(
         `${this.apiUrl}/emailer_campaigns/add_contact_to_campaign`,
@@ -92,13 +90,13 @@ export class ApolloService {
       if (!response.ok) {
         const errorText = await response.text();
         this.logger.error(
-          `❌ Apollo API error: ${response.status} - ${errorText}`,
+          `Apollo API error: ${response.status} - ${errorText}`,
         );
 
         // If it's a 404, the endpoint might not be available
         if (response.status === 404) {
           this.logger.warn(
-            '⚠️  Emailer campaigns endpoint not available. You may need to:',
+            'Emailer campaigns endpoint not available. You may need to:',
           );
           this.logger.warn(
             '   1. Verify your Apollo plan includes sequences/campaigns',
@@ -118,7 +116,7 @@ export class ApolloService {
         );
       }
 
-      this.logger.log(`✅ Lead successfully added to Apollo: ${email}`);
+      this.logger.log(`Lead successfully added to Apollo: ${email}`);
       return {
         success: true,
         tool: 'apollo',
@@ -128,7 +126,7 @@ export class ApolloService {
         error instanceof Error ? error.message : 'Unknown error';
 
       this.logger.error(
-        `❌ Failed to add lead to Apollo for email ${email}: ${errorMessage}`,
+        `Failed to add lead to Apollo for email ${email}: ${errorMessage}`,
       );
 
       return {

@@ -23,7 +23,7 @@ describe('WaitlistSyncProcessor', () => {
   let waitlistRepo: { update: jest.Mock };
 
   const mockJob = (data: WaitlistSyncJob): Job<WaitlistSyncJob> =>
-    ({ data } as unknown) as Job<WaitlistSyncJob>;
+    ({ data }) as unknown as Job<WaitlistSyncJob>;
 
   beforeEach(async () => {
     waitlistRepo = { update: jest.fn() };
@@ -65,7 +65,11 @@ describe('WaitlistSyncProcessor', () => {
       tool: 'apollo',
     });
 
-    const job = mockJob({ id: 'entry-1', email: 'test@example.com', name: 'John Doe' });
+    const job = mockJob({
+      id: 'entry-1',
+      email: 'test@example.com',
+      name: 'John Doe',
+    });
 
     await expect(processor.process(job)).resolves.not.toThrow();
 
@@ -81,15 +85,17 @@ describe('WaitlistSyncProcessor', () => {
       'John Doe',
     );
 
+    // Both salesSyncedAt and syncAttemptedAt should be set on success
     expect(waitlistRepo.update).toHaveBeenCalledWith('entry-1', {
+      syncAttemptedAt: expect.any(Date),
       salesSyncedAt: expect.any(Date),
     });
   });
 
   // -------------------------------------------------------------
-  // FAILURE — Instantly fails first
+  // GRACEFUL FAILURE — Instantly fails but job completes
   // -------------------------------------------------------------
-  it('should throw when Instantly fails', async () => {
+  it('should gracefully handle Instantly failure without throwing', async () => {
     instantlyService.addLead.mockResolvedValue({
       success: false,
       tool: 'instantly',
@@ -101,21 +107,29 @@ describe('WaitlistSyncProcessor', () => {
       tool: 'apollo',
     });
 
-    const job = mockJob({ email: 'fail@instantly.com', name: 'John Doe' });
+    const job = mockJob({
+      id: 'entry-2',
+      email: 'fail@instantly.com',
+      name: 'John Doe',
+    });
 
-    await expect(processor.process(job)).rejects.toThrow(
-      'Instantly sync failed: API error',
-    );
+    // Should NOT throw — graceful error handling
+    await expect(processor.process(job)).resolves.not.toThrow();
 
     // Apollo still runs in parallel
     // eslint-disable-next-line @typescript-eslint/unbound-method
     expect(apolloService.addLead).toHaveBeenCalled();
+
+    // Only syncAttemptedAt should be set on failure (not salesSyncedAt)
+    expect(waitlistRepo.update).toHaveBeenCalledWith('entry-2', {
+      syncAttemptedAt: expect.any(Date),
+    });
   });
 
   // -------------------------------------------------------------
-  // FAILURE — Apollo fails after Instantly succeeds
+  // GRACEFUL FAILURE — Apollo fails but job completes
   // -------------------------------------------------------------
-  it('should throw when Apollo fails', async () => {
+  it('should gracefully handle Apollo failure without throwing', async () => {
     instantlyService.addLead.mockResolvedValue({
       success: true,
       tool: 'instantly',
@@ -127,17 +141,56 @@ describe('WaitlistSyncProcessor', () => {
       error: 'Some apollo failure',
     });
 
-    const job = mockJob({ email: 'apollo@fail.com', name: 'Jane Doe' });
+    const job = mockJob({
+      id: 'entry-3',
+      email: 'apollo@fail.com',
+      name: 'Jane Doe',
+    });
 
-    await expect(processor.process(job)).rejects.toThrow(
-      'Apollo sync failed: Some apollo failure',
-    );
+    // Should NOT throw — graceful error handling
+    await expect(processor.process(job)).resolves.not.toThrow();
+
+    // Only syncAttemptedAt should be set on failure (not salesSyncedAt)
+    expect(waitlistRepo.update).toHaveBeenCalledWith('entry-3', {
+      syncAttemptedAt: expect.any(Date),
+    });
   });
 
   // -------------------------------------------------------------
-  // FAILURE — Instantly throws (Promise rejects)
+  // GRACEFUL FAILURE — Both services fail but job completes
   // -------------------------------------------------------------
-  it('should normalize thrown errors from Instantly', async () => {
+  it('should gracefully handle both services failing', async () => {
+    instantlyService.addLead.mockResolvedValue({
+      success: false,
+      tool: 'instantly',
+      error: 'Instantly error',
+    });
+
+    apolloService.addLead.mockResolvedValue({
+      success: false,
+      tool: 'apollo',
+      error: 'Apollo error',
+    });
+
+    const job = mockJob({
+      id: 'entry-4',
+      email: 'both@fail.com',
+      name: 'Test',
+    });
+
+    // Should NOT throw — graceful error handling
+    await expect(processor.process(job)).resolves.not.toThrow();
+
+    // Only syncAttemptedAt should be set on failure (not salesSyncedAt)
+    expect(waitlistRepo.update).toHaveBeenCalledWith('entry-4', {
+      syncAttemptedAt: expect.any(Date),
+    });
+  });
+
+  // -------------------------------------------------------------
+  // GRACEFUL FAILURE — Instantly throws (Promise rejects)
+  // -------------------------------------------------------------
+  it('should gracefully handle thrown errors from Instantly', async () => {
     instantlyService.addLead.mockRejectedValue(new Error('Instantly crashed'));
 
     apolloService.addLead.mockResolvedValue({
@@ -145,17 +198,25 @@ describe('WaitlistSyncProcessor', () => {
       tool: 'apollo',
     });
 
-    const job = mockJob({ email: 'error@instantly.com', name: 'Jake' });
+    const job = mockJob({
+      id: 'entry-5',
+      email: 'error@instantly.com',
+      name: 'Jake',
+    });
 
-    await expect(processor.process(job)).rejects.toThrow(
-      'Instantly sync failed: Instantly crashed',
-    );
+    // Should NOT throw — graceful error handling
+    await expect(processor.process(job)).resolves.not.toThrow();
+
+    // Only syncAttemptedAt should be set on failure (not salesSyncedAt)
+    expect(waitlistRepo.update).toHaveBeenCalledWith('entry-5', {
+      syncAttemptedAt: expect.any(Date),
+    });
   });
 
   // -------------------------------------------------------------
-  // FAILURE — Apollo throws (Promise rejects)
+  // GRACEFUL FAILURE — Apollo throws (Promise rejects)
   // -------------------------------------------------------------
-  it('should normalize thrown errors from Apollo', async () => {
+  it('should gracefully handle thrown errors from Apollo', async () => {
     instantlyService.addLead.mockResolvedValue({
       success: true,
       tool: 'instantly',
@@ -163,10 +224,40 @@ describe('WaitlistSyncProcessor', () => {
 
     apolloService.addLead.mockRejectedValue(new Error('Apollo timeout'));
 
-    const job = mockJob({ email: 'apollo@error.com', name: 'Sam' });
+    const job = mockJob({
+      id: 'entry-6',
+      email: 'apollo@error.com',
+      name: 'Sam',
+    });
 
-    await expect(processor.process(job)).rejects.toThrow(
-      'Apollo sync failed: Apollo timeout',
-    );
+    // Should NOT throw — graceful error handling
+    await expect(processor.process(job)).resolves.not.toThrow();
+
+    // Only syncAttemptedAt should be set on failure (not salesSyncedAt)
+    expect(waitlistRepo.update).toHaveBeenCalledWith('entry-6', {
+      syncAttemptedAt: expect.any(Date),
+    });
+  });
+
+  // -------------------------------------------------------------
+  // NO ENTRY ID — gracefully skip DB update
+  // -------------------------------------------------------------
+  it('should handle jobs without entry id', async () => {
+    instantlyService.addLead.mockResolvedValue({
+      success: true,
+      tool: 'instantly',
+    });
+
+    apolloService.addLead.mockResolvedValue({
+      success: true,
+      tool: 'apollo',
+    });
+
+    const job = mockJob({ email: 'no-id@example.com', name: 'Test' });
+
+    await expect(processor.process(job)).resolves.not.toThrow();
+
+    // Should not attempt update if no id
+    expect(waitlistRepo.update).not.toHaveBeenCalled();
   });
 });

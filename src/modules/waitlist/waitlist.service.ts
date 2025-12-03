@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
+import { randomUUID } from 'crypto';
 import { QueueName } from '../queue/queue-names.enum';
 import { CreateWaitlistEntryDto } from './dto/create-waitlist-entry.dto';
 import { WaitListEntryModelAction } from 'src/actions/model-actions';
@@ -58,6 +59,7 @@ export class WaitlistService {
             name: entry.name,
           },
           {
+            jobId: randomUUID(),
             attempts: 3,
             backoff: {
               type: 'exponential',

@@ -2,7 +2,7 @@ import { Global, Module } from '@nestjs/common';
 import { BullModule } from '@nestjs/bullmq';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { QueueName } from './queue-names.enum';
-import { QueueHealthService } from './queue.service';
+import { QueueManagerService } from './queue.service';
 import { QueueController } from './queue.controller';
 
 @Global()
@@ -48,8 +48,8 @@ import { QueueController } from './queue.controller';
     }),
     BullModule.registerQueue({ name: QueueName.WAITLIST_SYNC }),
   ],
-  providers: [QueueHealthService],
+  providers: [QueueManagerService],
   controllers: [QueueController],
-  exports: [BullModule, QueueHealthService],
+  exports: [BullModule, QueueManagerService],
 })
 export class QueueModule {}

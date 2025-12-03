@@ -53,7 +53,8 @@ describe('ApolloService', () => {
     expect(response).toEqual({
       success: false,
       tool: 'apollo',
-      error: 'Service not configured',
+      error:
+        'Service not configured - missing APOLLO_API_KEY or APOLLO_SEQUENCE_ID',
     });
   });
 

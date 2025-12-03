@@ -39,69 +39,87 @@ export class WaitlistSyncProcessor extends WorkerHost {
 
   async process(job: Job<WaitlistSyncJob>): Promise<void> {
     const { email, name } = job.data;
-    this.logger.log(`🔄 Processing waitlist sync for: ${email}`);
+    this.logger.log(`Processing waitlist sync for: ${email}`);
 
-    // Sync to both tools in parallel
-    const [instantlyResult, apolloResult] = await Promise.allSettled([
-      this.instantlyService.addLead(email, name),
-      this.apolloService.addLead(email, name),
-    ]);
-
-    const instantlyError = this.normalizeResult(instantlyResult);
-    const apolloError = this.normalizeResult(apolloResult);
-
-    // Check if errors are due to missing configuration
-    const isInstantlyConfigError = instantlyError?.includes('not configured');
-    const isApolloConfigError = apolloError?.includes('not configured');
-
-    if (!instantlyError) {
-      this.logger.log(`✅ Successfully synced ${email} to Instantly`);
-    } else if (isInstantlyConfigError) {
-      this.logger.warn(
-        `⚠️  Skipped Instantly sync for ${email}: ${instantlyError}`,
-      );
-    } else {
-      this.logger.error(
-        `❌ Failed to sync ${email} to Instantly: ${instantlyError}`,
-      );
-      throw new Error(`Instantly sync failed: ${instantlyError}`);
-    }
-
-    if (!apolloError) {
-      this.logger.log(`✅ Successfully synced ${email} to Apollo`);
-    } else if (isApolloConfigError) {
-      this.logger.warn(`⚠️  Skipped Apollo sync for ${email}: ${apolloError}`);
-    } else {
-      this.logger.error(`❌ Failed to sync ${email} to Apollo: ${apolloError}`);
-      throw new Error(`Apollo sync failed: ${apolloError}`);
-    }
-
-    // Only throw if both services had real errors (not config errors)
-    if (
-      instantlyError &&
-      !isInstantlyConfigError &&
-      apolloError &&
-      !isApolloConfigError
-    ) {
-      throw new Error(
-        `Both sync services failed: Instantly: ${instantlyError}, Apollo: ${apolloError}`,
-      );
-    }
-
-    this.logger.log(`✅ Completed waitlist sync for: ${email}`);
-
-    // Mark the waitlist entry as synced if we have an id
     const entryId = job.data?.id;
+    let hasErrors = false;
+    const errorDetails: string[] = [];
 
+    try {
+      // Sync to both tools in parallel
+      const [instantlyResult, apolloResult] = await Promise.allSettled([
+        this.instantlyService.addLead(email, name),
+        this.apolloService.addLead(email, name),
+      ]);
+
+      const instantlyError = this.normalizeResult(instantlyResult);
+      const apolloError = this.normalizeResult(apolloResult);
+
+      // Check if errors are due to missing configuration
+      const isInstantlyConfigError = instantlyError?.includes('not configured');
+      const isApolloConfigError = apolloError?.includes('not configured');
+
+      if (!instantlyError) {
+        this.logger.log(`Successfully synced ${email} to Instantly`);
+      } else if (isInstantlyConfigError) {
+        this.logger.warn(
+          `Skipped Instantly sync for ${email}: ${instantlyError}`,
+        );
+      } else {
+        hasErrors = true;
+        errorDetails.push(`Instantly: ${instantlyError}`);
+        this.logger.error(
+          `Failed to sync ${email} to Instantly: ${instantlyError}`,
+        );
+      }
+
+      if (!apolloError) {
+        this.logger.log(`Successfully synced ${email} to Apollo`);
+      } else if (isApolloConfigError) {
+        this.logger.warn(`Skipped Apollo sync for ${email}: ${apolloError}`);
+      } else {
+        hasErrors = true;
+        errorDetails.push(`Apollo: ${apolloError}`);
+        this.logger.error(`Failed to sync ${email} to Apollo: ${apolloError}`);
+      }
+
+      if (hasErrors) {
+        this.logger.warn(
+          `Waitlist sync for ${email} completed with errors: ${errorDetails.join(', ')}`,
+        );
+      } else {
+        this.logger.log(`Completed waitlist sync for: ${email}`);
+      }
+    } catch (error: unknown) {
+      hasErrors = true;
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+      this.logger.error(
+        `Unexpected error during sync for ${email}: ${errorMessage}`,
+      );
+    }
+
+    // Always mark the sync attempt (success or failure)
+    // This prevents infinite retry loops
     if (entryId != null) {
       try {
-        await this.waitlistRepo.update(entryId, {
-          salesSyncedAt: new Date(),
-        });
-        this.logger.log(`✅ Marked waitlist entry ${entryId} as salesSynced`);
+        const updateData: Partial<WaitlistEntry> = {
+          syncAttemptedAt: new Date(),
+        };
+
+        // Only set salesSyncedAt if there were no errors
+        if (!hasErrors) {
+          updateData.salesSyncedAt = new Date();
+        }
+
+        await this.waitlistRepo.update(entryId, updateData);
+        const logMsg = hasErrors
+          ? `Marked waitlist entry ${entryId} as attempted (with errors)`
+          : `Marked waitlist entry ${entryId} as salesSynced`;
+        this.logger.log(logMsg);
       } catch (error: unknown) {
         this.logger.error(
-          `❌ Failed to mark waitlist entry ${entryId} as salesSynced`,
+          `Failed to update waitlist entry ${entryId}`,
           error as Error,
         );
       }

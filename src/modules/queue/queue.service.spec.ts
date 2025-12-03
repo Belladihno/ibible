@@ -1,6 +1,6 @@
 import { Logger } from '@nestjs/common';
 import { Queue } from 'bullmq';
-import { QueueHealthService } from './queue.service';
+import { QueueManagerService } from './queue.service';
 import { QueueName } from './queue-names.enum';
 
 // --- No unnecessary type assertion here ---
@@ -17,7 +17,7 @@ jest.mock('@nestjs/common', () => {
 });
 
 describe('QueueHealthService', () => {
-  let service: QueueHealthService;
+  let service: QueueManagerService;
   let mockQueue: jest.Mocked<Queue>;
 
   // Declare each mock function as a `const` (prevents unbound-method ESLint errors)
@@ -53,7 +53,7 @@ describe('QueueHealthService', () => {
       // other Queue members can be omitted for the tests; TS requires some members so we cast
     } as unknown as jest.Mocked<Queue>;
 
-    service = new QueueHealthService(mockQueue);
+    service = new QueueManagerService(mockQueue);
   });
 
   describe('getQueueHealth', () => {
