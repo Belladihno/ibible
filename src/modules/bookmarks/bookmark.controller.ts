@@ -62,7 +62,9 @@ export class BookmarkController {
     return {
       statusCode: HttpStatus.CREATED,
       message: SYM.BOOKMARK_CREATED,
-      data: { ...response, timestamp: new Date().toISOString() },
+      data: {  
+        bookmark: response, 
+        timestamp: new Date().toISOString() },
     };
   }
 
@@ -104,7 +106,10 @@ export class BookmarkController {
     return {
       statusCode: HttpStatus.OK,
       message: SYM.BOOKMARK_FETCHED,
-      data: bookmarks,
+      data: {
+        bookmarks: bookmarks,
+        timestamp: Date.now()
+      },
     };
   }
 
