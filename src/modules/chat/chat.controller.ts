@@ -90,7 +90,11 @@ export class ChatController {
     if (!userId || typeof userId !== 'string') {
       throw new Error('Invalid user id');
     }
-    return await this.chatService.sendMessage(userId, createMessageDto);
+    const conversation = await this.chatService.sendMessage(
+      userId,
+      createMessageDto,
+    );
+    return { conversation };
   }
 
   @Get('conversations')
