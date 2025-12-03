@@ -39,7 +39,7 @@ export class WaitlistSyncProcessor extends WorkerHost {
 
   async process(job: Job<WaitlistSyncJob>): Promise<void> {
     const { email, name } = job.data;
-    this.logger.log(`Processing waitlist sync for: ${email}`);
+    this.logger.log(`🔄 Processing waitlist sync for: ${email}`);
 
     // Sync to both tools in parallel
     const [instantlyResult, apolloResult] = await Promise.allSettled([
@@ -50,25 +50,47 @@ export class WaitlistSyncProcessor extends WorkerHost {
     const instantlyError = this.normalizeResult(instantlyResult);
     const apolloError = this.normalizeResult(apolloResult);
 
+    // Check if errors are due to missing configuration
+    const isInstantlyConfigError = instantlyError?.includes('not configured');
+    const isApolloConfigError = apolloError?.includes('not configured');
+
     if (!instantlyError) {
-      this.logger.log(`Successfully synced ${email} to Instantly`);
+      this.logger.log(`✅ Successfully synced ${email} to Instantly`);
+    } else if (isInstantlyConfigError) {
+      this.logger.warn(
+        `⚠️  Skipped Instantly sync for ${email}: ${instantlyError}`,
+      );
     } else {
       this.logger.error(
-        `Failed to sync ${email} to Instantly: ${instantlyError}`,
+        `❌ Failed to sync ${email} to Instantly: ${instantlyError}`,
       );
       throw new Error(`Instantly sync failed: ${instantlyError}`);
     }
 
     if (!apolloError) {
-      this.logger.log(`Successfully synced ${email} to Apollo`);
+      this.logger.log(`✅ Successfully synced ${email} to Apollo`);
+    } else if (isApolloConfigError) {
+      this.logger.warn(`⚠️  Skipped Apollo sync for ${email}: ${apolloError}`);
     } else {
-      this.logger.error(`Failed to sync ${email} to Apollo: ${apolloError}`);
+      this.logger.error(`❌ Failed to sync ${email} to Apollo: ${apolloError}`);
       throw new Error(`Apollo sync failed: ${apolloError}`);
     }
 
-    this.logger.log(`Completed waitlist sync for: ${email}`);
+    // Only throw if both services had real errors (not config errors)
+    if (
+      instantlyError &&
+      !isInstantlyConfigError &&
+      apolloError &&
+      !isApolloConfigError
+    ) {
+      throw new Error(
+        `Both sync services failed: Instantly: ${instantlyError}, Apollo: ${apolloError}`,
+      );
+    }
 
-    // Mark the waitlist entry as synced to sales tools if we have an id
+    this.logger.log(`✅ Completed waitlist sync for: ${email}`);
+
+    // Mark the waitlist entry as synced if we have an id
     const entryId = job.data?.id;
 
     if (entryId != null) {
@@ -76,13 +98,12 @@ export class WaitlistSyncProcessor extends WorkerHost {
         await this.waitlistRepo.update(entryId, {
           salesSyncedAt: new Date(),
         });
-        this.logger.log(`Marked waitlist entry ${entryId} as salesSynced`);
+        this.logger.log(`✅ Marked waitlist entry ${entryId} as salesSynced`);
       } catch (error: unknown) {
         this.logger.error(
-          `Failed to mark waitlist entry ${entryId} as salesSynced`,
+          `❌ Failed to mark waitlist entry ${entryId} as salesSynced`,
           error as Error,
         );
-        // Do not throw here — syncing succeeded but marking failed; we don't want to trigger a retry
       }
     }
   }
