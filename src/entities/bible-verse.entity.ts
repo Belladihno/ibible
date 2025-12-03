@@ -12,4 +12,7 @@ export class DailyVerse extends BaseEntity {
 
   @Column({ type: 'jsonb' })
   verseData: string;
+
+  @Column({ type: 'text', nullable: true })
+  aiSummary: string | null;
 }
