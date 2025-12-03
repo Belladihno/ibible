@@ -14,7 +14,7 @@ export class CreateBookmarkDto {
     example: 'john3:16',
     description: 'Verse number to bookmark',
   })
-  @IsNumber()
+  @IsString()
   @IsNotEmpty()
   verse: string;
 }
