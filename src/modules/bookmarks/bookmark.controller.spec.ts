@@ -22,8 +22,18 @@ const mockBookmarkService = {
     createdAt: new Date().toISOString(),
   })),
   GetBookmarks: jest.fn(() => [
-    { id: 'uuid-1', text: 'In the beginning…', verse: 'Genesis 1:1', createdAt: new Date().toISOString() },
-    { id: 'uuid-2', text: 'For God so loved the world…', verse: 'John 3:16', createdAt: new Date().toISOString() },
+    {
+      id: 'uuid-1',
+      text: 'In the beginning…',
+      verse: 'Genesis 1:1',
+      createdAt: new Date().toISOString(),
+    },
+    {
+      id: 'uuid-2',
+      text: 'For God so loved the world…',
+      verse: 'John 3:16',
+      createdAt: new Date().toISOString(),
+    },
   ]),
   deleteBookmarks: jest.fn(),
 };
@@ -45,7 +55,9 @@ describe('BookmarkController', () => {
 
   it('should create a bookmark successfully', async () => {
     const dto = { text: 'Test text', verse: 'John 3:16' };
-    const result = await controller.createBookmark(dto, { user: { id: 'user-id-123' } });
+    const result = await controller.createBookmark(dto, {
+      user: { id: 'user-id-123' },
+    });
 
     expect(result.statusCode).toBe(201);
     expect(result.message).toBe(SYM.BOOKMARK_CREATED);
@@ -55,7 +67,9 @@ describe('BookmarkController', () => {
   });
 
   it('should fetch bookmarks successfully', async () => {
-    const result = await controller.getBookmark({ user: { id: 'user-id-123' } });
+    const result = await controller.getBookmark({
+      user: { id: 'user-id-123' },
+    });
 
     expect(result.statusCode).toBe(200);
     expect(result.message).toBe(SYM.BOOKMARK_FETCHED);

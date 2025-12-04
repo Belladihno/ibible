@@ -142,11 +142,16 @@ jobs:
           else
             cp ../.backend-prod.env .env
           fi
+          echo "✅ .env file setup complete."
           echo "env file created"
+          # echo "deleting migrations folder"
+          # rm -rf src/db/migrations/
           echo "🔨 Building app...."
           npm run build
-          echo "🛠️ Running database migrations..."
-          echo "#--we should not generate migrations on staging or prod. it is gotten from the script"
+          # echo "generating migrations"
+          # npm run migration:generate
+          # echo "🛠️ Running database migrations..."
+          echo "#-- normally we should not generate migrations on staging or prod. it is gotten from the script"
           # npm run migration:run
           echo "🚀 Restarting application with PM2..."
           pm2 reload "${{ steps.envselect.outputs.PM2_APP_NAME }}" || pm2 start dist/main.js --name "${{ steps.envselect.outputs.PM2_APP_NAME }}"

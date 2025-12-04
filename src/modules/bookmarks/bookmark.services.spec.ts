@@ -114,8 +114,18 @@ describe('BookmarkService', () => {
     it('should return array of bookmarks', async () => {
       const user = { id: 'user-id' };
       const bookmarks = [
-        { id: '1', text: 'Fear not', verse: 'Isaiah 41:10', createdAt: new Date() },
-        { id: '2', text: 'Love is patient', verse: '1 Corinthians 13:4', createdAt: new Date() },
+        {
+          id: '1',
+          text: 'Fear not',
+          verse: 'Isaiah 41:10',
+          createdAt: new Date(),
+        },
+        {
+          id: '2',
+          text: 'Love is patient',
+          verse: '1 Corinthians 13:4',
+          createdAt: new Date(),
+        },
       ];
 
       mockUserRepo.findOne.mockResolvedValue(user);
@@ -142,7 +152,9 @@ describe('BookmarkService', () => {
       mockBookMarkRepo.findOne.mockResolvedValue(bookmark);
       mockBookMarkRepo.delete.mockResolvedValue({});
 
-      await expect(service.deleteBookmarks('bookmark-id')).resolves.toBeUndefined();
+      await expect(
+        service.deleteBookmarks('bookmark-id'),
+      ).resolves.toBeUndefined();
       expect(mockBookMarkRepo.delete).toHaveBeenCalledWith('bookmark-id');
     });
   });

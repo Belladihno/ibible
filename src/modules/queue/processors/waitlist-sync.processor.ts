@@ -1,8 +1,8 @@
 import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Logger } from '@nestjs/common';
 import { Job } from 'bullmq';
-import { InstantlyService } from '../services/instantly.service';
-import { ApolloService } from '../services/apollo.service';
+import { InstantlyService } from 'src/modules/sales/services/instantly.service';
+import { ApolloService } from 'src/modules/sales/services/apollo.service';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { WaitlistEntry } from 'src/entities/waitlist-entry.entity';

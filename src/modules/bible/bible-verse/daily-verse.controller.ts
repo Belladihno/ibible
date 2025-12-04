@@ -187,27 +187,24 @@
 //   }
 // }
 
-
-
-
-import { 
-  Controller, 
-  Get, 
-  HttpStatus, 
-  HttpCode, 
-  Post, 
-  UseGuards, 
-  Req, 
-  Param, 
-  Body 
+import {
+  Controller,
+  Get,
+  HttpStatus,
+  HttpCode,
+  Post,
+  UseGuards,
+  Req,
+  Param,
+  Body,
 } from '@nestjs/common';
-import { 
-  ApiTags, 
-  ApiOperation, 
-  ApiResponse, 
-  ApiBearerAuth, 
-  ApiBody, 
-  ApiParam 
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+  ApiBody,
+  ApiParam,
 } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
 import type { Request } from 'express';
@@ -262,7 +259,8 @@ export class BibleVerseController {
               license: 'Public Domain',
             },
           },
-          summary: 'This verse highlights God\'s sacrificial love and the promise of eternal life to those who trust in Christ. How does this truth change the way you think about love and sacrifice today?',
+          summary:
+            "This verse highlights God's sacrificial love and the promise of eternal life to those who trust in Christ. How does this truth change the way you think about love and sacrifice today?",
           verseId: 'verse-id-123',
           timestamp: '2025-12-03T20:00:00.000Z',
         },
@@ -288,9 +286,10 @@ export class BibleVerseController {
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth()
   @HttpCode(HttpStatus.CREATED)
-  @ApiOperation({ 
-    summary: 'Start a daily verse conversation', 
-    description: 'Creates a new conversation seeded with the daily verse and an AI-generated introduction. The AI message provides context and asks an engaging question to start the discussion.'
+  @ApiOperation({
+    summary: 'Start a daily verse conversation',
+    description:
+      'Creates a new conversation seeded with the daily verse and an AI-generated introduction. The AI message provides context and asks an engaging question to start the discussion.',
   })
   @ApiResponse({
     status: HttpStatus.CREATED,
@@ -303,7 +302,7 @@ export class BibleVerseController {
           verseReference: 'John 3:16',
           isActive: true,
           createdAt: '2025-12-02T00:00:00.000Z',
-          updatedAt: '2025-12-02T00:00:00.000Z'
+          updatedAt: '2025-12-02T00:00:00.000Z',
         },
         aiMessage: {
           id: 'uuid-msg-1',
@@ -315,15 +314,16 @@ export class BibleVerseController {
             messages: [],
             isActive: true,
             createdAt: '2025-12-02T00:00:00.000Z',
-            updatedAt: '2025-12-02T00:00:00.000Z'
+            updatedAt: '2025-12-02T00:00:00.000Z',
           },
           sender: 'assistant',
-          content: "This verse highlights God's sacrificial love and the promise of eternal life to those who trust in Christ. How does this truth change the way you think about love and sacrifice today?",
+          content:
+            "This verse highlights God's sacrificial love and the promise of eternal life to those who trust in Christ. How does this truth change the way you think about love and sacrifice today?",
           createdAt: '2025-12-02T00:00:01.000Z',
-          updatedAt: '2025-12-02T00:00:01.000Z'
-        }
-      }
-    }
+          updatedAt: '2025-12-02T00:00:01.000Z',
+        },
+      },
+    },
   })
   @ApiResponse({
     status: HttpStatus.BAD_REQUEST,
@@ -333,14 +333,16 @@ export class BibleVerseController {
     status: HttpStatus.UNAUTHORIZED,
     description: 'Authentication required',
   })
-  async startConversation(@Req() req: Request): Promise<StartConversationResponse> {
+  async startConversation(
+    @Req() req: Request,
+  ): Promise<StartConversationResponse> {
     const user = req.user as AuthenticatedUser;
     const userId = user.userId ?? user.sub ?? user.id;
-    
+
     if (!userId) {
       throw new Error('User ID not found in request');
     }
-    
+
     return await this.bibleVerseService.startConversationForUser(userId);
   }
 
@@ -353,7 +355,7 @@ export class BibleVerseController {
     description: 'Conversation ID',
     type: 'string',
     required: true,
-    example: '5ac80588-3ce6-4c5c-bb75-f6a12c0fe311'
+    example: '5ac80588-3ce6-4c5c-bb75-f6a12c0fe311',
   })
   @ApiBody({
     description: 'User message to post to the conversation',
@@ -363,19 +365,20 @@ export class BibleVerseController {
         summary: 'Reflection response',
         value: {
           content: 'I would have to spend more time with the scriptures',
-        }
+        },
       },
       example2: {
         summary: 'Question',
         value: {
           content: 'Can you explain this verse in simpler terms?',
-        }
-      }
-    }
+        },
+      },
+    },
   })
-  @ApiOperation({ 
-    summary: 'Post a message to a conversation', 
-    description: 'Sends a user message to an existing daily verse conversation and receives an AI-generated reply. The conversation history is maintained and returned with organized message pairs.'
+  @ApiOperation({
+    summary: 'Post a message to a conversation',
+    description:
+      'Sends a user message to an existing daily verse conversation and receives an AI-generated reply. The conversation history is maintained and returned with organized message pairs.',
   })
   @ApiResponse({
     status: HttpStatus.CREATED,
@@ -388,7 +391,7 @@ export class BibleVerseController {
           verseReference: 'Deuteronomy 30:12',
           isActive: true,
           createdAt: '2025-12-03T19:05:31.322Z',
-          updatedAt: '2025-12-03T19:05:31.322Z'
+          updatedAt: '2025-12-03T19:05:31.322Z',
         },
         messagePairs: [
           {
@@ -396,24 +399,25 @@ export class BibleVerseController {
             assistant: {
               id: 'msg-1',
               content: 'Welcome message from AI...',
-              createdAt: '2025-12-03T19:05:31.402Z'
-            }
+              createdAt: '2025-12-03T19:05:31.402Z',
+            },
           },
           {
             user: {
               id: 'msg-2',
               content: 'I would have to spend more time with the scriptures',
-              createdAt: '2025-12-03T19:06:00.000Z'
+              createdAt: '2025-12-03T19:06:00.000Z',
             },
             assistant: {
               id: 'msg-3',
-              content: "That's a wonderful commitment! Spending time in Scripture is one of the most transformative practices we can develop...",
-              createdAt: '2025-12-03T19:06:01.000Z'
-            }
-          }
-        ]
-      }
-    }
+              content:
+                "That's a wonderful commitment! Spending time in Scripture is one of the most transformative practices we can develop...",
+              createdAt: '2025-12-03T19:06:01.000Z',
+            },
+          },
+        ],
+      },
+    },
   })
   @ApiResponse({
     status: HttpStatus.BAD_REQUEST,
@@ -430,31 +434,36 @@ export class BibleVerseController {
   ): Promise<PostMessageResponse> {
     const user = req.user as AuthenticatedUser;
     const userId = user.userId ?? user.sub ?? user.id;
-    
+
     if (!userId) {
       throw new Error('User ID not found in request');
     }
-    
-    return await this.bibleVerseService.postMessageToConversation(id, userId, dto.content);
+
+    return await this.bibleVerseService.postMessageToConversation(
+      id,
+      userId,
+      dto.content,
+    );
   }
 
   @Get('daily/conversations/:id')
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth()
   @HttpCode(HttpStatus.OK)
-  @ApiParam({ 
-    name: 'id', 
-    description: 'Conversation ID', 
-    type: 'string', 
-    required: true, 
-    example: '5ac80588-3ce6-4c5c-bb75-f6a12c0fe311' 
+  @ApiParam({
+    name: 'id',
+    description: 'Conversation ID',
+    type: 'string',
+    required: true,
+    example: '5ac80588-3ce6-4c5c-bb75-f6a12c0fe311',
   })
-  @ApiOperation({ 
-    summary: 'Get conversation history', 
-    description: 'Retrieves the complete message history for a specific daily verse conversation, organized as user-assistant message pairs.'
+  @ApiOperation({
+    summary: 'Get conversation history',
+    description:
+      'Retrieves the complete message history for a specific daily verse conversation, organized as user-assistant message pairs.',
   })
-  @ApiResponse({ 
-    status: HttpStatus.OK, 
+  @ApiResponse({
+    status: HttpStatus.OK,
     description: 'Conversation history retrieved successfully',
     schema: {
       example: {
@@ -464,7 +473,7 @@ export class BibleVerseController {
           verseReference: 'John 3:16',
           isActive: true,
           createdAt: '2025-12-03T19:05:31.322Z',
-          updatedAt: '2025-12-03T19:05:31.322Z'
+          updatedAt: '2025-12-03T19:05:31.322Z',
         },
         messagePairs: [
           {
@@ -472,24 +481,24 @@ export class BibleVerseController {
             assistant: {
               id: 'msg-1',
               content: 'AI introduction message...',
-              createdAt: '2025-12-03T19:05:31.402Z'
-            }
+              createdAt: '2025-12-03T19:05:31.402Z',
+            },
           },
           {
             user: {
               id: 'msg-2',
               content: 'User message...',
-              createdAt: '2025-12-03T19:06:00.000Z'
+              createdAt: '2025-12-03T19:06:00.000Z',
             },
             assistant: {
               id: 'msg-3',
               content: 'AI reply...',
-              createdAt: '2025-12-03T19:06:01.000Z'
-            }
-          }
-        ]
-      }
-    }
+              createdAt: '2025-12-03T19:06:01.000Z',
+            },
+          },
+        ],
+      },
+    },
   })
   @ApiResponse({
     status: HttpStatus.BAD_REQUEST,
@@ -505,11 +514,11 @@ export class BibleVerseController {
   ): Promise<ConversationHistoryResponse> {
     const user = req.user as AuthenticatedUser;
     const userId = user.userId ?? user.sub ?? user.id;
-    
+
     if (!userId) {
       throw new Error('User ID not found in request');
     }
-    
+
     return await this.bibleVerseService.getConversationHistory(id, userId);
   }
 
@@ -517,12 +526,13 @@ export class BibleVerseController {
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth()
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ 
-    summary: 'List user conversations', 
-    description: 'Retrieves all daily verse conversations for the authenticated user, ordered by most recent activity. Each conversation includes metadata and the last message pair.'
+  @ApiOperation({
+    summary: 'List user conversations',
+    description:
+      'Retrieves all daily verse conversations for the authenticated user, ordered by most recent activity. Each conversation includes metadata and the last message pair.',
   })
-  @ApiResponse({ 
-    status: HttpStatus.OK, 
+  @ApiResponse({
+    status: HttpStatus.OK,
     description: 'Conversation list retrieved successfully',
     schema: {
       example: [
@@ -538,37 +548,37 @@ export class BibleVerseController {
               assistant: {
                 id: 'msg-1',
                 content: 'AI introduction...',
-                createdAt: '2025-12-03T19:05:31.402Z'
-              }
+                createdAt: '2025-12-03T19:05:31.402Z',
+              },
             },
             {
               user: {
                 id: 'msg-2',
                 content: 'User message...',
-                createdAt: '2025-12-03T19:06:00.000Z'
+                createdAt: '2025-12-03T19:06:00.000Z',
               },
               assistant: {
                 id: 'msg-3',
                 content: 'AI reply...',
-                createdAt: '2025-12-03T19:06:01.000Z'
-              }
-            }
+                createdAt: '2025-12-03T19:06:01.000Z',
+              },
+            },
           ],
           lastPair: {
             user: {
               id: 'msg-2',
               content: 'User message...',
-              createdAt: '2025-12-03T19:06:00.000Z'
+              createdAt: '2025-12-03T19:06:00.000Z',
             },
             assistant: {
               id: 'msg-3',
               content: 'AI reply...',
-              createdAt: '2025-12-03T19:06:01.000Z'
-            }
-          }
-        }
-      ]
-    }
+              createdAt: '2025-12-03T19:06:01.000Z',
+            },
+          },
+        },
+      ],
+    },
   })
   @ApiResponse({
     status: HttpStatus.UNAUTHORIZED,
@@ -577,11 +587,11 @@ export class BibleVerseController {
   async listConversations(@Req() req: Request): Promise<ConversationSummary[]> {
     const user = req.user as AuthenticatedUser;
     const userId = user.userId ?? user.sub ?? user.id;
-    
+
     if (!userId) {
       throw new Error('User ID not found in request');
     }
-    
+
     return await this.bibleVerseService.listConversationsForUser(userId);
   }
 }

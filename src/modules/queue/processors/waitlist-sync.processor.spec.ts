@@ -2,8 +2,8 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { Logger } from '@nestjs/common';
 import { Job } from 'bullmq';
 import { WaitlistSyncProcessor } from './waitlist-sync.processor';
-import { InstantlyService } from '../services/instantly.service';
-import { ApolloService } from '../services/apollo.service';
+import { InstantlyService } from 'src/modules/sales/services/instantly.service';
+import { ApolloService } from 'src/modules/sales/services/apollo.service';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { WaitlistEntry } from 'src/entities/waitlist-entry.entity';
 import {
@@ -117,6 +117,7 @@ describe('WaitlistSyncProcessor', () => {
     await expect(processor.process(job)).resolves.not.toThrow();
 
     // Apollo still runs in parallel
+
     // eslint-disable-next-line @typescript-eslint/unbound-method
     expect(apolloService.addLead).toHaveBeenCalled();
 
