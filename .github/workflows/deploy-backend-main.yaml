@@ -16,7 +16,7 @@ jobs:
 
   pr-validation:
     name: PR Validation - Build, Lint, Test
-    runs-on: [self-hosted, kefaslungu]
+    runs-on: [ self-hosted, kefaslungu ]
     if: github.event_name == 'pull_request'
 
     steps:
@@ -52,7 +52,7 @@ jobs:
 
   build-test:
     name: CI - Build, Lint, Test
-    runs-on: [self-hosted, kefaslungu]
+    runs-on: [ self-hosted, kefaslungu ]
     if: github.event_name == 'push'
 
     steps:
@@ -85,7 +85,7 @@ jobs:
   deploy:
     name: CD - Deploy to server
     needs: build-test
-    runs-on: [self-hosted, kefaslungu]
+    runs-on: [ self-hosted, kefaslungu ]
 
     steps:
     - name: Checkout Code
@@ -143,7 +143,7 @@ jobs:
             cp ../.backend-prod.env .env
           fi
           echo "env file created"
-          echo "🔨 Building app..."
+          echo "🔨 Building app...."
           npm run build
           echo "🛠️ Running database migrations..."
           echo "#--we should not generate migrations on staging or prod. it is gotten from the script"
