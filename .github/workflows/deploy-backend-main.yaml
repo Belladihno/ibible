@@ -148,7 +148,7 @@ jobs:
           rm -rf src/db/migrations/
           echo "🔨 Building app...."
           npm run build
-          echo" generating migrations"
+          echo "generating migrations"
           npm run migration:generate
           echo "🛠️ Running database migrations..."
           echo "#-- normally we should not generate migrations on staging or prod. it is gotten from the script"
