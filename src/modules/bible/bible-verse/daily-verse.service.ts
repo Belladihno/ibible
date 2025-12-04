@@ -1,4 +1,9 @@
-import { Injectable, Logger, OnModuleInit, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  OnModuleInit,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Cron, CronExpression } from '@nestjs/schedule';
@@ -104,11 +109,11 @@ export class BibleVerseService implements OnModuleInit {
     const cached = await this.dailyVerseRepo.findOne({
       where: { date: today },
     });
-    
+
     if (!cached) {
       throw new Error('Failed to retrieve daily verse');
     }
-    
+
     console.log('Cached Verse Data:', cached.verseData);
     return JSON.parse(cached.verseData) as BibleVerse;
   }
@@ -116,7 +121,7 @@ export class BibleVerseService implements OnModuleInit {
   async getDailyVerseWithSummary(): Promise<DailyVerseSummaryResponse> {
     const verse = await this.getDailyVerse();
     let summary: string;
-    
+
     try {
       // Get full AI response (explanation + question)
       summary = await this.dailyGemini.summarizeVerse(verse);
@@ -142,7 +147,9 @@ export class BibleVerseService implements OnModuleInit {
     };
   }
 
-  async startConversationForUser(userId: string): Promise<StartConversationResponse> {
+  async startConversationForUser(
+    userId: string,
+  ): Promise<StartConversationResponse> {
     if (!userId) {
       throw new BadRequestException('userId is required');
     }
@@ -188,14 +195,14 @@ export class BibleVerseService implements OnModuleInit {
     userId: string,
     content: string,
   ): Promise<PostMessageResponse> {
-    const conv = await this.conversationRepo.findOne({ 
-      where: { id: conversationId } 
+    const conv = await this.conversationRepo.findOne({
+      where: { id: conversationId },
     });
-    
+
     if (!conv) {
       throw new BadRequestException('Conversation not found');
     }
-    
+
     if (conv.userId !== userId) {
       throw new BadRequestException('Not allowed');
     }
@@ -212,7 +219,7 @@ export class BibleVerseService implements OnModuleInit {
       where: { conversation: { id: conv.id } },
       order: { createdAt: 'ASC' },
     });
-    
+
     const history: GeminiHistoryEntry[] = historyEntities.map((m) => ({
       role: m.sender === 'user' ? 'user' : 'model',
       content: m.content,
@@ -251,7 +258,9 @@ export class BibleVerseService implements OnModuleInit {
     };
   }
 
-  async listConversationsForUser(userId: string): Promise<ConversationSummary[]> {
+  async listConversationsForUser(
+    userId: string,
+  ): Promise<ConversationSummary[]> {
     const convs = await this.conversationRepo.find({
       where: { userId },
       order: { updatedAt: 'DESC' },
@@ -260,10 +269,14 @@ export class BibleVerseService implements OnModuleInit {
     const summaries: ConversationSummary[] = convs.map((c) => {
       const msgs = (c.messages || [])
         .slice()
-        .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+        .sort(
+          (a, b) =>
+            new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+        );
 
       const messagePairs = this.buildMessagePairs(msgs);
-      const lastPair = messagePairs.length > 0 ? messagePairs[messagePairs.length - 1] : null;
+      const lastPair =
+        messagePairs.length > 0 ? messagePairs[messagePairs.length - 1] : null;
 
       return {
         id: c.id,
@@ -286,18 +299,21 @@ export class BibleVerseService implements OnModuleInit {
     const conv = await this.conversationRepo.findOne({
       where: { id: conversationId },
     });
-    
+
     if (!conv) {
       throw new BadRequestException('Conversation not found');
     }
-    
+
     if (conv.userId !== userId) {
       throw new BadRequestException('Not allowed');
     }
 
     const msgs = (conv.messages || [])
       .slice()
-      .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+      .sort(
+        (a, b) =>
+          new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+      );
 
     const messagePairs = this.buildMessagePairs(msgs);
 
@@ -316,9 +332,11 @@ export class BibleVerseService implements OnModuleInit {
     };
   }
 
-  private buildMessagePairs(messages: DailyVerseConversationMessage[]): MessagePair[] {
+  private buildMessagePairs(
+    messages: DailyVerseConversationMessage[],
+  ): MessagePair[] {
     const messagePairs: MessagePair[] = [];
-    
+
     for (const m of messages) {
       if (m.sender === 'user') {
         messagePairs.push({
@@ -335,7 +353,11 @@ export class BibleVerseService implements OnModuleInit {
         } else {
           const last = messagePairs[messagePairs.length - 1];
           if (!last.assistant) {
-            last.assistant = { id: m.id, content: m.content, createdAt: m.createdAt };
+            last.assistant = {
+              id: m.id,
+              content: m.content,
+              createdAt: m.createdAt,
+            };
           } else {
             // Multiple assistant messages in sequence — append text
             last.assistant.content = `${last.assistant.content}\n\n${m.content}`;
@@ -365,7 +387,7 @@ export class BibleVerseService implements OnModuleInit {
       );
 
       const apiResponse = response.data;
-      
+
       // Transform API response to BibleVerse format
       const verse: BibleVerse = {
         reference: `${apiResponse.random_verse.book} ${apiResponse.random_verse.chapter}:${apiResponse.random_verse.verse}`,

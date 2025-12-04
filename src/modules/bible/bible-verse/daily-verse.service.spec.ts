@@ -62,7 +62,7 @@ describe('BibleVerseService', () => {
     date: new Date().toISOString().split('T')[0],
     reference: 'John 3:16',
     verseData: JSON.stringify(mockBibleVerse),
-    aiSummary: null
+    aiSummary: null,
   };
 
   const mockConversation: DailyVerseConversation = {
@@ -150,7 +150,9 @@ describe('BibleVerseService', () => {
       getRepositoryToken(DailyVerseConversationMessage),
     );
     httpService = module.get<HttpService>(HttpService);
-    geminiService = module.get<DailyVerseGeminiService>(DailyVerseGeminiService);
+    geminiService = module.get<DailyVerseGeminiService>(
+      DailyVerseGeminiService,
+    );
 
     jest.clearAllMocks();
   });
@@ -247,7 +249,8 @@ describe('BibleVerseService', () => {
 
   describe('getDailyVerseWithSummary', () => {
     it('should return verse with AI-generated summary', async () => {
-      const mockSummary = 'This verse teaches about God\'s love.\n\nWhat does this mean to you?';
+      const mockSummary =
+        "This verse teaches about God's love.\n\nWhat does this mean to you?";
       mockDailyVerseRepository.findOne.mockResolvedValue(mockDailyVerse);
       mockGeminiService.summarizeVerse.mockResolvedValue(mockSummary);
 
@@ -259,7 +262,9 @@ describe('BibleVerseService', () => {
       expect(result.data.summary).toBe(mockSummary);
       expect(result.data.verseId).toBeDefined();
       expect(result.data.timestamp).toBeDefined();
-      expect(mockGeminiService.summarizeVerse).toHaveBeenCalledWith(mockBibleVerse);
+      expect(mockGeminiService.summarizeVerse).toHaveBeenCalledWith(
+        mockBibleVerse,
+      );
     });
 
     it('should return fallback summary if AI generation fails', async () => {
@@ -278,7 +283,7 @@ describe('BibleVerseService', () => {
     it('should create a new conversation with AI summary', async () => {
       const userId = 'user-123';
       const mockSummary = 'AI generated summary';
-      
+
       const aiMessageWithSummary: DailyVerseConversationMessage = {
         ...mockMessage,
         content: mockSummary.trim(),
@@ -377,13 +382,25 @@ describe('BibleVerseService', () => {
       const conversationWithMessages: DailyVerseConversation = {
         ...mockConversation,
         messages: [
-          { ...mockMessage, id: 'msg-1', sender: 'assistant', content: 'Hello' },
+          {
+            ...mockMessage,
+            id: 'msg-1',
+            sender: 'assistant',
+            content: 'Hello',
+          },
           { ...mockMessage, id: 'msg-2', sender: 'user', content: 'Hi there' },
-          { ...mockMessage, id: 'msg-3', sender: 'assistant', content: 'How can I help?' },
+          {
+            ...mockMessage,
+            id: 'msg-3',
+            sender: 'assistant',
+            content: 'How can I help?',
+          },
         ],
       };
 
-      mockConversationRepository.find.mockResolvedValue([conversationWithMessages]);
+      mockConversationRepository.find.mockResolvedValue([
+        conversationWithMessages,
+      ]);
 
       const result = await service.listConversationsForUser(userId);
 
@@ -406,18 +423,28 @@ describe('BibleVerseService', () => {
     it('should return conversation history with message pairs', async () => {
       const conversationId = 'conv-id';
       const userId = 'user-123';
-      
+
       const conversationWithMessages: DailyVerseConversation = {
         ...mockConversation,
         messages: [
-          { ...mockMessage, id: 'msg-1', sender: 'assistant', content: 'Welcome!' },
+          {
+            ...mockMessage,
+            id: 'msg-1',
+            sender: 'assistant',
+            content: 'Welcome!',
+          },
           { ...mockMessage, id: 'msg-2', sender: 'user', content: 'Thanks!' },
         ],
       };
 
-      mockConversationRepository.findOne.mockResolvedValue(conversationWithMessages);
+      mockConversationRepository.findOne.mockResolvedValue(
+        conversationWithMessages,
+      );
 
-      const result = await service.getConversationHistory(conversationId, userId);
+      const result = await service.getConversationHistory(
+        conversationId,
+        userId,
+      );
 
       expect(result.conversation.id).toBe(conversationId);
       expect(result.messagePairs).toBeDefined();
@@ -453,7 +480,10 @@ describe('BibleVerseService', () => {
         } as AxiosResponse<BibleApiResponse>),
       );
       mockDailyVerseRepository.save.mockResolvedValue(mockDailyVerse);
-      mockDailyVerseRepository.delete.mockResolvedValue({ affected: 1, raw: {} });
+      mockDailyVerseRepository.delete.mockResolvedValue({
+        affected: 1,
+        raw: {},
+      });
 
       await service.refreshDailyVerse();
 
@@ -477,7 +507,10 @@ describe('BibleVerseService', () => {
         } as AxiosResponse<BibleApiResponse>),
       );
       mockDailyVerseRepository.save.mockResolvedValue(mockDailyVerse);
-      mockDailyVerseRepository.delete.mockResolvedValue({ affected: 1, raw: {} });
+      mockDailyVerseRepository.delete.mockResolvedValue({
+        affected: 1,
+        raw: {},
+      });
 
       await service['fetchAndCacheVerse']();
 
@@ -504,7 +537,10 @@ describe('BibleVerseService', () => {
         } as AxiosResponse<BibleApiResponse>),
       );
       mockDailyVerseRepository.save.mockResolvedValue(mockDailyVerse);
-      mockDailyVerseRepository.delete.mockResolvedValue({ affected: 1, raw: {} });
+      mockDailyVerseRepository.delete.mockResolvedValue({
+        affected: 1,
+        raw: {},
+      });
 
       await service['fetchAndCacheVerse']();
 
@@ -518,7 +554,9 @@ describe('BibleVerseService', () => {
         throwError(() => new Error('API Error')),
       );
 
-      await expect(service['fetchAndCacheVerse']()).rejects.toThrow('API Error');
+      await expect(service['fetchAndCacheVerse']()).rejects.toThrow(
+        'API Error',
+      );
     });
 
     it('should transform API response correctly', async () => {
@@ -532,7 +570,10 @@ describe('BibleVerseService', () => {
         } as AxiosResponse<BibleApiResponse>),
       );
       mockDailyVerseRepository.save.mockResolvedValue(mockDailyVerse);
-      mockDailyVerseRepository.delete.mockResolvedValue({ affected: 1, raw: {} });
+      mockDailyVerseRepository.delete.mockResolvedValue({
+        affected: 1,
+        raw: {},
+      });
 
       await service['fetchAndCacheVerse']();
 

@@ -524,11 +524,11 @@ describe('ChatService', () => {
     });
   });
 
-  describe('generateBasicFallbackResponse', () => {
+  describe('getFallbackResponse', () => {
     it('should generate response acknowledging scripture references', () => {
       const userMessage = 'What does John 3:16 mean?';
       const references = ['John 3:16'];
-      const result = (service as any).generateBasicFallbackResponse(
+      const result = (service as any).getFallbackResponse(
         userMessage,
         references,
       );
@@ -540,7 +540,7 @@ describe('ChatService', () => {
     it('should generate anxiety-specific response', () => {
       const userMessage = 'I am feeling anxious today';
       const references: string[] = [];
-      const result = (service as any).generateBasicFallbackResponse(
+      const result = (service as any).getFallbackResponse(
         userMessage,
         references,
       );
@@ -552,7 +552,7 @@ describe('ChatService', () => {
     it('should generate general response for other messages', () => {
       const userMessage = 'Tell me about prayer';
       const references: string[] = [];
-      const result = (service as any).generateBasicFallbackResponse(
+      const result = (service as any).getFallbackResponse(
         userMessage,
         references,
       );
@@ -563,7 +563,7 @@ describe('ChatService', () => {
     it('should never return empty content', () => {
       const userMessage = '';
       const references: string[] = [];
-      const result = (service as any).generateBasicFallbackResponse(
+      const result = (service as any).getFallbackResponse(
         userMessage,
         references,
       );

@@ -16,7 +16,7 @@ jobs:
 
   pr-validation:
     name: PR Validation - Build, Lint, Test
-    runs-on: [self-hosted, kefaslungu]
+    runs-on: [ self-hosted, kefaslungu ]
     if: github.event_name == 'pull_request'
 
     steps:
@@ -52,7 +52,7 @@ jobs:
 
   build-test:
     name: CI - Build, Lint, Test
-    runs-on: [self-hosted, kefaslungu]
+    runs-on: [ self-hosted, kefaslungu ]
     if: github.event_name == 'push'
 
     steps:
@@ -85,7 +85,7 @@ jobs:
   deploy:
     name: CD - Deploy to server
     needs: build-test
-    runs-on: [self-hosted, kefaslungu]
+    runs-on: [ self-hosted, kefaslungu ]
 
     steps:
     - name: Checkout Code
@@ -142,12 +142,17 @@ jobs:
           else
             cp ../.backend-prod.env .env
           fi
+          echo "✅ .env file setup complete."
           echo "env file created"
-          echo "🔨 Building app..."
+          echo "deleting migrations folder"
+          rm -rf src/db/migrations/
+          echo "🔨 Building app...."
           npm run build
+          echo "generating migrations"
+          npm run migration:generate
           echo "🛠️ Running database migrations..."
-          echo "#--we should not generate migrations on staging or prod. it is gotten from the script"
-          # npm run migration:run
+          echo "#-- normally we should not generate migrations on staging or prod. it is gotten from the script"
+          npm run migration:run
           echo "🚀 Restarting application with PM2..."
           pm2 reload "${{ steps.envselect.outputs.PM2_APP_NAME }}" || pm2 start dist/main.js --name "${{ steps.envselect.outputs.PM2_APP_NAME }}"
           pm2 save

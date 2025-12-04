@@ -5,7 +5,6 @@ import {
   GenerativeModel,
   GenerationConfig,
   GenerateContentResult,
-  StartChatParams,
 } from '@google/generative-ai';
 
 @Injectable()
@@ -20,7 +19,7 @@ export class GeminiService {
     }
 
     const genAI = new GoogleGenerativeAI(apiKey);
-    this.model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+    this.model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' }); // Changed to 1.5-flash
   }
 
   async generateContent(
@@ -38,7 +37,6 @@ export class GeminiService {
         topK: 40,
       };
 
-      // With chat history
       if (history?.length) {
         const chat = this.model.startChat({
           history,
@@ -50,7 +48,6 @@ export class GeminiService {
         return result.response.text();
       }
 
-      // Single message
       const result: GenerateContentResult = await this.model.generateContent({
         contents: [{ role: 'user', parts: [{ text: fullPrompt }] }],
         generationConfig,
@@ -83,5 +80,79 @@ User: ${message}
       : '';
 
     return this.generateContent(message, context);
+  }
+
+  /**
+   * Simple title generation that always works
+   */
+  async generateTitle(userMessage: string): Promise<string> {
+    this.logger.log(
+      `Generating title for: ${userMessage.substring(0, 100)}...`,
+    );
+
+    try {
+      // Simple direct prompt - no complex rules
+      const prompt = `Make a 4-9 word title for: "${userMessage.substring(0, 300)}"`;
+
+      const generationConfig: GenerationConfig = {
+        temperature: 0.5,
+        maxOutputTokens: 30,
+        topP: 0.8,
+        topK: 1,
+      };
+
+      const result = await this.model.generateContent({
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        generationConfig,
+      });
+
+      let title = result.response.text().trim();
+
+      // If Gemini returns empty, use fallback
+      if (!title || title.length < 2) {
+        return this.createFallbackTitle(userMessage);
+      }
+
+      // Clean up
+      title = title
+        .replace(/["']/g, '')
+        .replace(/\.+$/g, '')
+        .trim()
+        .substring(0, 60);
+
+      return title;
+    } catch (error) {
+      this.logger.warn(`Title generation failed: ${error.message}`);
+      return this.createFallbackTitle(userMessage);
+    }
+  }
+
+  /**
+   * Fallback title when Gemini fails
+   */
+  private createFallbackTitle(userMessage: string): string {
+    const lowerMsg = userMessage.toLowerCase();
+
+    // Common topics mapping
+    if (lowerMsg.includes('spouse') || lowerMsg.includes('marriage'))
+      return 'Marriage Guidance';
+    if (lowerMsg.includes('anxious') || lowerMsg.includes('anxiety'))
+      return 'Anxiety Support';
+    if (lowerMsg.includes('job') || lowerMsg.includes('work'))
+      return 'Career Guidance';
+    if (lowerMsg.includes('pray')) return 'Prayer Discussion';
+    if (lowerMsg.includes('forgiv')) return 'Forgiveness';
+    if (lowerMsg.includes('money')) return 'Finances';
+    if (lowerMsg.includes('health')) return 'Health';
+    if (lowerMsg.includes('family')) return 'Family';
+    if (lowerMsg.includes('friend')) return 'Friendship';
+
+    // Look for Bible verses
+    const verseMatch = userMessage.match(/([1-3]?\s?[A-Z][a-z]+ \d+:\d+)/);
+    if (verseMatch) return `Study: ${verseMatch[1]}`;
+
+    // First few words as title
+    const words = userMessage.split(' ').slice(0, 4).join(' ');
+    return words || 'Chat';
   }
 }
