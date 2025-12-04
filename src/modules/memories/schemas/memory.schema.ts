@@ -24,11 +24,11 @@ export class Memory extends Document {
 
   @Prop({
     type: {
-      scheduledAt: Date,
-      reminderDeltaDays: Number,
+      scheduledAt: {type:Date,default:Date.now},
+      reminderDeltaDays: {type:Number,default:null},
       isCompleted: { type: Boolean, default: false },
     },
-    default: null,
+    
   })
   followUp?: {
     scheduledAt?: Date;
