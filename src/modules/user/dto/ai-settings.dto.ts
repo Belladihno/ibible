@@ -1,6 +1,6 @@
 import { IsEnum, IsOptional } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { UserTone } from '../enums/user.enums';
+import { ALERT, UserTone, Voice } from '../enums/user.enums';
 
 export class AiSettingsDto {
   @ApiPropertyOptional({
@@ -11,4 +11,15 @@ export class AiSettingsDto {
   @IsEnum(UserTone)
   @IsOptional()
   tone?: UserTone;
+
+  @IsEnum(Voice)
+  @IsOptional()
+  voice: Voice;
+
+  @IsEnum(ALERT)
+  @IsOptional()
+  alerts: ALERT;
+
+  @IsOptional()
+  follow_up: boolean;
 }
