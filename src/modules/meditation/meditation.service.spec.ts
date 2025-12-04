@@ -121,9 +121,97 @@ describe('MeditationService', () => {
     );
   });
 
+  // describe('getHistory', () => {
+  //   it('should return empty array when no sessions exist', async () => {
+  //     jest.spyOn(sessionRepo, 'findAndCount').mockResolvedValue([[], 0]);
+
+  //     const result = await service.getHistory(mockUserId, {
+  //       page: 1,
+  //       limit: 20,
+  //     });
+
+  //     expect(result.data).toEqual([]);
+  //     expect(result.pagination.total).toBe(0);
+  //   });
+
+  //   it('should return sessions for user with chat previews', async () => {
+  //     const mockSessions = [
+  //       {
+  //         id: 'session-1',
+  //         userId: mockUserId,
+  //         completed: true,
+  //         completedAt: new Date(),
+  //         createdAt: new Date(),
+  //       },
+  //     ] as MeditationSession[];
+
+  //     const mockChat = {
+  //       id: 'chat-1',
+  //       sessionId: 'session-1',
+  //       message: 'This is a reflection message',
+  //       role: 'user',
+  //     } as MeditationChat;
+
+  //     jest
+  //       .spyOn(sessionRepo, 'findAndCount')
+  //       .mockResolvedValue([mockSessions, 1]);
+  //     jest.spyOn(chatRepo, 'findOne').mockResolvedValue(mockChat);
+
+  //     const result = await service.getHistory(mockUserId, {
+  //       page: 1,
+  //       limit: 20,
+  //     });
+
+  //     expect(result.data).toHaveLength(1);
+  //     expect(result.data[0]).toHaveProperty('chatPreview');
+  //     expect(result.pagination.total).toBe(1);
+  //     expect(result.pagination.totalPages).toBe(1);
+  //   });
+
+  //   it('should apply pagination correctly', async () => {
+  //     const mockSessions = [] as MeditationSession[];
+  //     jest
+  //       .spyOn(sessionRepo, 'findAndCount')
+  //       .mockResolvedValue([mockSessions, 50]);
+
+  //     const result = await service.getHistory(mockUserId, {
+  //       page: 2,
+  //       limit: 20,
+  //     });
+
+  //     expect(result.pagination.page).toBe(2);
+  //     expect(result.pagination.limit).toBe(20);
+  //     expect(result.pagination.total).toBe(50);
+  //     expect(result.pagination.totalPages).toBe(3);
+  //   });
+
+  //   it('should filter by date range', async () => {
+  //     const findAndCountSpy = jest
+  //       .spyOn(sessionRepo, 'findAndCount')
+  //       .mockResolvedValue([[], 0]);
+
+  //     await service.getHistory(mockUserId, {
+  //       page: 1,
+  //       limit: 20,
+  //       startDate: '2025-11-01',
+  //       endDate: '2025-11-30',
+  //     });
+
+  //     expect(findAndCountSpy).toHaveBeenCalledWith(
+  //       expect.objectContaining({
+  //         where: expect.objectContaining({
+  //           userId: mockUserId,
+  //           completedAt: expect.anything(),
+  //         }),
+  //       }),
+  //     );
+  //   });
+  // });
+
   describe('getHistory', () => {
     it('should return empty array when no sessions exist', async () => {
       jest.spyOn(sessionRepo, 'findAndCount').mockResolvedValue([[], 0]);
+      jest.spyOn(chatRepo, 'findOne').mockResolvedValue(null);
 
       const result = await service.getHistory(mockUserId, {
         page: 1,
@@ -148,8 +236,10 @@ describe('MeditationService', () => {
       const mockChat = {
         id: 'chat-1',
         sessionId: 'session-1',
-        message: 'This is a reflection message',
+        message:
+          'This is a reflection message that is long enough to be truncated for preview purposes',
         role: 'user',
+        createdAt: new Date(),
       } as MeditationChat;
 
       jest
@@ -164,8 +254,34 @@ describe('MeditationService', () => {
 
       expect(result.data).toHaveLength(1);
       expect(result.data[0]).toHaveProperty('chatPreview');
+      expect(result.data[0].chatPreview).toContain('This is a reflection');
       expect(result.pagination.total).toBe(1);
       expect(result.pagination.totalPages).toBe(1);
+    });
+
+    it('should return session without chat preview when no chat exists', async () => {
+      const mockSessions = [
+        {
+          id: 'session-2',
+          userId: mockUserId,
+          completed: false,
+          // completedAt: null,
+          createdAt: new Date(),
+        },
+      ] as MeditationSession[];
+
+      jest
+        .spyOn(sessionRepo, 'findAndCount')
+        .mockResolvedValue([mockSessions, 1]);
+      jest.spyOn(chatRepo, 'findOne').mockResolvedValue(null);
+
+      const result = await service.getHistory(mockUserId, {
+        page: 1,
+        limit: 20,
+      });
+
+      expect(result.data).toHaveLength(1);
+      expect(result.data[0].chatPreview).toBeNull();
     });
 
     it('should apply pagination correctly', async () => {
@@ -173,6 +289,7 @@ describe('MeditationService', () => {
       jest
         .spyOn(sessionRepo, 'findAndCount')
         .mockResolvedValue([mockSessions, 50]);
+      jest.spyOn(chatRepo, 'findOne').mockResolvedValue(null);
 
       const result = await service.getHistory(mockUserId, {
         page: 2,
@@ -189,6 +306,7 @@ describe('MeditationService', () => {
       const findAndCountSpy = jest
         .spyOn(sessionRepo, 'findAndCount')
         .mockResolvedValue([[], 0]);
+      jest.spyOn(chatRepo, 'findOne').mockResolvedValue(null);
 
       await service.getHistory(mockUserId, {
         page: 1,
@@ -201,13 +319,45 @@ describe('MeditationService', () => {
         expect.objectContaining({
           where: expect.objectContaining({
             userId: mockUserId,
-            completedAt: expect.anything(),
+            createdAt: expect.anything(), // Changed from completedAt to createdAt
           }),
         }),
       );
     });
-  });
 
+    it('should include both completed and incomplete sessions', async () => {
+      const mockSessions = [
+        {
+          id: 'session-1',
+          userId: mockUserId,
+          completed: true,
+          completedAt: new Date(),
+          createdAt: new Date(),
+        },
+        {
+          id: 'session-2',
+          userId: mockUserId,
+          completed: false,
+          completedAt: null,
+          createdAt: new Date(),
+        },
+      ] as MeditationSession[];
+
+      jest
+        .spyOn(sessionRepo, 'findAndCount')
+        .mockResolvedValue([mockSessions, 2]);
+      jest.spyOn(chatRepo, 'findOne').mockResolvedValue(null);
+
+      const result = await service.getHistory(mockUserId, {
+        page: 1,
+        limit: 20,
+      });
+
+      expect(result.data).toHaveLength(2);
+      expect(result.data.some((s) => s.completed)).toBe(true);
+      expect(result.data.some((s) => !s.completed)).toBe(true);
+    });
+  });
   describe('startSession', () => {
     it('should start session without initial reflection', async () => {
       jest

@@ -242,10 +242,10 @@ export class MeditationService {
     const { page = 1, limit = 20, startDate, endDate } = dto;
     const skip = (page - 1) * limit;
 
-    const whereCondition: any = { userId, completed: true };
+    const whereCondition: any = { userId };
 
     if (startDate || endDate) {
-      whereCondition.completedAt = Between(
+      whereCondition.createdAt = Between(
         startDate ? new Date(startDate) : new Date('1970-01-01'),
         endDate ? new Date(endDate) : new Date(),
       );
@@ -253,7 +253,7 @@ export class MeditationService {
 
     const [sessions, total] = await this.meditationSessionRepo.findAndCount({
       where: whereCondition,
-      order: { completedAt: 'DESC' },
+      order: { createdAt: 'DESC' },
       skip,
       take: limit,
     });

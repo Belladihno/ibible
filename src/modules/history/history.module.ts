@@ -6,6 +6,9 @@ import {
   ChatConversation,
   ChatConversationSchema,
 } from '../../schemas/chat-conversation.schema';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { MeditationSession } from 'src/entities/meditation-session.entity';
+import { MeditationChat } from 'src/entities/meditation-chat.entity';
 
 @Module({
   imports: [
@@ -13,6 +16,11 @@ import {
     MongooseModule.forFeature([
       { name: ChatConversation.name, schema: ChatConversationSchema },
     ]),
+        TypeOrmModule.forFeature([
+      MeditationSession,
+      MeditationChat,
+    ]),
+
   ],
   controllers: [HistoryController],
   providers: [HistoryService],
