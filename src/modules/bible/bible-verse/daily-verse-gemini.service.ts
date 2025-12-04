@@ -44,8 +44,9 @@ export class DailyVerseGeminiService {
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       try {
         // Build system context with verse information
-        let systemContext = 'You are Rea, a warm and compassionate Bible study companion.';
-        
+        let systemContext =
+          'You are Rea, a warm and compassionate Bible study companion.';
+
         if (verseContext) {
           systemContext += `\n\nToday's Verse: ${verseContext.reference}\nVerse Text: "${verseContext.text}"\n\nIMPORTANT: Keep all your responses grounded in this specific verse and its meaning. When the user asks questions, relate your answers back to this verse.`;
         }
@@ -65,7 +66,14 @@ export class DailyVerseGeminiService {
           // Build contents with system context at the beginning
           const contents: any[] = [
             { role: 'user', parts: [{ text: systemContext }] },
-            { role: 'model', parts: [{ text: 'I understand. I will keep our conversation focused on this verse and its meaning.' }] },
+            {
+              role: 'model',
+              parts: [
+                {
+                  text: 'I understand. I will keep our conversation focused on this verse and its meaning.',
+                },
+              ],
+            },
             ...sanitized,
             { role: 'user', parts: [{ text: userMessage }] },
           ];
@@ -74,16 +82,16 @@ export class DailyVerseGeminiService {
             contents,
             generationConfig,
           });
-          
+
           const text = this.tryExtractText(result)?.trim();
           if (text && text.length > 0) return text;
-          
+
           this.logger.warn(
             `DailyVerseGemini generateReply empty response (attempt ${attempt})`,
           );
         } else {
           // First message in conversation
-          const fullPrompt = verseContext 
+          const fullPrompt = verseContext
             ? `${systemContext}\n\nUser: ${userMessage}`
             : userMessage;
 
@@ -91,10 +99,10 @@ export class DailyVerseGeminiService {
             contents: [{ role: 'user', parts: [{ text: fullPrompt }] }],
             generationConfig,
           });
-          
+
           const text = this.tryExtractText(result)?.trim();
           if (text && text.length > 0) return text;
-          
+
           this.logger.warn(
             `DailyVerseGemini generateReply empty response (attempt ${attempt})`,
           );
@@ -173,7 +181,10 @@ Be specific to THIS verse's message, not generic spiritual advice.`;
 
         if (text && text.length > 0) {
           // Check if it's too generic or repetitive
-          if (this.isMostlyRepeat(verse.text, text) || this.isGenericFallback(text)) {
+          if (
+            this.isMostlyRepeat(verse.text, text) ||
+            this.isGenericFallback(text)
+          ) {
             this.logger.warn(
               `Attempt ${attempt}: AI response too generic or repetitive, retrying`,
             );
@@ -189,7 +200,11 @@ Be specific to THIS verse's message, not generic spiritual advice.`;
             });
 
             const strictText = this.tryExtractText(strictResult)?.trim();
-            if (strictText && !this.isMostlyRepeat(verse.text, strictText) && !this.isGenericFallback(strictText)) {
+            if (
+              strictText &&
+              !this.isMostlyRepeat(verse.text, strictText) &&
+              !this.isGenericFallback(strictText)
+            ) {
               return strictText;
             }
 
@@ -229,8 +244,10 @@ Be specific to THIS verse's message, not generic spiritual advice.`;
     ];
 
     const lowerText = text.toLowerCase();
-    const matchCount = genericPhrases.filter(phrase => lowerText.includes(phrase)).length;
-    
+    const matchCount = genericPhrases.filter((phrase) =>
+      lowerText.includes(phrase),
+    ).length;
+
     // If 2 or more generic phrases are present, it's too generic
     return matchCount >= 2;
   }
@@ -241,15 +258,15 @@ Be specific to THIS verse's message, not generic spiritual advice.`;
   private generateSimpleFallback(verse: BibleVerse): string {
     // Extract key themes from common verses as fallback
     const reference = verse.reference.toLowerCase();
-    
+
     if (reference.includes('john 3:16')) {
       return "God's love for humanity is immeasurable—so profound that He gave His only Son so that anyone who believes might have eternal life. This verse is the heart of the Gospel message.\n\nHow does knowing about this sacrificial love change the way you see yourself and others today?";
     }
-    
+
     if (reference.includes('psalm 23')) {
       return "Even in the darkest valleys, we're never alone. This passage reminds us that God guides, comforts, and provides for us like a caring shepherd tends his flock.\n\nWhat 'valley' are you walking through right now, and how might you sense God's presence there?";
     }
-    
+
     if (reference.includes('philippians 4:13')) {
       return "True strength doesn't come from our own abilities—it flows from Christ working in and through us. When we lean on Him, we can face challenges that would otherwise overwhelm us.\n\nWhat challenge are you facing where you need to rely on Christ's strength rather than your own?";
     }
