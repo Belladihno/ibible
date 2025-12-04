@@ -226,7 +226,6 @@ export class BibleVerseService implements OnModuleInit {
       content: m.content,
     }));
 
-
     // Ask Gemini for reply
     const aiReply = await this.dailyGemini.generateReply(content, history);
     // ✅ FIX: Extract verse info from conversation and pass it to generateReply

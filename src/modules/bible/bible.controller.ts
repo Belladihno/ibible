@@ -54,7 +54,7 @@ export class BibleController {
           {
             id: 'de4e12af7f28f599-02',
             name: 'English Standard Version',
-            abbreviation: 'ESV',
+            abbreviation: 'esv',
             language: 'en',
             updatedAt: '2025-01-01T00:00:00Z',
           },
