@@ -535,10 +535,10 @@ export class MemoriesService {
         this.logger.debug('Attempting AI rephrase for updated memory');
         const doc = await this.memoryModel.findById(id).exec();
 
-         if(!doc){
-        this.logger.debug('memory not dound')
-      throw new NotFoundException(`Memory Not found`)
-      }
+        if (!doc) {
+          this.logger.debug('memory not dound');
+          throw new NotFoundException(`Memory Not found`);
+        }
 
         const title = payload.title ?? doc?.title ?? '';
         const body = payload.body ?? doc?.body ?? '';
@@ -566,10 +566,10 @@ export class MemoriesService {
       .findByIdAndUpdate(id, payload, { new: true })
       .exec();
 
-      if(!doc){
-        this.logger.debug('memory not found')
-      throw new NotFoundException(SystemMessages.MEMORY_NOT_FOUND)
-      }
+    if (!doc) {
+      this.logger.debug('memory not found');
+      throw new NotFoundException(SystemMessages.MEMORY_NOT_FOUND);
+    }
     const cleaned = this.clean(doc);
 
     // Invalidate cache
@@ -603,10 +603,9 @@ export class MemoriesService {
 
     const doc = await this.memoryModel.findByIdAndDelete(id).exec();
 
-    if(!doc){
-      this.logger.debug(`Memory not found`)
-      throw new NotFoundException(SystemMessages.MEMORY_NOT_FOUND)
-
+    if (!doc) {
+      this.logger.debug(`Memory not found`);
+      throw new NotFoundException(SystemMessages.MEMORY_NOT_FOUND);
     }
 
     const cleaned = this.clean(doc);
@@ -694,19 +693,17 @@ export class MemoriesService {
   async completeFollowUp(id: string): Promise<CleanedMemory | null> {
     this.logger.debug(`Completing follow-up for memory ${id}`);
 
-      const doc = await this.memoryModel.findById(id)
-      
+    const doc = await this.memoryModel.findById(id);
+
     if (!doc) {
       throw new NotFoundException(SystemMessages.MEMORY_NOT_FOUND);
     }
 
-    if(doc.followUp?.isCompleted === true){
-     this.logger.debug('follow status is already updated')
-     
-    }else{
-      doc.followUp = {...doc.followUp,isCompleted:true};
+    if (doc.followUp?.isCompleted === true) {
+      this.logger.debug('follow status is already updated');
+    } else {
+      doc.followUp = { ...doc.followUp, isCompleted: true };
       await doc.save();
-
     }
 
     const cleaned = this.clean(doc);

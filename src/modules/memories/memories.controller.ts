@@ -27,7 +27,6 @@ import { CreateMemoryDto } from './dto/create-memory.dto';
 import { UpdateMemoryDto } from './dto/update-memory.dto';
 import * as SystemMessages from 'src/shared/constants/systemMessages';
 
-
 @ApiTags('Memories')
 @Controller('memories')
 export class MemoriesController {
@@ -122,27 +121,27 @@ export class MemoriesController {
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
   @ApiResponse({
-      status: HttpStatus.NOT_FOUND,
-      description: 'Memory not found',
-    })
+    status: HttpStatus.NOT_FOUND,
+    description: 'Memory not found',
+  })
   @ApiOperation({ summary: 'Mark follow-up as completed' })
   async completeFollowUp(@Param('id') id: string) {
-      const updatedMemory = await this.memoriesService.completeFollowUp(id)
-    return{
-    statusCode: HttpStatus.OK,
-    message:SystemMessages.UPDATE_MEMORIES_BY_ID,  
-    data: updatedMemory
-    } 
+    const updatedMemory = await this.memoriesService.completeFollowUp(id);
+    return {
+      statusCode: HttpStatus.OK,
+      message: SystemMessages.UPDATE_MEMORIES_BY_ID,
+      data: updatedMemory,
+    };
   }
 
   @Patch(':id')
   @UseGuards(AuthGuard('jwt'))
-   @HttpCode(HttpStatus.OK)
+  @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
   @ApiResponse({
-      status: HttpStatus.NOT_FOUND,
-      description: 'Memory not found',
-    })
+    status: HttpStatus.NOT_FOUND,
+    description: 'Memory not found',
+  })
   @ApiOperation({ summary: 'Update memory' })
   @ApiBody({ type: UpdateMemoryDto })
   async update(@Param('id') id: string, @Body() payload: UpdateMemoryDto) {
@@ -158,31 +157,30 @@ export class MemoriesController {
           }
         : undefined,
     };
-    const updatedMemory = await this.memoriesService.update(id, servicePayload)
+    const updatedMemory = await this.memoriesService.update(id, servicePayload);
 
-    return{
-    statusCode: HttpStatus.OK,
-    message:SystemMessages.UPDATE_MEMORIES_BY_ID,  
-    data: updatedMemory
-    } ;
+    return {
+      statusCode: HttpStatus.OK,
+      message: SystemMessages.UPDATE_MEMORIES_BY_ID,
+      data: updatedMemory,
+    };
   }
 
   @Delete(':id')
   @UseGuards(AuthGuard('jwt'))
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
-   @ApiResponse({
-      status: HttpStatus.NOT_FOUND,
-      description: 'Memory not found',
-    })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: 'Memory not found',
+  })
   @ApiOperation({ summary: 'Delete memory' })
   async remove(@Param('id') id: string) {
     const deletedMemory = await this.memoriesService.remove(id);
-    return{
-    statusCode: HttpStatus.OK,
-    message:SystemMessages.DELETE_MEMORIES_BY_ID,  
-    data:deletedMemory
-    } 
+    return {
+      statusCode: HttpStatus.OK,
+      message: SystemMessages.DELETE_MEMORIES_BY_ID,
+      data: deletedMemory,
+    };
   }
-
 }

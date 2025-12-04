@@ -35,7 +35,6 @@
 //   };
 // }
 
-
 // dto/history-response.dto.ts
 
 export interface HistoryItemMetadata {
@@ -47,12 +46,12 @@ export interface HistoryItemMetadata {
   sessionType?: string; // Added: 'morning', 'evening', 'custom'
   chatCount?: number; // Added: Number of chat messages
   initialReflection?: string | null; // Added: Initial reflection text
-  
+
   // For prayer
   prayerType?: string;
   status?: string;
   hasAIPrayer?: boolean;
-  
+
   // For memory
   tags?: string[];
   verseRefs?: string[];

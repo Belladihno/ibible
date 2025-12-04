@@ -95,8 +95,7 @@ export const REMINDER_ID_REQUIRED = 'Reminder ID is required';
 export const PRAYER_ID_MISMATCH =
   'Path prayerId does not match prayerId in request body';
 
-
-// Memories 
-export const DELETE_MEMORIES_BY_ID = `Memory successfully deleted`
-export const UPDATE_MEMORIES_BY_ID = `Follow up status successfully updated`
-export const MEMORY_NOT_FOUND= `Memory Not Found`
+// Memories
+export const DELETE_MEMORIES_BY_ID = `Memory successfully deleted`;
+export const UPDATE_MEMORIES_BY_ID = `Follow up status successfully updated`;
+export const MEMORY_NOT_FOUND = `Memory Not Found`;

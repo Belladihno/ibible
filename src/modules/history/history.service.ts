@@ -11,13 +11,12 @@ import { MeditationChat } from 'src/entities/meditation-chat.entity';
 import { MeditationSession } from 'src/entities/meditation-session.entity';
 import { HistoryItem, HistoryResponse } from './dto/history-response.dto';
 
-
 @Injectable()
 export class HistoryService {
   constructor(
     @InjectModel(ChatConversation.name)
     private chatConversationModel: Model<ChatConversationDocument>,
-     @InjectRepository(MeditationSession)
+    @InjectRepository(MeditationSession)
     private meditationSessionRepo: Repository<MeditationSession>,
     @InjectRepository(MeditationChat)
     private meditationChatRepo: Repository<MeditationChat>,
@@ -52,7 +51,7 @@ export class HistoryService {
       order: { createdAt: 'DESC' },
     });
 
-    const sessionsWithChat = sessions.filter(s => s.chatCount > 0);
+    const sessionsWithChat = sessions.filter((s) => s.chatCount > 0);
 
     // Get chat history for each session
     const historyItems = await Promise.all(
@@ -107,10 +106,7 @@ export class HistoryService {
     ]);
 
     // Combine all history
-    const allHistory = [
-      ...chatHistory,
-      ...meditationHistory,
-    ];
+    const allHistory = [...chatHistory, ...meditationHistory];
 
     allHistory.sort(
       (a, b) => b.lastActivity.getTime() - a.lastActivity.getTime(),

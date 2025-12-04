@@ -16,11 +16,7 @@ import { MeditationChat } from 'src/entities/meditation-chat.entity';
     MongooseModule.forFeature([
       { name: ChatConversation.name, schema: ChatConversationSchema },
     ]),
-        TypeOrmModule.forFeature([
-      MeditationSession,
-      MeditationChat,
-    ]),
-
+    TypeOrmModule.forFeature([MeditationSession, MeditationChat]),
   ],
   controllers: [HistoryController],
   providers: [HistoryService],
