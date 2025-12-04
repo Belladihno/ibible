@@ -33,6 +33,7 @@ import { StreaksController } from './modules/streaks/streaks.controller';
 import { RedisModule } from './modules/redis/redis.module';
 import { QueueModule } from './modules/queue/queue.module';
 import { SalesModule } from './modules/sales/sales.module';
+import { HistoryModule } from './modules/history/history.module';
 
 import { FeedbackModule } from './modules/feedback/feedback.module';
 
@@ -106,6 +107,7 @@ import { FeedbackModule } from './modules/feedback/feedback.module';
     DiscoverModule,
     StreaksModule,
     RedisModule,
+    HistoryModule,
     FeedbackModule,
   ],
   controllers: [AppController],
