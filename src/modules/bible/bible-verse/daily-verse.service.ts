@@ -230,6 +230,7 @@ export class BibleVerseService implements OnModuleInit {
       throw new BadRequestException('Not allowed');
     }
 
+    // Save user message
     const userMsg = this.messageRepo.create({
       conversation: conv,
       sender: 'user' as MessageSender,
@@ -237,6 +238,7 @@ export class BibleVerseService implements OnModuleInit {
     });
     await this.messageRepo.save(userMsg);
 
+    // Fetch conversation history
     const historyEntities = await this.messageRepo.find({
       where: { conversation: { id: conv.id } },
       order: { createdAt: 'ASC' },
@@ -247,8 +249,27 @@ export class BibleVerseService implements OnModuleInit {
       content: m.content,
     }));
 
-    const aiReply = await this.dailyGemini.generateReply(content, history);
+    // ✅ FIX: Extract verse info from conversation and pass it to generateReply
+    // Parse the verse reference from conversation title or verseReference field
+    const verseReference = conv.verseReference; // e.g., "John 3:16"
 
+    // Get the actual daily verse to extract the text
+    const dailyVerse = await this.getDailyVerse();
+
+    // Create verse context object
+    const verseContext = {
+      reference: verseReference,
+      text: dailyVerse.text,
+    };
+
+    // ✅ CRITICAL: Pass verse context to generateReply
+    const aiReply = await this.dailyGemini.generateReply(
+      content,
+      history,
+      verseContext, // 🎯 THIS IS THE KEY FIX
+    );
+
+    // Save AI response
     const aiMsg = this.messageRepo.create({
       conversation: conv,
       sender: 'assistant' as MessageSender,
@@ -256,6 +277,7 @@ export class BibleVerseService implements OnModuleInit {
     });
     await this.messageRepo.save(aiMsg);
 
+    // Get all messages and build pairs
     const allMessages = await this.messageRepo.find({
       where: { conversation: { id: conv.id } },
       order: { createdAt: 'ASC' },
