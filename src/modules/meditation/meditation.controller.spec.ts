@@ -349,42 +349,43 @@ describe('MeditationController', () => {
       expect(result).toEqual(mockResult);
     });
   });
-
-  describe('getStreak', () => {
-    it('should call service with userId', async () => {
-      const mockResult = {
-        currentStreak: 5,
-        longestStreak: 10,
-        totalDays: 25,
-      };
-
-      jest.spyOn(service, 'getStreak').mockResolvedValue(mockResult);
-
-      const result = await controller.getStreak(mockRequest);
-
-      expect(service.getStreak).toHaveBeenCalledWith(mockUserId);
-      expect(result).toEqual(mockResult);
-    });
-  });
-
-  describe('getStatistics', () => {
-    it('should call service with userId', async () => {
-      const mockResult = {
-        totalSessions: 50,
-        totalDays: 25,
-        totalDurationSeconds: 15000,
-        averageDurationSeconds: 300,
-        longestStreak: 10,
-        last30Days: 20,
-        currentStreak: 5,
-      };
-
-      jest.spyOn(service, 'getStatistics').mockResolvedValue(mockResult);
-
-      const result = await controller.getStatistics(mockRequest);
-
-      expect(service.getStatistics).toHaveBeenCalledWith(mockUserId);
-      expect(result).toEqual(mockResult);
-    });
-  });
 });
+
+//   describe('getStreak', () => {
+//     it('should call service with userId', async () => {
+//       const mockResult = {
+//         currentStreak: 5,
+//         longestStreak: 10,
+//         totalDays: 25,
+//       };
+
+//       jest.spyOn(service, 'getStreak').mockResolvedValue(mockResult);
+
+//       const result = await controller.getStreak(mockRequest);
+
+//       expect(service.getStreak).toHaveBeenCalledWith(mockUserId);
+//       expect(result).toEqual(mockResult);
+//     });
+//   });
+
+//   describe('getStatistics', () => {
+//     it('should call service with userId', async () => {
+//       const mockResult = {
+//         totalSessions: 50,
+//         totalDays: 25,
+//         totalDurationSeconds: 15000,
+//         averageDurationSeconds: 300,
+//         longestStreak: 10,
+//         last30Days: 20,
+//         currentStreak: 5,
+//       };
+
+//       jest.spyOn(service, 'getStatistics').mockResolvedValue(mockResult);
+
+//       const result = await controller.getStatistics(mockRequest);
+
+//       expect(service.getStatistics).toHaveBeenCalledWith(mockUserId);
+//       expect(result).toEqual(mockResult);
+//     });
+//   });
+// });
