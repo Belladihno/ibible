@@ -7,11 +7,13 @@ import { HttpModule } from '@nestjs/axios';
 import { DailyVerseGeminiService } from './daily-verse-gemini.service';
 import { DailyVerseConversation } from '../../../entities/daily-verse-conversation.entity';
 import { DailyVerseConversationMessage } from '../../../entities/daily-verse-conversation-message.entity';
+import { BibleVersion } from 'src/entities/bible-version.entity';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([
       DailyVerse,
+      BibleVersion,
       DailyVerseConversation,
       DailyVerseConversationMessage,
     ]),
