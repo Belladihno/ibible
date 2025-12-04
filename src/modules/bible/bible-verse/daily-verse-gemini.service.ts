@@ -25,11 +25,14 @@ export class DailyVerseGeminiService {
     this.model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
   }
 
+  /**
+   * Generate reply in conversation context with verse reference
+   */
   async generateReply(
     userMessage: string,
     history: { role: string; content: string }[],
+    verseContext?: { reference: string; text: string },
   ): Promise<string> {
-    // Build a chat history compatible with the generative API
     const generationConfig: GenerationConfig = {
       temperature: 0.7,
       maxOutputTokens: 800,
@@ -40,9 +43,15 @@ export class DailyVerseGeminiService {
     const maxAttempts = 3;
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       try {
+        // Build system context with verse information
+        let systemContext = 'You are Rea, a warm and compassionate Bible study companion.';
+        
+        if (verseContext) {
+          systemContext += `\n\nToday's Verse: ${verseContext.reference}\nVerse Text: "${verseContext.text}"\n\nIMPORTANT: Keep all your responses grounded in this specific verse and its meaning. When the user asks questions, relate your answers back to this verse.`;
+        }
+
         if (history && history.length > 0) {
-          // Sanitize historical roles and build contents array where the FIRST content
-          // is the current user message (Gemini requires first content be role 'user').
+          // Sanitize roles for Gemini API
           const sanitized = history.map((h) => {
             let role = (h.role || '').toString().toLowerCase();
             if (role === 'user' || role === 'client' || role === 'human') {
@@ -53,31 +62,39 @@ export class DailyVerseGeminiService {
             return { role, parts: [{ text: h.content }] };
           });
 
+          // Build contents with system context at the beginning
           const contents: any[] = [
-            { role: 'user', parts: [{ text: userMessage }] },
+            { role: 'user', parts: [{ text: systemContext }] },
+            { role: 'model', parts: [{ text: 'I understand. I will keep our conversation focused on this verse and its meaning.' }] },
             ...sanitized,
+            { role: 'user', parts: [{ text: userMessage }] },
           ];
 
           const result = await this.model.generateContent({
             contents,
             generationConfig,
           });
-          const text =
-            this.tryExtractText(result)?.trim() ??
-            result?.response?.text?.()?.trim();
+          
+          const text = this.tryExtractText(result)?.trim();
           if (text && text.length > 0) return text;
+          
           this.logger.warn(
             `DailyVerseGemini generateReply empty response (attempt ${attempt})`,
           );
         } else {
+          // First message in conversation
+          const fullPrompt = verseContext 
+            ? `${systemContext}\n\nUser: ${userMessage}`
+            : userMessage;
+
           const result = await this.model.generateContent({
-            contents: [{ role: 'user', parts: [{ text: userMessage }] }],
+            contents: [{ role: 'user', parts: [{ text: fullPrompt }] }],
             generationConfig,
           });
-          const text =
-            this.tryExtractText(result)?.trim() ??
-            result?.response?.text?.()?.trim();
+          
+          const text = this.tryExtractText(result)?.trim();
           if (text && text.length > 0) return text;
+          
           this.logger.warn(
             `DailyVerseGemini generateReply empty response (attempt ${attempt})`,
           );
@@ -96,40 +113,42 @@ export class DailyVerseGeminiService {
   }
 
   private buildPrompt(verse: BibleVerse): string {
-    return `You are Rea, a warm and compassionate Bible study companion.
-
-Your task: Create an engaging, conversational reflection on this verse WITHOUT repeating the verse text itself.
+    return `You are Rea, a warm and compassionate Bible study companion starting a conversation about today's verse.
 
 Verse Reference: ${verse.reference}
 Verse Text: "${verse.text}"
 
-Instructions:
-1. DO NOT copy or repeat any part of the verse text
-2. Write 2-3 sentences explaining what this verse means in simple, everyday language
-3. Share how this truth might impact someone's daily life
-4. End with ONE thoughtful question that invites the reader to reflect personally
+Your task: Write a warm, conversational opening that:
+1. Briefly explains the CORE MESSAGE of this specific verse in simple, relatable language (2-3 sentences)
+2. Makes it personal and relevant to everyday life
+3. Ends with ONE engaging question that invites personal reflection
 
-Format your response as:
-[Your 2-3 sentence explanation]
+Important Guidelines:
+- DO NOT repeat or quote the verse text directly
+- Focus on the SPECIFIC meaning and message of THIS verse (not generic spiritual advice)
+- Write as if you're starting a meaningful conversation with a friend
+- Be warm, inviting, and thought-provoking
 
-[Your reflective question]
+Example style (for John 3:16):
+"God's love for humanity is so deep and unconditional that He made the ultimate sacrifice. This verse reminds us that eternal life is a gift freely offered to anyone who believes. 
 
-Keep it warm, personal, and conversational - like a friend sharing an insight over coffee.`;
+Can you think of a time when you experienced unconditional love, or when you found it hard to accept love freely given?"
+
+Now write your conversational opening for ${verse.reference}:`;
   }
 
   private buildStrictPrompt(verse: BibleVerse): string {
-    return `You are Rea, a Bible study companion.
-
-CRITICAL: Write a brief reflection WITHOUT using any words from the original verse.
+    return `You are Rea, beginning a Bible reflection conversation.
 
 Verse: ${verse.reference} - "${verse.text}"
 
-Task:
-- Explain the core meaning in completely different words
-- Make it practical and relatable (2-3 sentences)
-- Add one personal reflection question
+Write a conversational starter (2-3 sentences + one question) that:
+- Explains THIS verse's specific meaning in your own words
+- Connects it to daily life
+- Invites personal reflection
+- Uses COMPLETELY DIFFERENT words than the original verse
 
-Start your response immediately with your explanation. No preamble.`;
+Be specific to THIS verse's message, not generic spiritual advice.`;
   }
 
   async summarizeVerse(verse: BibleVerse): Promise<string> {
@@ -150,95 +169,139 @@ Start your response immediately with your explanation. No preamble.`;
           generationConfig,
         });
 
-        // Extract text using helper that handles several SDK shapes
         const text = this.tryExtractText(result)?.trim();
 
         if (text && text.length > 0) {
-          // Check if response is mostly repeating the verse
-          if (this.isMostlyRepeat(verse.text, text)) {
+          // Check if it's too generic or repetitive
+          if (this.isMostlyRepeat(verse.text, text) || this.isGenericFallback(text)) {
             this.logger.warn(
-              `Attempt ${attempt}: AI repeated verse, retrying with stricter prompt`,
+              `Attempt ${attempt}: AI response too generic or repetitive, retrying`,
             );
 
-            // Try with stricter prompt
             const strictPrompt = this.buildStrictPrompt(verse);
             const strictResult = await this.model.generateContent({
               contents: [{ role: 'user', parts: [{ text: strictPrompt }] }],
               generationConfig: {
-                temperature: 0.9, // Even more creative
+                temperature: 0.9,
                 maxOutputTokens: 300,
                 topP: 0.95,
               },
             });
 
             const strictText = this.tryExtractText(strictResult)?.trim();
-            if (strictText && !this.isMostlyRepeat(verse.text, strictText)) {
+            if (strictText && !this.isMostlyRepeat(verse.text, strictText) && !this.isGenericFallback(strictText)) {
               return strictText;
             }
 
-            // If still repeating, try one more time with backoff
             if (attempt < maxAttempts) {
               await new Promise((r) => setTimeout(r, 300 * attempt));
               continue;
             }
           } else {
-            // Success! Return the good summary
             return text;
           }
         }
 
-        // No usable text — log result for debugging
         this.logger.warn(`Attempt ${attempt}: Empty response from Gemini`);
-        this.logger.debug(
-          `Full result (attempt ${attempt}): ${JSON.stringify(result).slice(0, 2000)}`,
-        );
       } catch (err: any) {
         this.logger.error(`Attempt ${attempt} error: ${err?.message ?? err}`);
-        // don't rethrow here — we'll fall through to a graceful fallback after attempts
       }
 
       await new Promise((r) => setTimeout(r, 300 * attempt));
     }
 
-    // Graceful fallback: return a short, non-repetitive reflection instead of throwing
+    // If all attempts fail, generate a simple verse-specific fallback
     this.logger.error(
-      'Failed to generate non-repetitive summary after retries — returning fallback summary',
+      'Failed to generate summary after retries — creating verse-specific fallback',
     );
-    return `This passage invites thoughtful reflection on its meaning and practical effect. Consider how the truth behind ${verse.reference} might shape a choice or change in your daily life.\n\nWhat is one small step you could take this week in response to this passage?`;
+    return this.generateSimpleFallback(verse);
   }
 
-  private tryExtractText(result?: GenerateContentResult): string | undefined {
+  /**
+   * Check if the response is the generic fallback pattern
+   */
+  private isGenericFallback(text: string): boolean {
+    const genericPhrases = [
+      'this passage invites thoughtful reflection',
+      'consider how the truth behind',
+      'might shape a choice or change in your daily life',
+      'what is one small step you could take this week',
+    ];
+
+    const lowerText = text.toLowerCase();
+    const matchCount = genericPhrases.filter(phrase => lowerText.includes(phrase)).length;
+    
+    // If 2 or more generic phrases are present, it's too generic
+    return matchCount >= 2;
+  }
+
+  /**
+   * Generate a simple but verse-specific fallback when AI fails
+   */
+  private generateSimpleFallback(verse: BibleVerse): string {
+    // Extract key themes from common verses as fallback
+    const reference = verse.reference.toLowerCase();
+    
+    if (reference.includes('john 3:16')) {
+      return "God's love for humanity is immeasurable—so profound that He gave His only Son so that anyone who believes might have eternal life. This verse is the heart of the Gospel message.\n\nHow does knowing about this sacrificial love change the way you see yourself and others today?";
+    }
+    
+    if (reference.includes('psalm 23')) {
+      return "Even in the darkest valleys, we're never alone. This passage reminds us that God guides, comforts, and provides for us like a caring shepherd tends his flock.\n\nWhat 'valley' are you walking through right now, and how might you sense God's presence there?";
+    }
+    
+    if (reference.includes('philippians 4:13')) {
+      return "True strength doesn't come from our own abilities—it flows from Christ working in and through us. When we lean on Him, we can face challenges that would otherwise overwhelm us.\n\nWhat challenge are you facing where you need to rely on Christ's strength rather than your own?";
+    }
+
+    // Generic but better than the old fallback
+    return `Today's verse from ${verse.reference} offers profound wisdom for our lives. Take a moment to reflect on its message and what it might be saying to you personally.\n\nWhat stands out to you most in this passage, and how might you apply it today?`;
+  }
+
+  private tryExtractText(result?: unknown): string | undefined {
     try {
       if (!result) return undefined;
 
-      // Common accessor used in other parts of the code
-      const respText = (result as any)?.response?.text?.();
-      if (typeof respText === 'string' && respText.trim().length > 0)
-        return respText;
+      const r = result as unknown;
 
-      const candidates = (result as any)?.candidates;
-      if (Array.isArray(candidates) && candidates.length > 0) {
-        const first = candidates[0];
-        if (typeof first === 'string' && first.trim().length > 0) return first;
-        if (typeof first?.output === 'string' && first.output.trim().length > 0)
-          return first.output;
-        if (
-          Array.isArray(first?.output) &&
-          first.output.length > 0 &&
-          typeof first.output[0] === 'string'
-        )
-          return first.output[0];
+      try {
+        const resp = (
+          r as { response?: { text?: () => unknown } }
+        )?.response?.text?.();
+        if (typeof resp === 'string' && resp.trim().length > 0) return resp;
+      } catch {
+        // ignore
       }
 
-      const outputs = (result as any)?.outputs;
+      const candidates = (r as { candidates?: unknown })?.candidates;
+      if (Array.isArray(candidates) && candidates.length > 0) {
+        const first = candidates[0] as unknown;
+        if (typeof first === 'string' && first.trim().length > 0) return first;
+
+        const firstOutput = (first as { output?: unknown })?.output;
+        if (typeof firstOutput === 'string' && firstOutput.trim().length > 0)
+          return firstOutput;
+
+        if (
+          Array.isArray(firstOutput) &&
+          firstOutput.length > 0 &&
+          typeof firstOutput[0] === 'string'
+        )
+          return firstOutput[0];
+      }
+
+      const outputs = (r as { outputs?: unknown })?.outputs;
       if (Array.isArray(outputs) && outputs.length > 0) {
-        for (const o of outputs) {
-          if (typeof o?.content === 'string' && o.content.trim().length > 0)
-            return o.content;
-          if (Array.isArray(o?.content)) {
-            for (const part of o.content) {
-              if (typeof part?.text === 'string' && part.text.trim().length > 0)
-                return part.text;
+        for (const o of outputs as unknown[]) {
+          const content = (o as { content?: unknown })?.content;
+          if (typeof content === 'string' && content.trim().length > 0)
+            return content;
+
+          if (Array.isArray(content)) {
+            for (const part of content as unknown[]) {
+              const partText = (part as { text?: unknown })?.text;
+              if (typeof partText === 'string' && partText.trim().length > 0)
+                return partText;
             }
           }
         }
@@ -267,7 +330,6 @@ Start your response immediately with your explanation. No preamble.`;
       if (sourceSet.has(word)) matchCount++;
     }
 
-    // Calculate overlap percentage
     const overlapPercent = (matchCount / candidateWords.length) * 100;
 
     this.logger.debug(

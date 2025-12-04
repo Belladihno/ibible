@@ -214,69 +214,91 @@ export class BibleVerseService implements OnModuleInit {
   }
 
   async postMessageToConversation(
-    conversationId: string,
-    userId: string,
-    content: string,
-  ): Promise<PostMessageResponse> {
-    const conv = await this.conversationRepo.findOne({
-      where: { id: conversationId },
-    });
+  conversationId: string,
+  userId: string,
+  content: string,
+): Promise<PostMessageResponse> {
+  const conv = await this.conversationRepo.findOne({
+    where: { id: conversationId },
+  });
 
-    if (!conv) {
-      throw new BadRequestException('Conversation not found');
-    }
-
-    if (conv.userId !== userId) {
-      throw new BadRequestException('Not allowed');
-    }
-
-    const userMsg = this.messageRepo.create({
-      conversation: conv,
-      sender: 'user' as MessageSender,
-      content,
-    });
-    await this.messageRepo.save(userMsg);
-
-    const historyEntities = await this.messageRepo.find({
-      where: { conversation: { id: conv.id } },
-      order: { createdAt: 'ASC' },
-    });
-
-    const history: GeminiHistoryEntry[] = historyEntities.map((m) => ({
-      role: m.sender === 'user' ? 'user' : 'model',
-      content: m.content,
-    }));
-
-    const aiReply = await this.dailyGemini.generateReply(content, history);
-
-    const aiMsg = this.messageRepo.create({
-      conversation: conv,
-      sender: 'assistant' as MessageSender,
-      content: aiReply,
-    });
-    await this.messageRepo.save(aiMsg);
-
-    const allMessages = await this.messageRepo.find({
-      where: { conversation: { id: conv.id } },
-      order: { createdAt: 'ASC' },
-    });
-
-    const messagePairs = this.buildMessagePairs(allMessages);
-
-    const conversationMetadata: ConversationMetadata = {
-      id: conv.id,
-      userId: conv.userId,
-      verseReference: conv.verseReference,
-      isActive: conv.isActive,
-      createdAt: conv.createdAt,
-      updatedAt: conv.updatedAt,
-    };
-
-    return {
-      conversation: conversationMetadata,
-      messagePairs,
-    };
+  if (!conv) {
+    throw new BadRequestException('Conversation not found');
   }
+
+  if (conv.userId !== userId) {
+    throw new BadRequestException('Not allowed');
+  }
+
+  // Save user message
+  const userMsg = this.messageRepo.create({
+    conversation: conv,
+    sender: 'user' as MessageSender,
+    content,
+  });
+  await this.messageRepo.save(userMsg);
+
+  // Fetch conversation history
+  const historyEntities = await this.messageRepo.find({
+    where: { conversation: { id: conv.id } },
+    order: { createdAt: 'ASC' },
+  });
+
+  const history: GeminiHistoryEntry[] = historyEntities.map((m) => ({
+    role: m.sender === 'user' ? 'user' : 'model',
+    content: m.content,
+  }));
+
+  // ✅ FIX: Extract verse info from conversation and pass it to generateReply
+  // Parse the verse reference from conversation title or verseReference field
+  const verseReference = conv.verseReference; // e.g., "John 3:16"
+  
+  // Get the actual daily verse to extract the text
+  const dailyVerse = await this.getDailyVerse();
+  
+  // Create verse context object
+  const verseContext = {
+    reference: verseReference,
+    text: dailyVerse.text,
+  };
+
+  // ✅ CRITICAL: Pass verse context to generateReply
+  const aiReply = await this.dailyGemini.generateReply(
+    content, 
+    history,
+    verseContext  // 🎯 THIS IS THE KEY FIX
+  );
+
+  // Save AI response
+  const aiMsg = this.messageRepo.create({
+    conversation: conv,
+    sender: 'assistant' as MessageSender,
+    content: aiReply,
+  });
+  await this.messageRepo.save(aiMsg);
+
+  // Get all messages and build pairs
+  const allMessages = await this.messageRepo.find({
+    where: { conversation: { id: conv.id } },
+    order: { createdAt: 'ASC' },
+  });
+
+  const messagePairs = this.buildMessagePairs(allMessages);
+
+  const conversationMetadata: ConversationMetadata = {
+    id: conv.id,
+    userId: conv.userId,
+    verseReference: conv.verseReference,
+    isActive: conv.isActive,
+    createdAt: conv.createdAt,
+    updatedAt: conv.updatedAt,
+  };
+
+  return {
+    conversation: conversationMetadata,
+    messagePairs,
+  };
+}
 
   async listConversationsForUser(
     userId: string,
