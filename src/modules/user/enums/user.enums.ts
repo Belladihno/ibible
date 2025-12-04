@@ -40,3 +40,13 @@ export enum UserTone {
   SCHOLARLY = 'scholarly',
   CONCISE = 'concise',
 }
+
+export enum Voice {
+  MALE = 'male',
+  FEMALE = 'female',
+}
+
+export enum ALERT {
+  VOICE = 'voice',
+  SMS = 'sms',
+}

@@ -145,6 +145,14 @@ export class UserController {
           about: 'I love reading the Bible daily.',
           aiSettings: {
             tone: 'friendly',
+            voice: 'female',
+            alerts: 'sms',
+            follow_up: true,
+          },
+          user_preferences: {
+            preferred_translator: 'KJV',
+            scripture_frequency: 'balanced',
+            microphone: 'false',
           },
           timestamp: '2025-11-20T00:00:00.000Z',
         },
@@ -167,6 +175,7 @@ export class UserController {
       phoneNumber: user.phoneNumber,
       profilePicture: user.profilePicture,
       aiSettings: user.aiSettings,
+      user_preferences: user.user_preferences,
       timestamp: new Date().toISOString(),
     };
     return {

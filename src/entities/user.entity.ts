@@ -6,6 +6,8 @@ import {
   PreferredBibleVersion,
   PreferredAIVoice,
   UserTone,
+  Voice,
+  ALERT,
 } from 'src/modules/user/enums/user.enums';
 import { Entity, Column, Index, OneToMany } from 'typeorm';
 import { Prayer } from './prayer.entity';
@@ -14,6 +16,10 @@ import { AccessToken } from './access-token.entity';
 import { RefreshToken } from './refresh-token.entity';
 import { PasswordResetToken } from './password-reset-token.entity';
 import { EmailVerificationToken } from './email-verification-token.entity';
+import {
+  AiSettings,
+  user_preferences,
+} from 'src/shared/interfaces/aisetting.interface';
 
 @Entity('users')
 export class User extends BaseEntity {
@@ -110,11 +116,14 @@ export class User extends BaseEntity {
   @Column({
     name: 'ai_settings',
     type: 'jsonb',
-    default: { tone: UserTone.FRIENDLY },
+    default: {
+      tone: UserTone.FRIENDLY,
+      voice: Voice.FEMALE,
+      alerts: ALERT.SMS,
+      follow_up: false,
+    },
   })
-  aiSettings: {
-    tone: UserTone;
-  };
+  aiSettings: AiSettings;
 
   @Column({
     name: 'meditation_time_morning',
@@ -160,6 +169,17 @@ export class User extends BaseEntity {
 
   @Column({ name: 'deleted_at', type: 'timestamp', nullable: true })
   deletedAt: Date;
+
+  @Column({
+    name: 'user_preferences',
+    type: 'jsonb',
+    default: {
+      preferred_translator: 'KJV',
+      scripture_frequency: 'balanced',
+      microphone: 'false',
+    },
+  })
+  user_preferences: user_preferences;
 
   @OneToMany(() => AccessToken, (accessToken) => accessToken.user)
   accessTokens: AccessToken[];
