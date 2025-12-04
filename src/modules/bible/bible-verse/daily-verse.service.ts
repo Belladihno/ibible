@@ -1,4 +1,4 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Cron, CronExpression } from '@nestjs/schedule';
@@ -8,29 +8,92 @@ import { HttpService } from '@nestjs/axios';
 import {
   BibleVerse,
   BibleApiResponse,
+  DailyVerseSummaryResponse,
+  DailyVerseWithSummary,
 } from 'src/shared/types/bible-verse.types';
+import { DailyVerseGeminiService } from './daily-verse-gemini.service';
+import { DailyVerseConversation } from '../../../entities/daily-verse-conversation.entity';
+import { DailyVerseConversationMessage } from '../../../entities/daily-verse-conversation-message.entity';
+
+type MessageSender = 'user' | 'assistant';
+
+export interface ConversationMetadata {
+  id: string;
+  userId: string;
+  verseReference: string;
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface MessageInfo {
+  id: string;
+  content: string;
+  createdAt: Date;
+}
+
+export interface MessagePair {
+  user: MessageInfo | null;
+  assistant: MessageInfo | null;
+}
+
+export interface StartConversationResponse {
+  conversation: ConversationMetadata;
+  aiMessage: DailyVerseConversationMessage;
+}
+
+export interface PostMessageResponse {
+  conversation: ConversationMetadata;
+  messagePairs: MessagePair[];
+}
+
+export interface ConversationHistoryResponse {
+  conversation: ConversationMetadata;
+  messagePairs: MessagePair[];
+}
+
+export interface ConversationSummary {
+  id: string;
+  verseReference: string;
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+  messagePairs: MessagePair[];
+  lastPair: MessagePair | null;
+}
+
+interface GeminiHistoryEntry {
+  role: string;
+  content: string;
+}
 
 @Injectable()
 export class BibleVerseService implements OnModuleInit {
-  forceRefresh() {
+  forceRefresh(): void {
     throw new Error('Method not implemented.');
   }
+
   private readonly logger = new Logger(BibleVerseService.name);
   private readonly API_URL = 'https://bible-api.com/data/web/random';
 
   constructor(
     @InjectRepository(DailyVerse)
     private readonly dailyVerseRepo: Repository<DailyVerse>,
+    @InjectRepository(DailyVerseConversation)
+    private readonly conversationRepo: Repository<DailyVerseConversation>,
+    @InjectRepository(DailyVerseConversationMessage)
+    private readonly messageRepo: Repository<DailyVerseConversationMessage>,
     private readonly httpService: HttpService,
+    private readonly dailyGemini: DailyVerseGeminiService,
   ) {}
 
-  async onModuleInit() {
+  async onModuleInit(): Promise<void> {
     // Fetch verse on startup if not cached for today
     await this.ensureDailyVerse();
   }
 
   @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
-  async refreshDailyVerse() {
+  async refreshDailyVerse(): Promise<void> {
     this.logger.log('Refreshing daily Bible verse...');
     await this.fetchAndCacheVerse();
   }
@@ -41,11 +104,247 @@ export class BibleVerseService implements OnModuleInit {
     const cached = await this.dailyVerseRepo.findOne({
       where: { date: today },
     });
+    
     if (!cached) {
       throw new Error('Failed to retrieve daily verse');
     }
+    
     console.log('Cached Verse Data:', cached.verseData);
     return JSON.parse(cached.verseData) as BibleVerse;
+  }
+
+  async getDailyVerseWithSummary(): Promise<DailyVerseSummaryResponse> {
+    const verse = await this.getDailyVerse();
+    let summary: string;
+    
+    try {
+      // Get full AI response (explanation + question)
+      summary = await this.dailyGemini.summarizeVerse(verse);
+      // Don't split - return the whole thing as the summary
+      // The AI already formatted it properly
+    } catch (err) {
+      this.logger.error('Failed to generate AI summary', err);
+      // Fallback: create a simple prompt
+      summary = `Reflect on ${verse.reference}. What does this verse mean to you today?`;
+    }
+
+    const data: DailyVerseWithSummary = {
+      verse,
+      summary,
+      verseId: verse.id ?? '',
+      timestamp: new Date().toISOString(),
+    };
+
+    return {
+      statusCode: 200,
+      message: 'Request successful',
+      data,
+    };
+  }
+
+  async startConversationForUser(userId: string): Promise<StartConversationResponse> {
+    if (!userId) {
+      throw new BadRequestException('userId is required');
+    }
+
+    const verse = await this.getDailyVerse();
+    const full = await this.dailyGemini.summarizeVerse(verse);
+
+    const conv = this.conversationRepo.create({
+      userId,
+      title: `Daily Verse: ${verse.reference}`,
+      verseReference: verse.reference,
+      messages: [],
+      isActive: true,
+    });
+
+    const saved = await this.conversationRepo.save(conv);
+
+    const aiMessage = this.messageRepo.create({
+      conversation: saved,
+      sender: 'assistant' as MessageSender,
+      content: full.trim(),
+    });
+
+    await this.messageRepo.save(aiMessage);
+
+    const conversation: ConversationMetadata = {
+      id: saved.id,
+      userId: saved.userId,
+      verseReference: saved.verseReference,
+      isActive: saved.isActive,
+      createdAt: saved.createdAt,
+      updatedAt: saved.updatedAt,
+    };
+
+    return {
+      conversation,
+      aiMessage,
+    };
+  }
+
+  async postMessageToConversation(
+    conversationId: string,
+    userId: string,
+    content: string,
+  ): Promise<PostMessageResponse> {
+    const conv = await this.conversationRepo.findOne({ 
+      where: { id: conversationId } 
+    });
+    
+    if (!conv) {
+      throw new BadRequestException('Conversation not found');
+    }
+    
+    if (conv.userId !== userId) {
+      throw new BadRequestException('Not allowed');
+    }
+
+    const userMsg = this.messageRepo.create({
+      conversation: conv,
+      sender: 'user' as MessageSender,
+      content,
+    });
+    await this.messageRepo.save(userMsg);
+
+    // Build history from existing messages
+    const historyEntities = await this.messageRepo.find({
+      where: { conversation: { id: conv.id } },
+      order: { createdAt: 'ASC' },
+    });
+    
+    const history: GeminiHistoryEntry[] = historyEntities.map((m) => ({
+      role: m.sender === 'user' ? 'user' : 'model',
+      content: m.content,
+    }));
+
+    // Ask Gemini for reply
+    const aiReply = await this.dailyGemini.generateReply(content, history);
+
+    const aiMsg = this.messageRepo.create({
+      conversation: conv,
+      sender: 'assistant' as MessageSender,
+      content: aiReply,
+    });
+    await this.messageRepo.save(aiMsg);
+
+    // Fetch full ordered messages to build message pairs
+    const allMessages = await this.messageRepo.find({
+      where: { conversation: { id: conv.id } },
+      order: { createdAt: 'ASC' },
+    });
+
+    const messagePairs = this.buildMessagePairs(allMessages);
+
+    const conversationMetadata: ConversationMetadata = {
+      id: conv.id,
+      userId: conv.userId,
+      verseReference: conv.verseReference,
+      isActive: conv.isActive,
+      createdAt: conv.createdAt,
+      updatedAt: conv.updatedAt,
+    };
+
+    return {
+      conversation: conversationMetadata,
+      messagePairs,
+    };
+  }
+
+  async listConversationsForUser(userId: string): Promise<ConversationSummary[]> {
+    const convs = await this.conversationRepo.find({
+      where: { userId },
+      order: { updatedAt: 'DESC' },
+    });
+
+    const summaries: ConversationSummary[] = convs.map((c) => {
+      const msgs = (c.messages || [])
+        .slice()
+        .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+
+      const messagePairs = this.buildMessagePairs(msgs);
+      const lastPair = messagePairs.length > 0 ? messagePairs[messagePairs.length - 1] : null;
+
+      return {
+        id: c.id,
+        verseReference: c.verseReference,
+        isActive: c.isActive,
+        createdAt: c.createdAt,
+        updatedAt: c.updatedAt,
+        messagePairs,
+        lastPair,
+      };
+    });
+
+    return summaries;
+  }
+
+  async getConversationHistory(
+    conversationId: string,
+    userId: string,
+  ): Promise<ConversationHistoryResponse> {
+    const conv = await this.conversationRepo.findOne({
+      where: { id: conversationId },
+    });
+    
+    if (!conv) {
+      throw new BadRequestException('Conversation not found');
+    }
+    
+    if (conv.userId !== userId) {
+      throw new BadRequestException('Not allowed');
+    }
+
+    const msgs = (conv.messages || [])
+      .slice()
+      .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+
+    const messagePairs = this.buildMessagePairs(msgs);
+
+    const conversation: ConversationMetadata = {
+      id: conv.id,
+      userId: conv.userId,
+      verseReference: conv.verseReference,
+      isActive: conv.isActive,
+      createdAt: conv.createdAt,
+      updatedAt: conv.updatedAt,
+    };
+
+    return {
+      conversation,
+      messagePairs,
+    };
+  }
+
+  private buildMessagePairs(messages: DailyVerseConversationMessage[]): MessagePair[] {
+    const messagePairs: MessagePair[] = [];
+    
+    for (const m of messages) {
+      if (m.sender === 'user') {
+        messagePairs.push({
+          user: { id: m.id, content: m.content, createdAt: m.createdAt },
+          assistant: null,
+        });
+      } else {
+        if (messagePairs.length === 0) {
+          // Assistant message before any user message — leading assistant pair
+          messagePairs.push({
+            user: null,
+            assistant: { id: m.id, content: m.content, createdAt: m.createdAt },
+          });
+        } else {
+          const last = messagePairs[messagePairs.length - 1];
+          if (!last.assistant) {
+            last.assistant = { id: m.id, content: m.content, createdAt: m.createdAt };
+          } else {
+            // Multiple assistant messages in sequence — append text
+            last.assistant.content = `${last.assistant.content}\n\n${m.content}`;
+          }
+        }
+      }
+    }
+
+    return messagePairs;
   }
 
   private async ensureDailyVerse(): Promise<void> {
@@ -66,7 +365,8 @@ export class BibleVerseService implements OnModuleInit {
       );
 
       const apiResponse = response.data;
-      // Transform API response to our format
+      
+      // Transform API response to BibleVerse format
       const verse: BibleVerse = {
         reference: `${apiResponse.random_verse.book} ${apiResponse.random_verse.chapter}:${apiResponse.random_verse.verse}`,
         book: apiResponse.random_verse.book,

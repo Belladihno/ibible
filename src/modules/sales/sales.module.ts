@@ -1,18 +1,13 @@
 import { Module } from '@nestjs/common';
-import { BullModule } from '@nestjs/bullmq';
 import { ConfigModule } from '@nestjs/config';
-import { QueueName } from '../queue/queue-names.enum';
+import { TypeOrmModule } from '@nestjs/typeorm';
 import { InstantlyService } from './services/instantly.service';
 import { ApolloService } from './services/apollo.service';
 import { WaitlistSyncProcessor } from './processors/waitlist-sync.processor';
+import { WaitlistEntry } from 'src/entities/waitlist-entry.entity';
 
 @Module({
-  imports: [
-    ConfigModule,
-    BullModule.registerQueue({
-      name: QueueName.WAITLIST_SYNC,
-    }),
-  ],
+  imports: [ConfigModule, TypeOrmModule.forFeature([WaitlistEntry])],
   providers: [InstantlyService, ApolloService, WaitlistSyncProcessor],
   exports: [InstantlyService, ApolloService],
 })

@@ -51,7 +51,8 @@ describe('InstantlyService', () => {
     expect(result).toEqual({
       success: false,
       tool: 'instantly',
-      error: 'Service not configured',
+      error:
+        'Service not configured - missing INSTANTLY_API_KEY or INSTANTLY_CAMPAIGN_ID',
     });
   });
 

@@ -34,6 +34,8 @@ import { RedisModule } from './modules/redis/redis.module';
 import { QueueModule } from './modules/queue/queue.module';
 import { SalesModule } from './modules/sales/sales.module';
 
+import { FeedbackModule } from './modules/feedback/feedback.module';
+
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -104,6 +106,7 @@ import { SalesModule } from './modules/sales/sales.module';
     DiscoverModule,
     StreaksModule,
     RedisModule,
+    FeedbackModule,
   ],
   controllers: [AppController],
   providers: [
