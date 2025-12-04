@@ -62,9 +62,7 @@ export class DailyVerseGeminiService {
             contents,
             generationConfig,
           });
-          const text =
-            this.tryExtractText(result)?.trim() ??
-            result?.response?.text?.()?.trim();
+          const text = this.tryExtractText(result)?.trim();
           if (text && text.length > 0) return text;
           this.logger.warn(
             `DailyVerseGemini generateReply empty response (attempt ${attempt})`,
@@ -74,9 +72,7 @@ export class DailyVerseGeminiService {
             contents: [{ role: 'user', parts: [{ text: userMessage }] }],
             generationConfig,
           });
-          const text =
-            this.tryExtractText(result)?.trim() ??
-            result?.response?.text?.()?.trim();
+          const text = this.tryExtractText(result)?.trim();
           if (text && text.length > 0) return text;
           this.logger.warn(
             `DailyVerseGemini generateReply empty response (attempt ${attempt})`,
@@ -207,38 +203,53 @@ Start your response immediately with your explanation. No preamble.`;
     return `This passage invites thoughtful reflection on its meaning and practical effect. Consider how the truth behind ${verse.reference} might shape a choice or change in your daily life.\n\nWhat is one small step you could take this week in response to this passage?`;
   }
 
-  private tryExtractText(result?: GenerateContentResult): string | undefined {
+  private tryExtractText(result?: unknown): string | undefined {
     try {
       if (!result) return undefined;
 
-      // Common accessor used in other parts of the code
-      const respText = (result as any)?.response?.text?.();
-      if (typeof respText === 'string' && respText.trim().length > 0)
-        return respText;
+      const r = result as unknown;
 
-      const candidates = (result as any)?.candidates;
-      if (Array.isArray(candidates) && candidates.length > 0) {
-        const first = candidates[0];
-        if (typeof first === 'string' && first.trim().length > 0) return first;
-        if (typeof first?.output === 'string' && first.output.trim().length > 0)
-          return first.output as string;
-        if (
-          Array.isArray(first?.output) &&
-          first.output.length > 0 &&
-          typeof first.output[0] === 'string'
-        )
-          return first.output[0] as string;
+      // Try response.text() accessor
+      try {
+        const resp = (
+          r as { response?: { text?: () => unknown } }
+        )?.response?.text?.();
+        if (typeof resp === 'string' && resp.trim().length > 0) return resp;
+      } catch {
+        // ignore individual accessor errors
       }
 
-      const outputs = (result as any)?.outputs;
+      // Try candidates array
+      const candidates = (r as { candidates?: unknown })?.candidates;
+      if (Array.isArray(candidates) && candidates.length > 0) {
+        const first = candidates[0] as unknown;
+        if (typeof first === 'string' && first.trim().length > 0) return first;
+
+        const firstOutput = (first as { output?: unknown })?.output;
+        if (typeof firstOutput === 'string' && firstOutput.trim().length > 0)
+          return firstOutput;
+
+        if (
+          Array.isArray(firstOutput) &&
+          firstOutput.length > 0 &&
+          typeof firstOutput[0] === 'string'
+        )
+          return firstOutput[0];
+      }
+
+      // Try outputs/content shapes
+      const outputs = (r as { outputs?: unknown })?.outputs;
       if (Array.isArray(outputs) && outputs.length > 0) {
-        for (const o of outputs) {
-          if (typeof o?.content === 'string' && o.content.trim().length > 0)
-            return o.content as string;
-          if (Array.isArray(o?.content)) {
-            for (const part of o.content) {
-              if (typeof part?.text === 'string' && part.text.trim().length > 0)
-                return part.text as string;
+        for (const o of outputs as unknown[]) {
+          const content = (o as { content?: unknown })?.content;
+          if (typeof content === 'string' && content.trim().length > 0)
+            return content;
+
+          if (Array.isArray(content)) {
+            for (const part of content as unknown[]) {
+              const partText = (part as { text?: unknown })?.text;
+              if (typeof partText === 'string' && partText.trim().length > 0)
+                return partText;
             }
           }
         }

@@ -36,6 +36,9 @@ import { SalesModule } from './modules/sales/sales.module';
 import { HistoryModule } from './modules/history/history.module';
 
 import { FeedbackModule } from './modules/feedback/feedback.module';
+import { ContactController } from './modules/contact-us/contact.controller';
+import { ContactService } from './modules/contact-us/contact.service';
+import { ContactModule } from './modules/contact-us/contact.module';
 
 @Module({
   imports: [
@@ -109,14 +112,16 @@ import { FeedbackModule } from './modules/feedback/feedback.module';
     RedisModule,
     HistoryModule,
     FeedbackModule,
+    ContactModule,
   ],
-  controllers: [AppController],
+  controllers: [AppController, ContactController],
   providers: [
     AppService,
     {
       provide: APP_GUARD,
       useClass: ThrottlerGuard,
     },
+    ContactService,
     // StreaksService,
   ],
 })
