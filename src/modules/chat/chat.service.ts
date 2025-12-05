@@ -344,12 +344,27 @@ export class ChatService {
     page: number = 1,
     limit: number = 20,
   ) {
+    this.logger.debug(`🔍 Advanced search for user ${userId}`, {
+      criteria,
+      page,
+      limit,
+    });
+
+    // Validate limit to prevent abuse
+    const validatedLimit = Math.min(limit, 100); // Max 100 items per page
+    const validatedPage = Math.max(page, 1);
+
     // Build dynamic query
-    const query: any = { userId, isActive: true };
+    const query: any = {
+      userId,
+      isActive: true,
+    };
 
     // Title search (partial match, case-insensitive)
-    if (criteria.title) {
-      query.title = { $regex: new RegExp(criteria.title, 'i') };
+    if (criteria.title && criteria.title.trim().length > 0) {
+      const searchTerm = criteria.title.trim();
+      query.title = { $regex: new RegExp(searchTerm, 'i') };
+      this.logger.debug(`Title search regex: ${query.title.$regex}`);
     }
 
     // Date range filter
@@ -357,57 +372,99 @@ export class ChatService {
       query.createdAt = {};
       if (criteria.startDate) {
         query.createdAt.$gte = criteria.startDate;
+        this.logger.debug(
+          `Start date filter: ${criteria.startDate.toISOString()}`,
+        );
       }
       if (criteria.endDate) {
-        query.createdAt.$lte = criteria.endDate;
+        // Add end of day for inclusive filtering
+        const endOfDay = new Date(criteria.endDate);
+        endOfDay.setHours(23, 59, 59, 999);
+        query.createdAt.$lte = endOfDay;
+        this.logger.debug(`End date filter: ${endOfDay.toISOString()}`);
       }
     }
 
-    // Has scripture references filter
+    // Has scripture references filter - FIXED
     if (criteria.hasReferences !== undefined) {
       if (criteria.hasReferences) {
         // Conversations that have at least one message with references
-        query['messages.references'] = { $exists: true, $ne: [] };
+        query['messages'] = {
+          $elemMatch: {
+            references: { $exists: true, $ne: [], $not: { $size: 0 } },
+          },
+        };
+        this.logger.debug(
+          'Filter: Has scripture references (using $elemMatch)',
+        );
       } else {
-        // Conversations with no references
+        // Conversations with no references in any message
         query['messages.references'] = { $exists: false };
+        this.logger.debug('Filter: No scripture references');
       }
     }
 
+    this.logger.debug(`Final MongoDB query: ${JSON.stringify(query, null, 2)}`);
+
     // Calculate pagination
-    const skip = (page - 1) * limit;
+    const skip = (validatedPage - 1) * validatedLimit;
 
-    // Execute search
-    const [conversations, total] = await Promise.all([
-      this.chatConversationModel
-        .find(query)
-        .sort({ updatedAt: -1 })
-        .skip(skip)
-        .limit(limit)
-        .lean(),
-      this.chatConversationModel.countDocuments(query),
-    ]);
+    try {
+      // Execute search with performance timing
+      const startTime = Date.now();
 
-    // Transform results
-    const transformedConversations = conversations.map((conversation) => {
-      const { _id, ...rest } = conversation;
-      return { id: _id.toString(), ...rest };
-    });
+      const [conversations, total] = await Promise.all([
+        this.chatConversationModel
+          .find(query)
+          .select('-__v') // Exclude version key
+          .sort({ updatedAt: -1 }) // Most recently updated first
+          .skip(skip)
+          .limit(validatedLimit)
+          .lean()
+          .exec(),
+        this.chatConversationModel.countDocuments(query).exec(),
+      ]);
 
-    // Pagination metadata
-    const totalPages = Math.ceil(total / limit);
+      const executionTime = Date.now() - startTime;
+      this.logger.log(
+        `Search executed in ${executionTime}ms, found ${conversations.length} of ${total} total conversations`,
+      );
 
-    return {
-      conversations: transformedConversations,
-      pagination: {
-        total,
-        page,
-        limit,
-        totalPages,
-        hasNextPage: page < totalPages,
-        hasPrevPage: page > 1,
-      },
-    };
+      // Transform results
+      const transformedConversations = conversations.map((conversation) => {
+        const { _id, __v, ...rest } = conversation;
+        return {
+          id: _id.toString(),
+          ...rest,
+        };
+      });
+
+      // Calculate pagination metadata
+      const totalPages = Math.ceil(total / validatedLimit);
+
+      const result = {
+        conversations: transformedConversations,
+        pagination: {
+          total,
+          page: validatedPage,
+          limit: validatedLimit,
+          totalPages,
+          hasNextPage: validatedPage < totalPages,
+          hasPrevPage: validatedPage > 1,
+          nextPage: validatedPage < totalPages ? validatedPage + 1 : null,
+          prevPage: validatedPage > 1 ? validatedPage - 1 : null,
+        },
+      };
+
+      this.logger.debug(
+        `Pagination info: ${JSON.stringify(result.pagination)}`,
+      );
+
+      return result;
+    } catch (error) {
+      this.logger.error('Search failed:', error);
+      throw new Error(`Search failed: ${error.message}`);
+    }
   }
 
   // ==================== EXISTING METHODS ====================
