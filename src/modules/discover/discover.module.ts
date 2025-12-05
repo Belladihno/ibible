@@ -9,6 +9,7 @@ import { AuthGuard } from 'src/guards/auth.guard';
 import { JwtModule } from '@nestjs/jwt';
 import appConfig from 'src/config/auth.config';
 import { RedisService } from '../redis/redis.service';
+import { BibleModule } from '../bible/bible.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { RedisService } from '../redis/redis.service';
       secret: appConfig().jwtSecret,
       signOptions: { expiresIn: '7d' },
     }),
+    BibleModule,
   ],
   controllers: [DiscoverController],
   providers: [DiscoverService, GeminiService, AuthGuard, RedisService],
