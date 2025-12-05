@@ -5,6 +5,7 @@ import { UserEmotion } from 'src/entities/user-emotions.entity';
 import { User } from 'src/entities/user.entity';
 import { GeminiService } from '../chat/services/gemini.service';
 import { RedisService } from '../redis/redis.service';
+import { BibleService } from '../bible/bible.service';
 
 describe('DiscoverService', () => {
   let service: DiscoverService;
@@ -30,6 +31,12 @@ describe('DiscoverService', () => {
           useValue: {
             get: jest.fn(),
             set: jest.fn(),
+          },
+        },
+        {
+          provide: BibleService,
+          useValue: {
+            getVerse: jest.fn(),
           },
         },
       ],
