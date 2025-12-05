@@ -109,4 +109,48 @@ export class HistoryService {
       };
     });
   }
+
+  async searchUnifiedHistory(
+    userId: string,
+    query: string,
+    page = 1,
+    limit = 20,
+  ): Promise<HistoryResponse> {
+    const normalizedQuery = query.toLowerCase().trim();
+
+    const unified = await this.getUnifiedHistory(userId, 1, 10000);
+
+    const filtered = unified.history.filter((item) => {
+      const searchableText = [
+        item.title,
+        item.preview,
+        JSON.stringify(item.metadata),
+      ]
+        .join(' ')
+        .toLowerCase();
+
+      return searchableText.includes(normalizedQuery);
+    });
+
+    filtered.sort(
+      (a, b) => b.lastActivity.getTime() - a.lastActivity.getTime(),
+    );
+
+    const total = filtered.length;
+    const totalPages = Math.max(1, Math.ceil(total / limit));
+    const currentPage = Math.max(1, Math.min(page, totalPages));
+
+    const start = (currentPage - 1) * limit;
+    const end = start + limit;
+
+    return {
+      history: filtered.slice(start, end),
+      pagination: {
+        total,
+        page: currentPage,
+        limit,
+        totalPages,
+      },
+    };
+  }
 }
