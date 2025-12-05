@@ -123,13 +123,9 @@ export class BibleVerseService implements OnModuleInit {
     let summary: string;
 
     try {
-      // Get full AI response (explanation + question)
       summary = await this.dailyGemini.summarizeVerse(verse);
-      // Don't split - return the whole thing as the summary
-      // The AI already formatted it properly
     } catch (err) {
       this.logger.error('Failed to generate AI summary', err);
-      // Fallback: create a simple prompt
       summary = `Reflect on ${verse.reference}. What does this verse mean to you today?`;
     }
 
@@ -207,7 +203,6 @@ export class BibleVerseService implements OnModuleInit {
       throw new BadRequestException('Not allowed');
     }
 
-    // Save user message
     const userMsg = this.messageRepo.create({
       conversation: conv,
       sender: 'user' as MessageSender,
@@ -215,7 +210,6 @@ export class BibleVerseService implements OnModuleInit {
     });
     await this.messageRepo.save(userMsg);
 
-    // Fetch conversation history
     const historyEntities = await this.messageRepo.find({
       where: { conversation: { id: conv.id } },
       order: { createdAt: 'ASC' },
@@ -226,30 +220,15 @@ export class BibleVerseService implements OnModuleInit {
       content: m.content,
     }));
 
-
-    // Ask Gemini for reply
     const aiReply = await this.dailyGemini.generateReply(content, history);
-    // ✅ FIX: Extract verse info from conversation and pass it to generateReply
-    // Parse the verse reference from conversation title or verseReference field
     const verseReference = conv.verseReference; // e.g., "John 3:16"
 
-    // Get the actual daily verse to extract the text
     const dailyVerse = await this.getDailyVerse();
-
-    // Create verse context object
     const verseContext = {
       reference: verseReference,
       text: dailyVerse.text,
     };
 
-    // ✅ CRITICAL: Pass verse context to generateReply
-    // const aiReply = await this.dailyGemini.generateReply(
-    //   content,
-    //   history,
-    //   verseContext, // 🎯 THIS IS THE KEY FIX
-    // );
-
-    // Save AI response
     const aiMsg = this.messageRepo.create({
       conversation: conv,
       sender: 'assistant' as MessageSender,
@@ -367,7 +346,6 @@ export class BibleVerseService implements OnModuleInit {
         });
       } else {
         if (messagePairs.length === 0) {
-          // Assistant message before any user message — leading assistant pair
           messagePairs.push({
             user: null,
             assistant: { id: m.id, content: m.content, createdAt: m.createdAt },
@@ -381,7 +359,6 @@ export class BibleVerseService implements OnModuleInit {
               createdAt: m.createdAt,
             };
           } else {
-            // Multiple assistant messages in sequence — append text
             last.assistant.content = `${last.assistant.content}\n\n${m.content}`;
           }
         }
@@ -409,8 +386,6 @@ export class BibleVerseService implements OnModuleInit {
       );
 
       const apiResponse = response.data;
-
-      // Transform API response to BibleVerse format
       const verse: BibleVerse = {
         reference: `${apiResponse.random_verse.book} ${apiResponse.random_verse.chapter}:${apiResponse.random_verse.verse}`,
         book: apiResponse.random_verse.book,

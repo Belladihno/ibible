@@ -9,6 +9,7 @@ import { JwtService } from '@nestjs/jwt';
 import { AuthGuard } from 'src/guards/auth.guard';
 import { Reflector } from '@nestjs/core';
 import { RedisService } from '../redis/redis.service';
+import { BibleService } from '../bible/bible.service';
 
 describe('DiscoverController', () => {
   let controller: DiscoverController;
@@ -43,6 +44,12 @@ describe('DiscoverController', () => {
           useValue: {
             get: jest.fn(),
             set: jest.fn(),
+          },
+        },
+        {
+          provide: BibleService,
+          useValue: {
+            getVerse: jest.fn(),
           },
         },
         Reflector,

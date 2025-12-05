@@ -1,11 +1,14 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getModelToken } from '@nestjs/mongoose';
+import { getRepositoryToken } from '@nestjs/typeorm';
 import { HistoryService } from './history.service';
 import { ChatConversation } from '../../schemas/chat-conversation.schema';
+import { DailyVerseConversation } from '../../entities/daily-verse-conversation.entity';
 
 describe('HistoryService', () => {
   let service: HistoryService;
   let chatModel: any;
+  let dailyVerseConversationRepo: any;
 
   const mockUserId = 'test-user-123';
 
@@ -18,12 +21,22 @@ describe('HistoryService', () => {
       exec: jest.fn(),
     };
 
+    // Mock TypeORM repositories
+    dailyVerseConversationRepo = {
+      find: jest.fn(),
+      findOne: jest.fn(),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         HistoryService,
         {
           provide: getModelToken(ChatConversation.name),
           useValue: chatModel,
+        },
+        {
+          provide: getRepositoryToken(DailyVerseConversation),
+          useValue: dailyVerseConversationRepo,
         },
       ],
     }).compile();
@@ -92,7 +105,7 @@ describe('HistoryService', () => {
   });
 
   describe('getUnifiedHistory', () => {
-    it('should return chat history sorted by lastActivity', async () => {
+    it('should return combined chat and daily verse history sorted by lastActivity', async () => {
       // Mock chat history
       chatModel.exec.mockResolvedValue([
         {
@@ -102,14 +115,22 @@ describe('HistoryService', () => {
           updatedAt: new Date('2025-12-03'),
           createdAt: new Date('2025-12-01'),
         },
-        {
-          _id: { toString: () => 'chat-2' },
-          title: 'Chat 2',
-          messages: [{ content: 'Hello' }],
-          updatedAt: new Date('2025-12-04'), // More recent
-          createdAt: new Date('2025-12-02'),
-        },
       ]);
+
+      // Mock daily verse history
+      const mockDailyVerseConversations = [
+        {
+          id: 'verse-conv-1',
+          userId: mockUserId,
+          verseReference: 'Psalm 46:10',
+          isActive: true,
+          messages: [{ content: 'Meditation reflection', createdAt: new Date('2025-12-04') }],
+          createdAt: new Date('2025-12-02'),
+          updatedAt: new Date('2025-12-04'), // More recent
+        },
+      ];
+
+      dailyVerseConversationRepo.find.mockResolvedValue(mockDailyVerseConversations);
 
       const result = await service.getUnifiedHistory(mockUserId, 1, 10);
 
@@ -121,13 +142,13 @@ describe('HistoryService', () => {
       });
 
       // Verify sorting by lastActivity (most recent first)
-      expect(result.history[0].id).toBe('chat-2'); // 2025-12-04
+      expect(result.history[0].id).toBe('verse-conv-1'); // 2025-12-04
       expect(result.history[1].id).toBe('chat-1'); // 2025-12-03
     });
 
     it('should paginate results correctly', async () => {
-      // Mock 25 chat conversations
-      const mockChats = Array.from({ length: 25 }, (_, i) => ({
+      // Mock 15 chat conversations
+      const mockChats = Array.from({ length: 15 }, (_, i) => ({
         _id: { toString: () => `chat-${i}` },
         title: `Chat ${i}`,
         messages: [],
@@ -135,7 +156,19 @@ describe('HistoryService', () => {
         createdAt: new Date('2025-12-01'),
       }));
 
+      // Mock 10 daily verse conversations
+      const mockDailyVerseConversations = Array.from({ length: 10 }, (_, i) => ({
+        id: `verse-conv-${i}`,
+        userId: mockUserId,
+        verseReference: 'Psalm 1:1',
+        isActive: true,
+        messages: [],
+        createdAt: new Date(`2025-12-${String(i + 16).padStart(2, '0')}`),
+        updatedAt: new Date(`2025-12-${String(i + 16).padStart(2, '0')}`),
+      }));
+
       chatModel.exec.mockResolvedValue(mockChats);
+      dailyVerseConversationRepo.find.mockResolvedValue(mockDailyVerseConversations);
 
       // Get page 2 with limit 10
       const result = await service.getUnifiedHistory(mockUserId, 2, 10);
@@ -150,6 +183,7 @@ describe('HistoryService', () => {
 
     it('should handle empty history', async () => {
       chatModel.exec.mockResolvedValue([]);
+      dailyVerseConversationRepo.find.mockResolvedValue([]);
 
       const result = await service.getUnifiedHistory(mockUserId, 1, 20);
 

@@ -561,8 +561,16 @@ export class UserController {
         phoneNumber: '+1234567890',
         profilePicture: 'https://example.com/profile.jpg',
         aiSettings: {
-          tone: 'friendly',
-        },
+            tone: 'friendly',
+            voice: 'female',
+            alerts: 'sms',
+            follow_up: true,
+          },
+          user_preferences: {
+            preferred_translator: 'KJV',
+            scripture_frequency: 'balanced',
+            microphone: 'false',
+          },
         authProvider: 'EMAIL',
         emailVerified: true,
         isActive: true,
@@ -603,6 +611,7 @@ export class UserController {
         phoneNumber: user.phoneNumber,
         profilePicture: user.profilePicture,
         aiSettings: user.aiSettings,
+        user_preferences: user.user_preferences,
         timestamp: new Date().toISOString(),
       },
     };
