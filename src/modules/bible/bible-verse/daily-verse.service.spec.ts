@@ -25,8 +25,8 @@ describe('BibleVerseService', () => {
 
   const mockBibleApiResponse: BibleApiResponse = {
     translation: {
-      identifier: 'web',
-      name: 'World English Bible',
+      identifier: 'kjv',
+      name: 'King James Version',
       language: 'English',
       language_code: 'eng',
       license: 'Public Domain',
@@ -47,8 +47,8 @@ describe('BibleVerseService', () => {
     verse: 16,
     text: 'For God so loved the world, that he gave his one and only Son, that whoever believes in him should not perish, but have eternal life.',
     translation: {
-      identifier: 'web',
-      name: 'World English Bible',
+      identifier: 'kjv',
+      name: 'King James Version',
       language: 'English',
       language_code: 'eng',
       license: 'Public Domain',
@@ -179,7 +179,7 @@ describe('BibleVerseService', () => {
 
       expect(mockDailyVerseRepository.findOne).toHaveBeenCalled();
       expect(mockHttpService.get).toHaveBeenCalledWith(
-        'https://bible-api.com/data/web/random',
+        'https://bible-api.com/data/kjv/random',
       );
       expect(mockDailyVerseRepository.save).toHaveBeenCalled();
     });
@@ -488,7 +488,7 @@ describe('BibleVerseService', () => {
       await service.refreshDailyVerse();
 
       expect(mockHttpService.get).toHaveBeenCalledWith(
-        'https://bible-api.com/data/web/random',
+        'https://bible-api.com/data/kjv/random',
       );
       expect(mockDailyVerseRepository.delete).toHaveBeenCalled();
       expect(mockDailyVerseRepository.save).toHaveBeenCalled();
@@ -515,7 +515,7 @@ describe('BibleVerseService', () => {
       await service['fetchAndCacheVerse']();
 
       expect(mockHttpService.get).toHaveBeenCalledWith(
-        'https://bible-api.com/data/web/random',
+        'https://bible-api.com/data/kjv/random',
       );
       expect(mockDailyVerseRepository.save).toHaveBeenCalledWith(
         expect.objectContaining({
