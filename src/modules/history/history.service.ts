@@ -5,21 +5,21 @@ import {
   ChatConversation,
   ChatConversationDocument,
 } from '../../schemas/chat-conversation.schema';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { MeditationChat } from 'src/entities/meditation-chat.entity';
-import { MeditationSession } from 'src/entities/meditation-session.entity';
 import { HistoryItem, HistoryResponse } from './dto/history-response.dto';
+import { InjectRepository } from '@nestjs/typeorm';
+import { DailyVerseConversation } from 'src/entities/daily-verse-conversation.entity';
+import { Repository } from 'typeorm';
 
 @Injectable()
 export class HistoryService {
+  getMeditationHistory(mockUserId: string) {
+    throw new Error('Method not implemented.');
+  }
   constructor(
     @InjectModel(ChatConversation.name)
     private chatConversationModel: Model<ChatConversationDocument>,
-    @InjectRepository(MeditationSession)
-    private meditationSessionRepo: Repository<MeditationSession>,
-    @InjectRepository(MeditationChat)
-    private meditationChatRepo: Repository<MeditationChat>,
+    @InjectRepository(DailyVerseConversation)
+    private dailyVerseConversationRepo: Repository<DailyVerseConversation>,
   ) {}
 
   async getChatHistory(userId: string): Promise<HistoryItem[]> {
@@ -30,7 +30,7 @@ export class HistoryService {
       .exec();
 
     return conversations.map((conv) => {
-      const doc = conv as any;
+      const doc = conv as any; // Timestamps are added by Mongoose but not in type
       return {
         id: conv._id.toString(),
         type: 'chat' as const,
@@ -44,73 +44,25 @@ export class HistoryService {
     });
   }
 
-  async getMeditationHistory(userId: string): Promise<HistoryItem[]> {
-    // Get all meditation sessions for user (completed only or all with chat)
-    const sessions = await this.meditationSessionRepo.find({
-      where: { userId },
-      order: { createdAt: 'DESC' },
-    });
-
-    const sessionsWithChat = sessions.filter((s) => s.chatCount > 0);
-
-    // Get chat history for each session
-    const historyItems = await Promise.all(
-      sessionsWithChat.map(async (session) => {
-        const lastChat = await this.meditationChatRepo.findOne({
-          where: { sessionId: session.id },
-          order: { createdAt: 'DESC' },
-        });
-
-        const title = `Meditation: ${session.verseReference || 'Reflection'}`;
-
-        let preview = '';
-        if (lastChat) {
-          preview = lastChat.message.substring(0, 100);
-        } else if (session.initialReflection) {
-          preview = session.initialReflection.substring(0, 100);
-        }
-
-        return {
-          id: session.id,
-          type: 'meditation' as const,
-          title,
-          lastActivity: session.updatedAt || session.createdAt,
-          preview,
-          messageCount: session.chatCount,
-          createdAt: session.createdAt,
-          metadata: {
-            verseReference: session.verseReference,
-            verseText: session.verseText,
-            completed: session.completed,
-            durationSeconds: session.durationSeconds,
-            sessionType: session.sessionType,
-            chatCount: session.chatCount,
-            initialReflection: session.initialReflection,
-          },
-        };
-      }),
-    );
-
-    return historyItems;
-  }
-
   async getUnifiedHistory(
     userId: string,
     page = 1,
     limit = 20,
   ): Promise<HistoryResponse> {
-    // Fetch all history types
-    const [chatHistory, meditationHistory] = await Promise.all([
-      this.getChatHistory(userId),
-      this.getMeditationHistory(userId),
-    ]);
+    // Currently only fetching chat history as other modules are handled separately
+    const chatHistory = await this.getChatHistory(userId);
+    const dailyVerseHistory = await this.getDailyVerseHistory(userId);
 
-    // Combine all history
-    const allHistory = [...chatHistory, ...meditationHistory];
+    const allHistory = [...chatHistory, ...dailyVerseHistory];
 
+    // Sort by most recent activity
     allHistory.sort(
       (a, b) => b.lastActivity.getTime() - a.lastActivity.getTime(),
     );
+
+    const totalPages = Math.ceil(allHistory.length / limit);
+
+    const validPage = Math.max(1, Math.min(page, totalPages || 1));
 
     // Paginate
     const start = (page - 1) * limit;
@@ -121,10 +73,40 @@ export class HistoryService {
       history: paginatedHistory,
       pagination: {
         total: allHistory.length,
-        page,
+        page: validPage,
         limit,
-        totalPages: Math.ceil(allHistory.length / limit),
       },
     };
+  }
+
+  async getDailyVerseHistory(userId: string): Promise<HistoryItem[]> {
+    // Get all daily verse conversations for user
+    const conversations = await this.dailyVerseConversationRepo.find({
+      where: { userId },
+      relations: ['messages'],
+      order: { updatedAt: 'DESC' },
+    });
+
+    return conversations.map((conv) => {
+      const lastMessage = conv.messages?.[conv.messages.length - 1] || null;
+
+      const preview = lastMessage
+        ? lastMessage.content.substring(0, 100)
+        : `Reflection on ${conv.verseReference}`;
+
+      return {
+        id: conv.id,
+        type: 'dailyVerse' as const,
+        title: `Daily Verse: ${conv.verseReference}`,
+        lastActivity: conv.updatedAt || conv.createdAt,
+        preview,
+        messageCount: conv.messages?.length ?? 0,
+        createdAt: conv.createdAt,
+        metadata: {
+          verseReference: conv.verseReference,
+          isActive: conv.isActive,
+        },
+      };
+    });
   }
 }

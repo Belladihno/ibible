@@ -60,7 +60,7 @@ export interface HistoryItemMetadata {
 
 export interface HistoryItem {
   id: string;
-  type: 'chat' | 'meditation' | 'prayer' | 'memory';
+  type: 'chat' | 'meditation' | 'prayer' | 'dailyVerse' | 'memory';
   title: string;
   lastActivity: Date;
   preview: string;

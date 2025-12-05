@@ -3,14 +3,12 @@ import { getModelToken } from '@nestjs/mongoose';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { HistoryService } from './history.service';
 import { ChatConversation } from '../../schemas/chat-conversation.schema';
-import { MeditationSession } from 'src/entities/meditation-session.entity';
-import { MeditationChat } from 'src/entities/meditation-chat.entity';
+import { DailyVerseConversation } from '../../entities/daily-verse-conversation.entity';
 
 describe('HistoryService', () => {
   let service: HistoryService;
   let chatModel: any;
-  let meditationSessionRepo: any;
-  let meditationChatRepo: any;
+  let dailyVerseConversationRepo: any;
 
   const mockUserId = 'test-user-123';
 
@@ -24,12 +22,7 @@ describe('HistoryService', () => {
     };
 
     // Mock TypeORM repositories
-    meditationSessionRepo = {
-      find: jest.fn(),
-      findOne: jest.fn(),
-    };
-
-    meditationChatRepo = {
+    dailyVerseConversationRepo = {
       find: jest.fn(),
       findOne: jest.fn(),
     };
@@ -42,12 +35,8 @@ describe('HistoryService', () => {
           useValue: chatModel,
         },
         {
-          provide: getRepositoryToken(MeditationSession),
-          useValue: meditationSessionRepo,
-        },
-        {
-          provide: getRepositoryToken(MeditationChat),
-          useValue: meditationChatRepo,
+          provide: getRepositoryToken(DailyVerseConversation),
+          useValue: dailyVerseConversationRepo,
         },
       ],
     }).compile();
@@ -115,92 +104,8 @@ describe('HistoryService', () => {
     });
   });
 
-  describe('getMeditationHistory', () => {
-    it('should return meditation sessions with chat history', async () => {
-      const mockSessions = [
-        {
-          id: 'session-1',
-          userId: mockUserId,
-          verseReference: 'Psalm 46:10',
-          verseText: 'Be still, and know that I am God.',
-          chatCount: 5,
-          completed: true,
-          durationSeconds: 600,
-          sessionType: 'morning',
-          initialReflection: 'This verse brings peace',
-          createdAt: new Date('2025-12-01'),
-          updatedAt: new Date('2025-12-01'),
-        },
-      ];
-
-      const mockChat = {
-        id: 'chat-1',
-        sessionId: 'session-1',
-        message: 'Reflecting on this peaceful verse',
-        role: 'user',
-        createdAt: new Date('2025-12-01'),
-      };
-
-      meditationSessionRepo.find.mockResolvedValue(mockSessions);
-      meditationChatRepo.findOne.mockResolvedValue(mockChat);
-
-      const result = await service.getMeditationHistory(mockUserId);
-
-      expect(result).toHaveLength(1);
-      expect(result[0]).toMatchObject({
-        id: 'session-1',
-        type: 'meditation',
-        title: 'Meditation: Psalm 46:10',
-        messageCount: 5,
-      });
-      expect(result[0].preview).toContain('Reflecting on this peaceful verse');
-    });
-
-    it('should handle sessions without chat', async () => {
-      const mockSessions = [
-        {
-          id: 'session-1',
-          userId: mockUserId,
-          verseReference: 'Psalm 23:1',
-          chatCount: 0,
-          completed: false,
-          createdAt: new Date('2025-12-01'),
-          updatedAt: new Date('2025-12-01'),
-        },
-      ];
-
-      meditationSessionRepo.find.mockResolvedValue(mockSessions);
-
-      const result = await service.getMeditationHistory(mockUserId);
-
-      expect(result).toEqual([]);
-    });
-
-    it('should use initialReflection as preview if no chat exists', async () => {
-      const mockSessions = [
-        {
-          id: 'session-1',
-          userId: mockUserId,
-          verseReference: 'John 3:16',
-          verseText: 'For God so loved the world...',
-          chatCount: 1,
-          initialReflection: 'God loves us deeply and unconditionally',
-          createdAt: new Date('2025-12-01'),
-          updatedAt: new Date('2025-12-01'),
-        },
-      ];
-
-      meditationSessionRepo.find.mockResolvedValue(mockSessions);
-      meditationChatRepo.findOne.mockResolvedValue(null);
-
-      const result = await service.getMeditationHistory(mockUserId);
-
-      expect(result[0].preview).toContain('God loves us deeply');
-    });
-  });
-
   describe('getUnifiedHistory', () => {
-    it('should return combined chat and meditation history sorted by lastActivity', async () => {
+    it('should return combined chat and daily verse history sorted by lastActivity', async () => {
       // Mock chat history
       chatModel.exec.mockResolvedValue([
         {
@@ -212,24 +117,20 @@ describe('HistoryService', () => {
         },
       ]);
 
-      // Mock meditation history
-      const mockSessions = [
+      // Mock daily verse history
+      const mockDailyVerseConversations = [
         {
-          id: 'session-1',
+          id: 'verse-conv-1',
           userId: mockUserId,
           verseReference: 'Psalm 46:10',
-          chatCount: 2,
-          completed: true,
+          isActive: true,
+          messages: [{ content: 'Meditation reflection', createdAt: new Date('2025-12-04') }],
           createdAt: new Date('2025-12-02'),
           updatedAt: new Date('2025-12-04'), // More recent
         },
       ];
 
-      meditationSessionRepo.find.mockResolvedValue(mockSessions);
-      meditationChatRepo.findOne.mockResolvedValue({
-        message: 'Meditation reflection',
-        createdAt: new Date('2025-12-04'),
-      });
+      dailyVerseConversationRepo.find.mockResolvedValue(mockDailyVerseConversations);
 
       const result = await service.getUnifiedHistory(mockUserId, 1, 10);
 
@@ -238,11 +139,10 @@ describe('HistoryService', () => {
         total: 2,
         page: 1,
         limit: 10,
-        totalPages: 1,
       });
 
       // Verify sorting by lastActivity (most recent first)
-      expect(result.history[0].id).toBe('session-1'); // 2025-12-04
+      expect(result.history[0].id).toBe('verse-conv-1'); // 2025-12-04
       expect(result.history[1].id).toBe('chat-1'); // 2025-12-03
     });
 
@@ -256,19 +156,19 @@ describe('HistoryService', () => {
         createdAt: new Date('2025-12-01'),
       }));
 
-      // Mock 10 meditation sessions
-      const mockSessions = Array.from({ length: 10 }, (_, i) => ({
-        id: `session-${i}`,
+      // Mock 10 daily verse conversations
+      const mockDailyVerseConversations = Array.from({ length: 10 }, (_, i) => ({
+        id: `verse-conv-${i}`,
         userId: mockUserId,
         verseReference: 'Psalm 1:1',
-        chatCount: 1,
+        isActive: true,
+        messages: [],
         createdAt: new Date(`2025-12-${String(i + 16).padStart(2, '0')}`),
         updatedAt: new Date(`2025-12-${String(i + 16).padStart(2, '0')}`),
       }));
 
       chatModel.exec.mockResolvedValue(mockChats);
-      meditationSessionRepo.find.mockResolvedValue(mockSessions);
-      meditationChatRepo.findOne.mockResolvedValue(null);
+      dailyVerseConversationRepo.find.mockResolvedValue(mockDailyVerseConversations);
 
       // Get page 2 with limit 10
       const result = await service.getUnifiedHistory(mockUserId, 2, 10);
@@ -278,13 +178,12 @@ describe('HistoryService', () => {
         total: 25,
         page: 2,
         limit: 10,
-        totalPages: 3,
       });
     });
 
     it('should handle empty history', async () => {
       chatModel.exec.mockResolvedValue([]);
-      meditationSessionRepo.find.mockResolvedValue([]);
+      dailyVerseConversationRepo.find.mockResolvedValue([]);
 
       const result = await service.getUnifiedHistory(mockUserId, 1, 20);
 

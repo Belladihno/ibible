@@ -20,7 +20,11 @@ import { BibleVersion } from 'src/entities/bible-version.entity';
     HttpModule,
   ],
   controllers: [BibleVerseController],
-  providers: [BibleVerseService, DailyVerseGeminiService],
-  exports: [BibleVerseService],
+  providers: [
+    BibleVerseService,
+    DailyVerseGeminiService,
+    DailyVerseConversation,
+  ],
+  exports: [BibleVerseService, DailyVerseConversation],
 })
 export class BibleVerseModule {}
