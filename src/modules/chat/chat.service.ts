@@ -267,6 +267,149 @@ export class ChatService {
     return "Hello! I'm Rea, your Bible-focused AI companion. I can help you explore Bible verses and topics. What would you like to learn about today?";
   }
 
+  /**
+   * Search conversations by title
+   */
+  async searchConversationsByTitle(
+    userId: string,
+    searchQuery: string,
+    page: number = 1,
+    limit: number = 20,
+  ) {
+    // Create case-insensitive regex for partial matching
+    const searchRegex = new RegExp(searchQuery, 'i');
+
+    // Build the query
+    const query = {
+      userId,
+      title: { $regex: searchRegex },
+      isActive: true,
+    };
+
+    // Calculate pagination
+    const skip = (page - 1) * limit;
+
+    // Execute search with pagination
+    const [conversations, total] = await Promise.all([
+      this.chatConversationModel
+        .find(query)
+        .sort({ updatedAt: -1 }) // Most recently updated first
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+      this.chatConversationModel.countDocuments(query),
+    ]);
+
+    // Transform MongoDB documents
+    const transformedConversations = conversations.map((conversation) => {
+      const { _id, ...rest } = conversation;
+      return { id: _id.toString(), ...rest };
+    });
+
+    // Calculate pagination metadata
+    const totalPages = Math.ceil(total / limit);
+    const hasNextPage = page < totalPages;
+    const hasPrevPage = page > 1;
+
+    return {
+      conversations: transformedConversations,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages,
+        hasNextPage,
+        hasPrevPage,
+        nextPage: hasNextPage ? page + 1 : null,
+        prevPage: hasPrevPage ? page - 1 : null,
+      },
+      searchInfo: {
+        query: searchQuery,
+        resultsCount: transformedConversations.length,
+      },
+    };
+  }
+
+  /**
+   * Advanced search with multiple criteria
+   */
+  async searchConversations(
+    userId: string,
+    criteria: {
+      title?: string;
+      startDate?: Date;
+      endDate?: Date;
+      hasReferences?: boolean;
+    },
+    page: number = 1,
+    limit: number = 20,
+  ) {
+    // Build dynamic query
+    const query: any = { userId, isActive: true };
+
+    // Title search (partial match, case-insensitive)
+    if (criteria.title) {
+      query.title = { $regex: new RegExp(criteria.title, 'i') };
+    }
+
+    // Date range filter
+    if (criteria.startDate || criteria.endDate) {
+      query.createdAt = {};
+      if (criteria.startDate) {
+        query.createdAt.$gte = criteria.startDate;
+      }
+      if (criteria.endDate) {
+        query.createdAt.$lte = criteria.endDate;
+      }
+    }
+
+    // Has scripture references filter
+    if (criteria.hasReferences !== undefined) {
+      if (criteria.hasReferences) {
+        // Conversations that have at least one message with references
+        query['messages.references'] = { $exists: true, $ne: [] };
+      } else {
+        // Conversations with no references
+        query['messages.references'] = { $exists: false };
+      }
+    }
+
+    // Calculate pagination
+    const skip = (page - 1) * limit;
+
+    // Execute search
+    const [conversations, total] = await Promise.all([
+      this.chatConversationModel
+        .find(query)
+        .sort({ updatedAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+      this.chatConversationModel.countDocuments(query),
+    ]);
+
+    // Transform results
+    const transformedConversations = conversations.map((conversation) => {
+      const { _id, ...rest } = conversation;
+      return { id: _id.toString(), ...rest };
+    });
+
+    // Pagination metadata
+    const totalPages = Math.ceil(total / limit);
+
+    return {
+      conversations: transformedConversations,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages,
+        hasNextPage: page < totalPages,
+        hasPrevPage: page > 1,
+      },
+    };
+  }
+
   // ==================== EXISTING METHODS ====================
 
   private extractScriptureReferences(content: string): string[] {
