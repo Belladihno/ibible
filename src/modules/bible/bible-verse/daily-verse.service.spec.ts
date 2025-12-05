@@ -268,7 +268,16 @@ describe('BibleVerseService', () => {
     });
 
     it('should return fallback summary if AI generation fails', async () => {
-      mockDailyVerseRepository.findOne.mockResolvedValue(mockDailyVerse);
+      const freshMockDailyVerse: DailyVerse = {
+        id: 'test-id',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        date: new Date().toISOString().split('T')[0],
+        reference: 'John 3:16',
+        verseData: JSON.stringify(mockBibleVerse),
+        aiSummary: null,
+      };
+      mockDailyVerseRepository.findOne.mockResolvedValue(freshMockDailyVerse);
       mockGeminiService.summarizeVerse.mockRejectedValue(new Error('AI Error'));
 
       const result = await service.getDailyVerseWithSummary();

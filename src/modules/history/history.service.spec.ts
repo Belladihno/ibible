@@ -124,13 +124,20 @@ describe('HistoryService', () => {
           userId: mockUserId,
           verseReference: 'Psalm 46:10',
           isActive: true,
-          messages: [{ content: 'Meditation reflection', createdAt: new Date('2025-12-04') }],
+          messages: [
+            {
+              content: 'Meditation reflection',
+              createdAt: new Date('2025-12-04'),
+            },
+          ],
           createdAt: new Date('2025-12-02'),
           updatedAt: new Date('2025-12-04'), // More recent
         },
       ];
 
-      dailyVerseConversationRepo.find.mockResolvedValue(mockDailyVerseConversations);
+      dailyVerseConversationRepo.find.mockResolvedValue(
+        mockDailyVerseConversations,
+      );
 
       const result = await service.getUnifiedHistory(mockUserId, 1, 10);
 
@@ -157,18 +164,23 @@ describe('HistoryService', () => {
       }));
 
       // Mock 10 daily verse conversations
-      const mockDailyVerseConversations = Array.from({ length: 10 }, (_, i) => ({
-        id: `verse-conv-${i}`,
-        userId: mockUserId,
-        verseReference: 'Psalm 1:1',
-        isActive: true,
-        messages: [],
-        createdAt: new Date(`2025-12-${String(i + 16).padStart(2, '0')}`),
-        updatedAt: new Date(`2025-12-${String(i + 16).padStart(2, '0')}`),
-      }));
+      const mockDailyVerseConversations = Array.from(
+        { length: 10 },
+        (_, i) => ({
+          id: `verse-conv-${i}`,
+          userId: mockUserId,
+          verseReference: 'Psalm 1:1',
+          isActive: true,
+          messages: [],
+          createdAt: new Date(`2025-12-${String(i + 16).padStart(2, '0')}`),
+          updatedAt: new Date(`2025-12-${String(i + 16).padStart(2, '0')}`),
+        }),
+      );
 
       chatModel.exec.mockResolvedValue(mockChats);
-      dailyVerseConversationRepo.find.mockResolvedValue(mockDailyVerseConversations);
+      dailyVerseConversationRepo.find.mockResolvedValue(
+        mockDailyVerseConversations,
+      );
 
       // Get page 2 with limit 10
       const result = await service.getUnifiedHistory(mockUserId, 2, 10);

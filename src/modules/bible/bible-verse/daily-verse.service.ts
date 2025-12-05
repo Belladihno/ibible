@@ -119,14 +119,40 @@ export class BibleVerseService implements OnModuleInit {
   }
 
   async getDailyVerseWithSummary(): Promise<DailyVerseSummaryResponse> {
-    const verse = await this.getDailyVerse();
+    await this.ensureDailyVerse();
+    const today = this.getToday();
+
+    const cached = await this.dailyVerseRepo.findOne({
+      where: { date: today },
+    });
+
+    if (!cached) {
+      throw new Error('Failed to retrieve daily verse');
+    }
+
+    console.log('Cached Verse Data:', cached.verseData);
+    const verse = JSON.parse(cached.verseData) as BibleVerse;
+
+    // ✅ Use cached AI summary (with fallback for old data)
     let summary: string;
 
-    try {
-      summary = await this.dailyGemini.summarizeVerse(verse);
-    } catch (err) {
-      this.logger.error('Failed to generate AI summary', err);
-      summary = `Reflect on ${verse.reference}. What does this verse mean to you today?`;
+    if (cached.aiSummary) {
+      // Use pre-generated summary from cache
+      summary = cached.aiSummary;
+      this.logger.debug('Using cached AI summary');
+    } else {
+      // Fallback: generate summary if missing (for old data or failed cron jobs)
+      this.logger.warn('AI summary missing, generating on-demand...');
+      try {
+        summary = await this.dailyGemini.summarizeVerse(verse);
+
+        // Update cache for next time
+        cached.aiSummary = summary;
+        await this.dailyVerseRepo.save(cached);
+      } catch (err) {
+        this.logger.error('Failed to generate AI summary', err);
+        summary = `Reflect on ${verse.reference}. What does this verse mean to you today?`;
+      }
     }
 
     const data: DailyVerseWithSummary = {
@@ -395,6 +421,15 @@ export class BibleVerseService implements OnModuleInit {
         translation: apiResponse.translation,
       };
 
+      let aiSummary: string | null = null;
+      try {
+        aiSummary = await this.dailyGemini.summarizeVerse(verse);
+        this.logger.log(`Generated AI summary for ${verse.reference}`);
+      } catch (err) {
+        this.logger.error('Failed to generate AI summary during caching', err);
+        aiSummary = `Reflect on ${verse.reference}. What does this verse mean to you today?`;
+      }
+
       const today = this.getToday();
 
       // Delete old verses (optional cleanup)
@@ -407,6 +442,7 @@ export class BibleVerseService implements OnModuleInit {
         date: today,
         reference: verse.reference,
         verseData: JSON.stringify(verse),
+        aiSummary,
       });
 
       this.logger.log(
