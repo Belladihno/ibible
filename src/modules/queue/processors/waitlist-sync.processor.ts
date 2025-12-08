@@ -5,10 +5,7 @@ import { InstantlyService } from 'src/modules/sales/services/instantly.service';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { WaitlistEntry } from 'src/entities/waitlist-entry.entity';
-import {
-  WaitlistSyncJob,
-  SalesToolResponse,
-} from 'src/shared/interfaces/sales.interface';
+import { WaitlistSyncJob } from 'src/shared/interfaces/sales.interface';
 
 @Processor('waitlist-sync')
 export class WaitlistSyncProcessor extends WorkerHost {
@@ -22,58 +19,33 @@ export class WaitlistSyncProcessor extends WorkerHost {
     super();
   }
 
-  private normalizeResult(
-    result: PromiseSettledResult<SalesToolResponse>,
-  ): string | null {
-    if (result.status === 'fulfilled') {
-      return result.value.success
-        ? null
-        : (result.value.error ?? 'Unknown error');
-    }
-    return result.reason instanceof Error
-      ? result.reason.message
-      : String(result.reason);
-  }
-
   async process(job: Job<WaitlistSyncJob>): Promise<void> {
     const { email, name } = job.data;
     this.logger.log(`Processing waitlist sync for: ${email}`);
 
     const entryId = job.data?.id;
     let hasErrors = false;
-    const errorDetails: string[] = [];
 
     try {
       // Sync to Instantly
-      const [instantlyResult] = await Promise.allSettled([
-        this.instantlyService.addLead(email, name),
-      ]);
+      const result = await this.instantlyService.addLead(email, name);
 
-      const instantlyError = this.normalizeResult(instantlyResult);
-
-      // Check if errors are due to missing configuration
-      const isInstantlyConfigError = instantlyError?.includes('not configured');
-
-      if (!instantlyError) {
+      if (result.success) {
         this.logger.log(`Successfully synced ${email} to Instantly`);
-      } else if (isInstantlyConfigError) {
-        this.logger.warn(
-          `Skipped Instantly sync for ${email}: ${instantlyError}`,
-        );
       } else {
-        hasErrors = true;
-        errorDetails.push(`Instantly: ${instantlyError}`);
-        this.logger.error(
-          `Failed to sync ${email} to Instantly: ${instantlyError}`,
-        );
-      }
+        // Check if errors are due to missing configuration
+        const isConfigError = result.error?.includes('not configured');
 
-      if (hasErrors) {
-        this.logger.warn(
-          `Waitlist sync for ${email} completed with errors: ${errorDetails.join(', ')}`,
-        );
-      } else {
-        this.logger.log(`Completed waitlist sync for: ${email}`);
+        if (isConfigError) {
+          this.logger.warn(
+            `Skipped Instantly sync for ${email}: ${result.error}`,
+          );
+        } else {
+          hasErrors = true;
+          this.logger.error(
+            `Failed to sync ${email} to Instantly: ${result.error}`,
+          );
+        }
       }
     } catch (error: unknown) {
       hasErrors = true;
