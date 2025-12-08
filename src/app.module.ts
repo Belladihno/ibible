@@ -9,7 +9,6 @@ import { AppService } from './app.service';
 import { HealthModule } from './modules/health/health.module';
 import { WaitlistModule } from './modules/waitlist/waitlist.module';
 import { EmailModule } from './modules/email';
-import { SwaggerSyncModule } from 'nestjs-swagger-sync';
 import { BibleModule } from './modules/bible/bible.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { MemoriesModule } from './modules/memories/memories.module';
@@ -84,14 +83,6 @@ import { ContactModule } from './modules/contact-us/contact.module';
         limit: 100, // 100 requests per minute
       },
     ]),
-    SwaggerSyncModule.register({
-      apiKey: process.env.POSTMAN_API_KEY || '',
-      swaggerPath: `${process.env.API_VERSION || 'api/v1'}/docs`,
-      baseUrl: `http://localhost:${process.env.PORT || 3000}`,
-      collectionName: 'REA Interactive Bible API',
-      runTest: true,
-      ignorePathWithBearerToken: ['api/v1/user/login', 'api/v1/user/signup'],
-    }),
     HealthModule,
     WaitlistModule,
     EmailModule,
