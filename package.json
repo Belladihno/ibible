@@ -52,7 +52,6 @@
     "iterare": "^1.2.1",
     "mongoose": "^8.20.1",
     "multer": "^2.0.2",
-    "nestjs-swagger-sync": "^6.6.1",
     "nodemailer": "^7.0.10",
     "nunjucks": "^3.2.4",
     "passport": "^0.7.0",
