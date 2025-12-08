@@ -2,7 +2,6 @@ import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Logger } from '@nestjs/common';
 import { Job } from 'bullmq';
 import { InstantlyService } from 'src/modules/sales/services/instantly.service';
-import { ApolloService } from 'src/modules/sales/services/apollo.service';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { WaitlistEntry } from 'src/entities/waitlist-entry.entity';
@@ -17,7 +16,6 @@ export class WaitlistSyncProcessor extends WorkerHost {
 
   constructor(
     private readonly instantlyService: InstantlyService,
-    private readonly apolloService: ApolloService,
     @InjectRepository(WaitlistEntry)
     private readonly waitlistRepo: Repository<WaitlistEntry>,
   ) {
@@ -46,18 +44,15 @@ export class WaitlistSyncProcessor extends WorkerHost {
     const errorDetails: string[] = [];
 
     try {
-      // Sync to both tools in parallel
-      const [instantlyResult, apolloResult] = await Promise.allSettled([
+      // Sync to Instantly
+      const [instantlyResult] = await Promise.allSettled([
         this.instantlyService.addLead(email, name),
-        this.apolloService.addLead(email, name),
       ]);
 
       const instantlyError = this.normalizeResult(instantlyResult);
-      const apolloError = this.normalizeResult(apolloResult);
 
       // Check if errors are due to missing configuration
       const isInstantlyConfigError = instantlyError?.includes('not configured');
-      const isApolloConfigError = apolloError?.includes('not configured');
 
       if (!instantlyError) {
         this.logger.log(`Successfully synced ${email} to Instantly`);
@@ -71,16 +66,6 @@ export class WaitlistSyncProcessor extends WorkerHost {
         this.logger.error(
           `Failed to sync ${email} to Instantly: ${instantlyError}`,
         );
-      }
-
-      if (!apolloError) {
-        this.logger.log(`Successfully synced ${email} to Apollo`);
-      } else if (isApolloConfigError) {
-        this.logger.warn(`Skipped Apollo sync for ${email}: ${apolloError}`);
-      } else {
-        hasErrors = true;
-        errorDetails.push(`Apollo: ${apolloError}`);
-        this.logger.error(`Failed to sync ${email} to Apollo: ${apolloError}`);
       }
 
       if (hasErrors) {

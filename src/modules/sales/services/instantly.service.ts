@@ -9,7 +9,7 @@ import {
 @Injectable()
 export class InstantlyService {
   private readonly logger = new Logger(InstantlyService.name);
-  private readonly apiUrl = 'https://api.instantly.ai/api/v1';
+  private readonly apiUrl = 'https://api.instantly.ai/api/v2';
   private readonly apiKey: string;
   private readonly campaignId: string;
 
@@ -59,7 +59,7 @@ export class InstantlyService {
       email,
       first_name: firstName || undefined,
       last_name: lastName,
-      campaign_id: this.campaignId,
+      campaign: this.campaignId,
     };
 
     try {
@@ -67,10 +67,10 @@ export class InstantlyService {
       const timeoutId = setTimeout(() => controller.abort(), 10000);
 
       this.logger.debug(`Attempting to add lead to Instantly: ${email}`);
-      this.logger.debug(`API URL: ${this.apiUrl}/lead/add`);
+      this.logger.debug(`API URL: ${this.apiUrl}/leads`);
       this.logger.debug(`Using API key: ${this.apiKey.substring(0, 10)}...`);
 
-      const response = await fetch(`${this.apiUrl}/lead/add`, {
+      const response = await fetch(`${this.apiUrl}/leads`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -94,13 +94,14 @@ export class InstantlyService {
 
       const result: InstantlyApiResponse = await response.json();
 
-      if (!result.success) {
-        throw new Error(
-          `Instantly API returned unsuccessful response: ${result.message ?? ''}`,
-        );
+      // API v2 returns the lead object directly with an id field
+      if (!result.id) {
+        throw new Error('Instantly API did not return a valid lead ID');
       }
 
-      this.logger.log(`Lead successfully added to Instantly: ${email}`);
+      this.logger.log(
+        `Lead successfully added to Instantly: ${email} (ID: ${result.id})`,
+      );
       return {
         success: true,
         tool: 'instantly',
