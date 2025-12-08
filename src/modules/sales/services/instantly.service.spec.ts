@@ -64,7 +64,11 @@ describe('InstantlyService', () => {
       Promise.resolve({
         ok: true,
         json: async () => ({
-          success: true,
+          id: '019afb5d-3b7f-7bc0-b651-9de26f7481c7',
+          email: 'test@example.com',
+          first_name: 'John',
+          last_name: 'Doe',
+          campaign: 'test-campaign-id',
         }),
       }),
     );
@@ -75,7 +79,7 @@ describe('InstantlyService', () => {
 
     const fetchArgs = (global.fetch as jest.Mock).mock.calls[0];
 
-    expect(fetchArgs[0]).toBe('https://api.instantly.ai/api/v1/lead/add');
+    expect(fetchArgs[0]).toBe('https://api.instantly.ai/api/v2/leads');
 
     expect(result).toEqual({
       success: true,

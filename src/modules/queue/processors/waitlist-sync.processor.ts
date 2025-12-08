@@ -2,14 +2,10 @@ import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Logger } from '@nestjs/common';
 import { Job } from 'bullmq';
 import { InstantlyService } from 'src/modules/sales/services/instantly.service';
-import { ApolloService } from 'src/modules/sales/services/apollo.service';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { WaitlistEntry } from 'src/entities/waitlist-entry.entity';
-import {
-  WaitlistSyncJob,
-  SalesToolResponse,
-} from 'src/shared/interfaces/sales.interface';
+import { WaitlistSyncJob } from 'src/shared/interfaces/sales.interface';
 
 @Processor('waitlist-sync')
 export class WaitlistSyncProcessor extends WorkerHost {
@@ -17,24 +13,10 @@ export class WaitlistSyncProcessor extends WorkerHost {
 
   constructor(
     private readonly instantlyService: InstantlyService,
-    private readonly apolloService: ApolloService,
     @InjectRepository(WaitlistEntry)
     private readonly waitlistRepo: Repository<WaitlistEntry>,
   ) {
     super();
-  }
-
-  private normalizeResult(
-    result: PromiseSettledResult<SalesToolResponse>,
-  ): string | null {
-    if (result.status === 'fulfilled') {
-      return result.value.success
-        ? null
-        : (result.value.error ?? 'Unknown error');
-    }
-    return result.reason instanceof Error
-      ? result.reason.message
-      : String(result.reason);
   }
 
   async process(job: Job<WaitlistSyncJob>): Promise<void> {
@@ -43,52 +25,27 @@ export class WaitlistSyncProcessor extends WorkerHost {
 
     const entryId = job.data?.id;
     let hasErrors = false;
-    const errorDetails: string[] = [];
 
     try {
-      // Sync to both tools in parallel
-      const [instantlyResult, apolloResult] = await Promise.allSettled([
-        this.instantlyService.addLead(email, name),
-        this.apolloService.addLead(email, name),
-      ]);
+      // Sync to Instantly
+      const result = await this.instantlyService.addLead(email, name);
 
-      const instantlyError = this.normalizeResult(instantlyResult);
-      const apolloError = this.normalizeResult(apolloResult);
-
-      // Check if errors are due to missing configuration
-      const isInstantlyConfigError = instantlyError?.includes('not configured');
-      const isApolloConfigError = apolloError?.includes('not configured');
-
-      if (!instantlyError) {
+      if (result.success) {
         this.logger.log(`Successfully synced ${email} to Instantly`);
-      } else if (isInstantlyConfigError) {
-        this.logger.warn(
-          `Skipped Instantly sync for ${email}: ${instantlyError}`,
-        );
       } else {
-        hasErrors = true;
-        errorDetails.push(`Instantly: ${instantlyError}`);
-        this.logger.error(
-          `Failed to sync ${email} to Instantly: ${instantlyError}`,
-        );
-      }
+        // Check if errors are due to missing configuration
+        const isConfigError = result.error?.includes('not configured');
 
-      if (!apolloError) {
-        this.logger.log(`Successfully synced ${email} to Apollo`);
-      } else if (isApolloConfigError) {
-        this.logger.warn(`Skipped Apollo sync for ${email}: ${apolloError}`);
-      } else {
-        hasErrors = true;
-        errorDetails.push(`Apollo: ${apolloError}`);
-        this.logger.error(`Failed to sync ${email} to Apollo: ${apolloError}`);
-      }
-
-      if (hasErrors) {
-        this.logger.warn(
-          `Waitlist sync for ${email} completed with errors: ${errorDetails.join(', ')}`,
-        );
-      } else {
-        this.logger.log(`Completed waitlist sync for: ${email}`);
+        if (isConfigError) {
+          this.logger.warn(
+            `Skipped Instantly sync for ${email}: ${result.error}`,
+          );
+        } else {
+          hasErrors = true;
+          this.logger.error(
+            `Failed to sync ${email} to Instantly: ${result.error}`,
+          );
+        }
       }
     } catch (error: unknown) {
       hasErrors = true;
