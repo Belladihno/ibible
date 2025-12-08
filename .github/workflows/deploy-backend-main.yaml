@@ -126,7 +126,10 @@ jobs:
 
     - name: Deploy via SSH
       run: |
-        sshpass -p "${{ steps.envselect.outputs.SERVER_PASSWORD }}" ssh -o StrictHostKeyChecking=no \
+        mkdir -p ~/.ssh
+        echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+        chmod 600 ~/.ssh/deploy_key
+        ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
           ${{ steps.envselect.outputs.SERVER_USER }}@${{ steps.envselect.outputs.SERVER_HOST }} << 'ENDSSH'
           set -e
           echo "📦 Navigating to application directory..."
@@ -158,6 +161,42 @@ jobs:
           pm2 save
           pm2 list
         ENDSSH
+        rm -f ~/.ssh/deploy_key
+
+    # - name: Deploy via SSH
+    #   run: |
+    #     sshpass -p "${{ steps.envselect.outputs.SERVER_PASSWORD }}" ssh -o StrictHostKeyChecking=no \
+    #       ${{ steps.envselect.outputs.SERVER_USER }}@${{ steps.envselect.outputs.SERVER_HOST }} << 'ENDSSH'
+    #       set -e
+    #       echo "📦 Navigating to application directory..."
+    #       cd ${{ steps.envselect.outputs.SERVER_APP_DIR }}
+    #       echo "🔄 Fetching latest code..."
+    #       git fetch --all
+    #       git reset --hard origin/${{ github.ref_name }}
+    #       echo "📥 Installing dependencies..."
+    #       npm ci --legacy-peer-deps
+    #       echo "⚙️ creating .env file..."
+    #       if [ "${{ github.ref_name }}" == "staging" ]; then
+    #         cp ../.backend-staging.env .env
+    #       else
+    #         cp ../.backend-prod.env .env
+    #       fi
+    #       echo "✅ .env file setup complete."
+    #       echo "env file created"
+    #       # echo "deleting migrations folder"
+    #       # rm -rf src/db/migrations/
+    #       echo "🔨 Building app...."
+    #       npm run build
+    #       # echo "generating migrations"
+    #       # npm run migration:generate
+    #       # echo "🛠️ Running database migrations..."
+    #       echo "#-- normally we should not generate migrations on staging or prod. it is gotten from the script"
+    #       # npm run migration:run
+    #       echo "🚀 Restarting application with PM2..."
+    #       pm2 reload "${{ steps.envselect.outputs.PM2_APP_NAME }}" || pm2 start dist/main.js --name "${{ steps.envselect.outputs.PM2_APP_NAME }}"
+    #       pm2 save
+    #       pm2 list
+    #     ENDSSH
 
     - name: Health Check
       env:
