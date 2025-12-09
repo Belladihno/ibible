@@ -212,7 +212,7 @@ jobs:
         echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
         chmod 600 ~/.ssh/deploy_key
         ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
-          $SERVER_USER@$SERVER_HOST << 'ENDSSH'
+          $SERVER_USER@$SERVER_HOST << ENDSSH
           cd $SERVER_APP_DIR
           echo "🔄 Ensuring clean restart of $PM2_APP_NAME..."
           echo $HEALTH_CHECK_URL
@@ -225,7 +225,6 @@ jobs:
 
           
           if [ "\$HTTP_STATUS" -eq 200 ]; then
-            echo "health check passed with code $HTTP_STATUS"
             echo "health check passed with code \$HTTP_STATUS"
             pm2 logs $PM2_APP_NAME --lines 3 --nostream
             echo "✅ Health check passed!"
