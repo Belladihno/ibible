@@ -36,6 +36,7 @@ import { HistoryModule } from './modules/history/history.module';
 
 import { FeedbackModule } from './modules/feedback/feedback.module';
 import { ContactModule } from './modules/contact-us/contact.module';
+import { EarlyAccessModule } from './modules/early-access/early-access.module';
 
 @Module({
   imports: [
@@ -102,6 +103,7 @@ import { ContactModule } from './modules/contact-us/contact.module';
     HistoryModule,
     FeedbackModule,
     ContactModule,
+    EarlyAccessModule,
   ],
   controllers: [AppController],
   providers: [
