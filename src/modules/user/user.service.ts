@@ -423,7 +423,7 @@ export class UserService {
           this.configService.get<string>('JWT_REFRESH_SECRET') ||
           'fallback-refresh-secret',
       });
-      const user = await this.findOne(payload.sub);
+      const user = await this.findOne(payload.sub as string);
       if (!user.isActive) {
         throw new UnauthorizedException('User account is deactivated');
       }
