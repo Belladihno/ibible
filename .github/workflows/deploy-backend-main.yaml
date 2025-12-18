@@ -28,7 +28,6 @@ jobs:
       with:
         scan-type: 'fs'
         scan-ref: '.'
-        trivy-config: trivy.yaml
         exit-code: '1'
         ignore-unfixed: true
         vuln-type: 'os,library'
