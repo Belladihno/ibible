@@ -321,6 +321,26 @@ export class UserController {
     };
   }
 
+  @Post('admin-login')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Super admin login' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Super admin login successful',
+  })
+  @ApiResponse({
+    status: HttpStatus.UNAUTHORIZED,
+    description: 'Invalid credentials or not super admin',
+  })
+  async adminLogin(@Body() body: { email: string; password: string }) {
+    const result = await this.users.adminLogin(body.email, body.password);
+    return {
+      statusCode: HttpStatus.OK,
+      message: SystemMessages.USER_LOGIN_SUCCESS,
+      data: { ...result, timestamp: new Date().toISOString() },
+    };
+  }
+
   @Post('google')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Authenticate with Google ID token' })

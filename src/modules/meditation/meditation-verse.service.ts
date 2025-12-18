@@ -69,7 +69,8 @@ export class MeditationVerseService implements OnModuleInit {
           });
         } catch (error) {
           // Skip duplicates
-          if (!error.message.includes('unique')) {
+          const err = error as Error;
+          if (!err.message.includes('unique')) {
             this.logger.error(`Failed to seed ${reference}:`, error);
           }
         }

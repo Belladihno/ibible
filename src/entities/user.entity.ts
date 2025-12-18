@@ -8,6 +8,7 @@ import {
   UserTone,
   Voice,
   ALERT,
+  UserRole,
 } from 'src/modules/user/enums/user.enums';
 import { Entity, Column, Index, OneToMany } from 'typeorm';
 import { Prayer } from './prayer.entity';
@@ -55,6 +56,13 @@ export class User extends BaseEntity {
   })
   @Index('idx_users_auth_provider')
   authProvider: AuthProvider;
+
+  @Column({
+    name: 'role',
+    type: 'varchar',
+    default: UserRole.USER,
+  })
+  role: UserRole;
 
   @Column({ name: 'google_id', unique: true, nullable: true })
   @Index('idx_users_google_id')

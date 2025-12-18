@@ -12,7 +12,7 @@ import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { AuthProvider } from './enums/user.enums';
+import { AuthProvider, UserRole } from './enums/user.enums';
 import { LoginDto } from './dto/login-user.dto';
 import { SignupUserDto } from './dto/signup-user.dto';
 import { TokenResponseDto } from './dto/token-response.dto';
@@ -279,10 +279,62 @@ export class UserService {
     };
   }
 
+  async adminLogin(
+    email: string,
+    password: string,
+  ): Promise<{ user: Partial<User>; tokens: TokenResponseDto }> {
+    const user = await this.findOneByEmail(email);
+    if (!user) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
+    if (user.role !== UserRole.SUPER_ADMIN) {
+      throw new UnauthorizedException('Super admin access required');
+    }
+
+    if (!user.isActive) {
+      throw new UnauthorizedException('Account is deactivated');
+    }
+
+    if (!user.emailVerified) {
+      throw new UnauthorizedException('Email is not verified');
+    }
+
+    if (user.authProvider === AuthProvider.EMAIL) {
+      if (!user.passwordHash) {
+        throw new UnauthorizedException('Invalid authentication method');
+      }
+      const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
+      if (!isPasswordValid) {
+        throw new UnauthorizedException('Invalid credentials');
+      }
+    } else {
+      throw new UnauthorizedException(
+        'Please use the correct authentication method',
+      );
+    }
+
+    const tokens = await this.generateTokens(user);
+    await this.update(user.id, { lastActiveAt: new Date() } as UpdateUserDto);
+    return {
+      user: {
+        id: user.id,
+        email: user.email,
+        fullName: user.fullName,
+        authProvider: user.authProvider,
+        profilePicture: user.profilePicture,
+        phoneNumber: user.phoneNumber,
+        about: user.about,
+      },
+      tokens,
+    };
+  }
+
   private async generateTokens(user: User): Promise<TokenResponseDto> {
     const payloadBase = {
       sub: user.id,
       email: user.email,
+      role: user.role,
       authProvider: user.authProvider,
     };
 

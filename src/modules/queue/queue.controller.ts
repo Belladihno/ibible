@@ -6,11 +6,15 @@ import {
   Query,
   Delete,
   Body,
+  UseGuards,
 } from '@nestjs/common';
 import { JobSummary } from 'src/shared/interfaces/sales.interface';
 import { QueueManagerService } from './queue.service';
 import { QueueName } from './queue-names.enum';
+import { AdminGuard } from '../../guards/admin.guard';
+import { AuthGuard } from '@nestjs/passport';
 
+@UseGuards(AuthGuard('jwt'), AdminGuard)
 @Controller('admin/queue')
 export class QueueController {
   constructor(private readonly queueManagerService: QueueManagerService) {}
