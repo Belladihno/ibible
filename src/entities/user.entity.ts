@@ -8,6 +8,7 @@ import {
   UserTone,
   Voice,
   ALERT,
+  UserRole,
 } from 'src/modules/user/enums/user.enums';
 import { Entity, Column, Index, OneToMany } from 'typeorm';
 import { Prayer } from './prayer.entity';
@@ -180,6 +181,13 @@ export class User extends BaseEntity {
     },
   })
   user_preferences: user_preferences;
+
+  @Column({
+    type: 'enum',
+    enum: UserRole,
+    default: UserRole.USER,
+  })
+  role: UserRole;
 
   @OneToMany(() => AccessToken, (accessToken) => accessToken.user)
   accessTokens: AccessToken[];

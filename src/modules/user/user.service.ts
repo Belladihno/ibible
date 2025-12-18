@@ -283,6 +283,7 @@ export class UserService {
     const payloadBase = {
       sub: user.id,
       email: user.email,
+      role: user.role,
       authProvider: user.authProvider,
     };
 
