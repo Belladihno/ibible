@@ -57,6 +57,13 @@ export class User extends BaseEntity {
   @Index('idx_users_auth_provider')
   authProvider: AuthProvider;
 
+  // @Column({
+  //   name: 'role',
+  //   type: 'varchar',
+  //   default: UserRole.USER,
+  // })
+  // role: UserRole;
+
   @Column({ name: 'google_id', unique: true, nullable: true })
   @Index('idx_users_google_id')
   googleId: string;
