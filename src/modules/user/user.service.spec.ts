@@ -19,7 +19,7 @@ import {
 } from '@nestjs/common';
 import { EmailVerificationToken } from 'src/entities/email-verification-token.entity';
 import { EmailService } from '../email/email.service';
-import { AuthProvider } from './enums/user.enums';
+import { AuthProvider, UserRole } from './enums/user.enums';
 import * as bcrypt from 'bcrypt';
 import { UploadService } from '../upload/upload.service';
 
@@ -48,6 +48,7 @@ describe('UserService', () => {
     fullName: 'Test User',
     passwordHash: 'hashedpassword',
     authProvider: AuthProvider.EMAIL,
+    role: UserRole.USER,
     isActive: true,
     emailVerified: false,
     profilePicture: null,
@@ -412,6 +413,34 @@ describe('UserService', () => {
       );
       await expect(service.login(loginDto)).rejects.toThrow(
         'Email is not verified',
+      );
+    });
+
+    it('should include user role in JWT payload', async () => {
+      const loginDto = {
+        email: 'admin@example.com',
+        password: 'password123',
+      };
+
+      const adminUser = {
+        ...mockUser,
+        role: UserRole.SUPER_ADMIN,
+        emailVerified: true,
+      };
+
+      userRepo.findOne.mockResolvedValue(adminUser);
+      (bcrypt.compare as jest.Mock).mockResolvedValue(true);
+      jwtService.signAsync.mockResolvedValue('admin-token');
+
+      await service.login(loginDto);
+
+      expect(jwtService.signAsync).toHaveBeenCalledWith(
+        expect.objectContaining({
+          role: UserRole.SUPER_ADMIN,
+          sub: adminUser.id,
+          email: adminUser.email,
+        }),
+        expect.any(Object),
       );
     });
   });

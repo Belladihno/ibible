@@ -57,12 +57,12 @@ export class User extends BaseEntity {
   @Index('idx_users_auth_provider')
   authProvider: AuthProvider;
 
-  @Column({
-    name: 'role',
-    type: 'varchar',
-    default: UserRole.USER,
-  })
-  role: UserRole;
+  // @Column({
+  //   name: 'role',
+  //   type: 'varchar',
+  //   default: UserRole.USER,
+  // })
+  // role: UserRole;
 
   @Column({ name: 'google_id', unique: true, nullable: true })
   @Index('idx_users_google_id')
@@ -188,6 +188,13 @@ export class User extends BaseEntity {
     },
   })
   user_preferences: user_preferences;
+
+  @Column({
+    type: 'enum',
+    enum: UserRole,
+    default: UserRole.USER,
+  })
+  role: UserRole;
 
   @OneToMany(() => AccessToken, (accessToken) => accessToken.user)
   accessTokens: AccessToken[];

@@ -42,6 +42,9 @@ import { SignupUserDto } from './dto/signup-user.dto';
 import { ResendVerificationDto } from './dto/resend-verification.dto';
 import { ResendPasswordResetDto } from './dto/resend-password-reset.dto';
 import * as SystemMessages from 'src/shared/constants/systemMessages';
+import { Roles } from '../../decorators/roles.decorator';
+import { UserRole } from './enums/user.enums';
+import { RolesGuard } from '../../guards/roles.guard';
 
 @ApiTags('User')
 @Controller('user')
@@ -562,6 +565,30 @@ export class UserController {
       statusCode: HttpStatus.OK,
       message: SystemMessages.PASSWORD_RESET_CODE_RESENT,
       data: { token, timestamp: new Date().toISOString() },
+    };
+  }
+
+  @Get('super-admin-test')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(UserRole.SUPER_ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Test endpoint for Super Admin access' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Success',
+    schema: {
+      example: {
+        message: 'You have super admin access',
+      },
+    },
+  })
+  @ApiResponse({
+    status: HttpStatus.FORBIDDEN,
+    description: 'Forbidden resource',
+  })
+  async testSuperAdmin() {
+    return {
+      message: 'You have super admin access',
     };
   }
 
