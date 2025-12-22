@@ -4,10 +4,10 @@ import { BibleVerseController } from './daily-verse.controller';
 import { BibleVerseService } from './daily-verse.service';
 import { DailyVerse } from 'src/entities/bible-verse.entity';
 import { HttpModule } from '@nestjs/axios';
-import { DailyVerseGeminiService } from './daily-verse-gemini.service';
 import { DailyVerseConversation } from '../../../entities/daily-verse-conversation.entity';
 import { DailyVerseConversationMessage } from '../../../entities/daily-verse-conversation-message.entity';
 import { BibleVersion } from 'src/entities/bible-version.entity';
+import { GeminiModule } from 'src/modules/gemini/gemini.module';
 
 @Module({
   imports: [
@@ -18,13 +18,10 @@ import { BibleVersion } from 'src/entities/bible-version.entity';
       DailyVerseConversationMessage,
     ]),
     HttpModule,
+    GeminiModule,
   ],
   controllers: [BibleVerseController],
-  providers: [
-    BibleVerseService,
-    DailyVerseGeminiService,
-    DailyVerseConversation,
-  ],
+  providers: [BibleVerseService, DailyVerseConversation],
   exports: [BibleVerseService, DailyVerseConversation],
 })
 export class BibleVerseModule {}

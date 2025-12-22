@@ -1,15 +1,17 @@
 import { Injectable, Inject, NotFoundException, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, FilterQuery } from 'mongoose';
 import {
   ChatConversation,
   ChatConversationDocument,
 } from '../../schemas/chat-conversation.schema';
 import { CreateMessageDto } from './dto/create-message.dto';
 import { MessageSender } from '../../schemas/chat-message.schema';
-import { GeminiService } from './services/gemini.service';
 import { ChatContextService } from './services/chat-context.service';
 import Redis from 'ioredis';
+import { GeminiService } from '../gemini/gemini.service';
+import { ChatRole, ReaFeature } from 'src/shared/enums';
+import { ChatMessage } from 'src/shared/types/chat.types';
 
 @Injectable()
 export class ChatService {
@@ -18,14 +20,11 @@ export class ChatService {
   constructor(
     @InjectModel(ChatConversation.name)
     private chatConversationModel: Model<ChatConversationDocument>,
-    private geminiService: GeminiService,
+    private gemini: GeminiService,
     private chatContextService: ChatContextService,
     @Inject('REDIS_CLIENT') private readonly redis: Redis,
   ) {}
 
-  /**
-   * Create conversation with AI title (wait for it)
-   */
   async createConversation(
     userId: string,
     firstMessage?: string,
@@ -60,12 +59,22 @@ export class ChatService {
    * Get AI title with short timeout
    */
   private async getAITitleWithTimeout(userMessage: string): Promise<string> {
-    const titlePromise = this.geminiService.generateTitle(userMessage);
+    const prompt = `
+      Generate a very short title (2–5 words) for this conversation.
+      Do not use punctuation, quotes, or explanations.
+      Return ONLY the title text.
+      `.trim();
+    const titlePromise = this.gemini.generate(ReaFeature.CHAT, userMessage, {
+      systemPrompt: prompt,
+      temperature: 0.4,
+      maxTokens: 20,
+    });
+
     const timeoutPromise = new Promise<string>((_, reject) => {
       setTimeout(() => reject(new Error('AI title timeout')), 2000);
     });
 
-    return await Promise.race([titlePromise, timeoutPromise]);
+    return Promise.race([titlePromise, timeoutPromise]);
   }
 
   /**
@@ -107,39 +116,33 @@ export class ChatService {
    * Main message handler
    */
   async sendMessage(userId: string, createMessageDto: CreateMessageDto) {
-    // Rate limiting
+    // -------------------- RATE LIMIT --------------------
     const rateLimitKey = `chat_limit:${userId}`;
     const currentUsage = await this.redis.incr(rateLimitKey);
-    if (currentUsage === 1) {
-      await this.redis.expire(rateLimitKey, 60);
-    }
-    if (currentUsage > 20) {
+    if (currentUsage === 1) await this.redis.expire(rateLimitKey, 60);
+    if (currentUsage > 20)
       throw new Error('Rate limit exceeded. Please try again later.');
-    }
 
-    // Find or create conversation
-    let conversation: ChatConversationDocument | null;
+    // -------------------- FETCH OR CREATE CONVERSATION --------------------
+    let conversation: ChatConversationDocument;
 
     if (createMessageDto.conversationId) {
-      const existingConversation = await this.chatConversationModel.findOne({
+      const existing = await this.chatConversationModel.findOne({
         _id: createMessageDto.conversationId,
         userId,
         isActive: true,
       });
 
-      if (!existingConversation) {
-        throw new NotFoundException('Conversation not found');
-      }
-      conversation = existingConversation;
+      if (!existing) throw new NotFoundException('Conversation not found');
+      conversation = existing;
     } else {
-      // NEW: Wait for AI title before responding
       conversation = await this.createConversation(
         userId,
         createMessageDto.content,
       );
     }
 
-    // Add user message
+    // -------------------- ADD USER MESSAGE --------------------
     conversation.messages.push({
       sender: MessageSender.USER,
       content: createMessageDto.content,
@@ -147,26 +150,30 @@ export class ChatService {
       references: [],
     });
 
-    // Extract scripture references
     const scriptureReferences = this.extractScriptureReferences(
       createMessageDto.content,
     );
-
     await conversation.save();
 
-    // Build context
+    // -------------------- BUILD SYSTEM PROMPT --------------------
     const systemPrompt = await this.chatContextService.buildContext(
       userId,
-      conversation.id,
+      conversation.id as string,
       createMessageDto.content,
     );
 
-    // Generate AI response
+    // -------------------- GENERATE AI RESPONSE --------------------
     let aiResponseContent: string;
+
     try {
-      aiResponseContent = await this.geminiService.generateContent(
+      aiResponseContent = await this.gemini.generate(
+        ReaFeature.CHAT,
         createMessageDto.content,
-        systemPrompt,
+        {
+          systemPrompt,
+          temperature: 0.7,
+          maxTokens: 1200, // increased to reduce cut-off
+        },
       );
     } catch (error) {
       this.logger.error('AI response error:', error);
@@ -176,7 +183,7 @@ export class ChatService {
       );
     }
 
-    // Ensure response is not empty
+    // Ensure AI response is not empty
     if (!aiResponseContent || aiResponseContent.trim() === '') {
       aiResponseContent = this.getFallbackResponse(
         createMessageDto.content,
@@ -188,7 +195,7 @@ export class ChatService {
     const aiResponseReferences =
       this.extractScriptureReferences(aiResponseContent);
 
-    // Add AI response
+    // -------------------- ADD AI MESSAGE --------------------
     conversation.messages.push({
       sender: MessageSender.AI,
       content: aiResponseContent,
@@ -344,12 +351,27 @@ export class ChatService {
     page: number = 1,
     limit: number = 20,
   ) {
+    this.logger.debug(`🔍 Advanced search for user ${userId}`, {
+      criteria,
+      page,
+      limit,
+    });
+
+    // Validate limit to prevent abuse
+    const validatedLimit = Math.min(limit, 100); // Max 100 items per page
+    const validatedPage = Math.max(page, 1);
+
     // Build dynamic query
-    const query: any = { userId, isActive: true };
+    const query: any = {
+      userId,
+      isActive: true,
+    };
 
     // Title search (partial match, case-insensitive)
-    if (criteria.title) {
-      query.title = { $regex: new RegExp(criteria.title, 'i') };
+    if (criteria.title && criteria.title.trim().length > 0) {
+      const searchTerm = criteria.title.trim();
+      query.title = { $regex: new RegExp(searchTerm, 'i') };
+      this.logger.debug(`Title search regex: ${query.title.$regex}`);
     }
 
     // Date range filter
@@ -357,74 +379,130 @@ export class ChatService {
       query.createdAt = {};
       if (criteria.startDate) {
         query.createdAt.$gte = criteria.startDate;
+        this.logger.debug(
+          `Start date filter: ${criteria.startDate.toISOString()}`,
+        );
       }
       if (criteria.endDate) {
-        query.createdAt.$lte = criteria.endDate;
+        // Add end of day for inclusive filtering
+        const endOfDay = new Date(criteria.endDate);
+        endOfDay.setHours(23, 59, 59, 999);
+        query.createdAt.$lte = endOfDay;
+        this.logger.debug(`End date filter: ${endOfDay.toISOString()}`);
       }
     }
 
-    // Has scripture references filter
+    // Has scripture references filter - FIXED
     if (criteria.hasReferences !== undefined) {
       if (criteria.hasReferences) {
         // Conversations that have at least one message with references
-        query['messages.references'] = { $exists: true, $ne: [] };
+        query['messages'] = {
+          $elemMatch: {
+            references: { $exists: true, $ne: [], $not: { $size: 0 } },
+          },
+        };
+        this.logger.debug(
+          'Filter: Has scripture references (using $elemMatch)',
+        );
       } else {
-        // Conversations with no references
+        // Conversations with no references in any message
         query['messages.references'] = { $exists: false };
+        this.logger.debug('Filter: No scripture references');
       }
     }
 
+    this.logger.debug(`Final MongoDB query: ${JSON.stringify(query, null, 2)}`);
+
     // Calculate pagination
-    const skip = (page - 1) * limit;
+    const skip = (validatedPage - 1) * validatedLimit;
 
-    // Execute search
-    const [conversations, total] = await Promise.all([
-      this.chatConversationModel
-        .find(query)
-        .sort({ updatedAt: -1 })
-        .skip(skip)
-        .limit(limit)
-        .lean(),
-      this.chatConversationModel.countDocuments(query),
-    ]);
+    try {
+      // Execute search with performance timing
+      const startTime = Date.now();
 
-    // Transform results
-    const transformedConversations = conversations.map((conversation) => {
-      const { _id, ...rest } = conversation;
-      return { id: _id.toString(), ...rest };
-    });
+      const [conversations, total] = await Promise.all([
+        this.chatConversationModel
+          .find(query)
+          .select('-__v') // Exclude version key
+          .sort({ updatedAt: -1 }) // Most recently updated first
+          .skip(skip)
+          .limit(validatedLimit)
+          .lean()
+          .exec(),
+        this.chatConversationModel.countDocuments(query).exec(),
+      ]);
 
-    // Pagination metadata
-    const totalPages = Math.ceil(total / limit);
+      const executionTime = Date.now() - startTime;
+      this.logger.log(
+        `Search executed in ${executionTime}ms, found ${conversations.length} of ${total} total conversations`,
+      );
 
-    return {
-      conversations: transformedConversations,
-      pagination: {
-        total,
-        page,
-        limit,
-        totalPages,
-        hasNextPage: page < totalPages,
-        hasPrevPage: page > 1,
-      },
-    };
+      // Transform results
+      const transformedConversations = conversations.map((conversation) => {
+        const { _id, __v, ...rest } = conversation;
+        return {
+          id: _id.toString(),
+          ...rest,
+        };
+      });
+
+      // Calculate pagination metadata
+      const totalPages = Math.ceil(total / validatedLimit);
+
+      const result = {
+        conversations: transformedConversations,
+        pagination: {
+          total,
+          page: validatedPage,
+          limit: validatedLimit,
+          totalPages,
+          hasNextPage: validatedPage < totalPages,
+          hasPrevPage: validatedPage > 1,
+          nextPage: validatedPage < totalPages ? validatedPage + 1 : null,
+          prevPage: validatedPage > 1 ? validatedPage - 1 : null,
+        },
+      };
+
+      this.logger.debug(
+        `Pagination info: ${JSON.stringify(result.pagination)}`,
+      );
+
+      return result;
+    } catch (error) {
+      this.logger.error('Search failed:', error);
+      throw new Error(`Search failed: ${error.message}`);
+    }
   }
 
   // ==================== EXISTING METHODS ====================
 
   private extractScriptureReferences(content: string): string[] {
-    const regex =
-      /((?:[1-3]\s)?[A-Z][a-z]+(?:\s[A-Z][a-z]+)?)\s+(\d+):(\d+(?:-\d+)?)/g;
-    const matches: string[] = [];
-    let match;
+    // Split content into words
+    const words = content.split(/\s+/);
 
-    while ((match = regex.exec(content)) !== null) {
-      if (match[1] && match[2] && match[3]) {
-        matches.push(`${match[1]} ${match[2]}:${match[3]}`);
+    const references: string[] = [];
+
+    for (let i = 0; i < words.length; i++) {
+      let word = words[i];
+
+      word = word.replace(/^[^\w\d]+|[^\w\d]+$/g, '');
+      let bookName = word;
+      if (/^[1-3]$/.test(word) && words[i + 1]) {
+        bookName = `${word} ${words[i + 1].replace(/^[^\w\d]+|[^\w\d]+$/g, '')}`;
+        i++;
+      }
+
+      const nextWord = words[i + 1] || '';
+      const chapterVerseMatch = nextWord.match(/^(\d+):(\d+(?:-\d+)?)$/);
+      if (chapterVerseMatch) {
+        references.push(
+          `${bookName} ${chapterVerseMatch[1]}:${chapterVerseMatch[2]}`,
+        );
+        i++;
       }
     }
 
-    return matches;
+    return references;
   }
 
   private async generateAIResponse(
@@ -433,31 +511,39 @@ export class ChatService {
     conversation?: ChatConversationDocument,
   ): Promise<string> {
     try {
-      let response: string;
+      const history: ChatMessage[] =
+        conversation?.messages?.slice(0, -1).map((msg) => ({
+          role:
+            msg.sender === MessageSender.USER
+              ? ChatRole.USER
+              : ChatRole.ASSISTANT,
+          content: msg.content,
+        })) ?? [];
 
-      if (conversation && conversation.messages.length > 1) {
-        const history = conversation.messages.slice(0, -1).map((msg) => ({
-          role: msg.sender === MessageSender.USER ? 'user' : 'model',
-          parts: [{ text: msg.content }],
-        }));
+      const response = await this.gemini.generate(
+        ReaFeature.CHAT,
+        userMessage,
+        {
+          systemPrompt: `
+            You are Rea, a Bible-focused Christian assistant.
+            Respond thoughtfully, biblically, and conversationally.
+            If scripture references are provided, respect them.
+            Avoid bullet points and titles.
+            Never stop mid-sentence.
+            Respond in well-structured paragraphs.
+          `.trim(),
+          history,
+          temperature: 0.7,
+          maxTokens: 900,
+        },
+      );
 
-        response = await this.geminiService.generateBibleSpecificContent(
-          userMessage,
-          references,
-        );
-      } else {
-        response = await this.geminiService.generateBibleSpecificContent(
-          userMessage,
-          references,
-        );
-      }
-
-      if (!response || response.trim() === '') {
+      if (!response || !response.trim()) {
         return this.getFallbackResponse(userMessage, references);
       }
 
-      return response;
-    } catch (error) {
+      return response.trim();
+    } catch {
       return this.getFallbackResponse(userMessage, references);
     }
   }

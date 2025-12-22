@@ -1,35 +1,25 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { SwaggerSyncService } from 'nestjs-swagger-sync';
 import type { Request } from 'express';
 
 describe('AppController', () => {
   let appController: AppController;
   let appService: AppService;
-  let swaggerSyncService: SwaggerSyncService;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [AppController],
-      providers: [
-        AppService,
-        {
-          provide: SwaggerSyncService,
-          useValue: { syncSwagger: jest.fn() },
-        },
-      ],
+      providers: [AppService],
     }).compile();
 
     appController = module.get<AppController>(AppController);
     appService = module.get<AppService>(AppService);
-    swaggerSyncService = module.get<SwaggerSyncService>(SwaggerSyncService);
   });
 
   it('should be defined', () => {
     expect(appController).toBeDefined();
     expect(appService).toBeDefined();
-    expect(swaggerSyncService).toBeDefined();
   });
 
   it('should return welcome message', () => {

@@ -11,6 +11,7 @@ import {
   HttpStatus,
   Req,
 } from '@nestjs/common';
+import { TrackActivity } from 'src/decorators/track-activity.decorator';
 import {
   ApiTags,
   ApiOperation,
@@ -27,6 +28,7 @@ import {
   AdvancedSearchConversationsDto,
 } from './dto/search-conversations.dto';
 import { UserPayload } from '../user/strategy/interface.d';
+import { BadRequestException } from '@nestjs/common';
 
 @ApiTags('Chat')
 @Controller('chat')
@@ -100,6 +102,10 @@ export class ChatController {
     description: 'Rate limit exceeded (20 messages per minute)',
   })
   @HttpCode(HttpStatus.CREATED)
+  @TrackActivity('chat_message_sent', {
+    body: ['content'],
+    response: ['conversation._id'],
+  })
   async sendMessage(
     @Body() createMessageDto: CreateMessageDto,
     @Req() req: Request & { user: UserPayload & { jti?: string; id?: string } },
@@ -325,31 +331,42 @@ export class ChatController {
     description: 'Advanced search results returned successfully',
     schema: {
       example: {
-        conversations: [
-          {
-            id: '507f1f77bcf86cd799439011',
-            userId: 'uuid-1234',
-            title: 'Prayer and Anxiety',
-            messages: [
-              {
-                sender: 'user',
-                content: 'How do I pray when anxious?',
-                timestamp: '2025-11-29T16:00:00.000Z',
-                references: ['Philippians 4:6-7'],
-              },
-            ],
-            isActive: true,
-            createdAt: '2025-11-29T16:00:00.000Z',
-            updatedAt: '2025-11-29T16:00:05.000Z',
+        statusCode: 200,
+        message: 'Request successful',
+        data: {
+          conversations: [
+            {
+              id: '507f1f77bcf86cd799439011',
+              userId: 'uuid-1234',
+              title: 'Prayer and Anxiety',
+              messages: [
+                {
+                  sender: 'user',
+                  content: 'How do I pray when anxious?',
+                  timestamp: '2025-11-29T16:00:00.000Z',
+                  references: ['Philippians 4:6-7'],
+                },
+              ],
+              isActive: true,
+              createdAt: '2025-11-29T16:00:00.000Z',
+              updatedAt: '2025-11-29T16:00:05.000Z',
+            },
+          ],
+          pagination: {
+            total: 3,
+            page: 1,
+            limit: 20,
+            totalPages: 1,
+            hasNextPage: false,
+            hasPrevPage: false,
+            nextPage: null,
+            prevPage: null,
           },
-        ],
-        pagination: {
-          total: 3,
-          page: 1,
-          limit: 20,
-          totalPages: 1,
-          hasNextPage: false,
-          hasPrevPage: false,
+          searchInfo: {
+            query: 'anxiety',
+            resultsCount: 1,
+          },
+          timestamp: '2025-12-05T10:00:00.000Z',
         },
       },
     },
@@ -370,6 +387,18 @@ export class ChatController {
       throw new Error('Invalid user id');
     }
 
+    // Validate at least one search criteria is provided
+    if (
+      !searchDto.query &&
+      !searchDto.startDate &&
+      !searchDto.endDate &&
+      searchDto.hasReferences === undefined
+    ) {
+      throw new BadRequestException(
+        'At least one search criteria must be provided (query, date range, or hasReferences)',
+      );
+    }
+
     // Convert date strings to Date objects if provided
     const criteria = {
       title: searchDto.query,
@@ -380,14 +409,35 @@ export class ChatController {
       hasReferences: searchDto.hasReferences,
     };
 
+    // Validate date range if both dates provided
+    if (
+      criteria.startDate &&
+      criteria.endDate &&
+      criteria.startDate > criteria.endDate
+    ) {
+      throw new BadRequestException('startDate must be before endDate');
+    }
+
     const results = await this.chatService.searchConversations(
       userId,
       criteria,
-      searchDto.page,
-      searchDto.limit,
+      searchDto.page || 1,
+      searchDto.limit || 20,
     );
 
-    return results;
+    return {
+      statusCode: 200,
+      message: 'Request successful',
+      data: {
+        conversations: results.conversations,
+        pagination: results.pagination,
+        searchInfo: {
+          query: searchDto.query || '',
+          resultsCount: results.conversations.length,
+        },
+        timestamp: new Date().toISOString(),
+      },
+    };
   }
 
   @Get('conversations/:id')

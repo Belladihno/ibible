@@ -3,13 +3,13 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
+import { ActivityInterceptor } from './interceptors/activity.interceptor';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { HealthModule } from './modules/health/health.module';
 import { WaitlistModule } from './modules/waitlist/waitlist.module';
 import { EmailModule } from './modules/email';
-import { SwaggerSyncModule } from 'nestjs-swagger-sync';
 import { BibleModule } from './modules/bible/bible.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { MemoriesModule } from './modules/memories/memories.module';
@@ -37,6 +37,9 @@ import { HistoryModule } from './modules/history/history.module';
 
 import { FeedbackModule } from './modules/feedback/feedback.module';
 import { ContactModule } from './modules/contact-us/contact.module';
+import { EarlyAccessModule } from './modules/early-access/early-access.module';
+import { AnalyticsModule } from './modules/analytics/analytics.module';
+import { AdminAnalyticsModule } from './modules/admin-analytics/admin-analytics.module';
 
 @Module({
   imports: [
@@ -84,14 +87,6 @@ import { ContactModule } from './modules/contact-us/contact.module';
         limit: 100, // 100 requests per minute
       },
     ]),
-    SwaggerSyncModule.register({
-      apiKey: process.env.POSTMAN_API_KEY || '',
-      swaggerPath: `${process.env.API_VERSION || 'api/v1'}/docs`,
-      baseUrl: `http://localhost:${process.env.PORT || 3000}`,
-      collectionName: 'REA Interactive Bible API',
-      runTest: true,
-      ignorePathWithBearerToken: ['api/v1/user/login', 'api/v1/user/signup'],
-    }),
     HealthModule,
     WaitlistModule,
     EmailModule,
@@ -111,6 +106,9 @@ import { ContactModule } from './modules/contact-us/contact.module';
     HistoryModule,
     FeedbackModule,
     ContactModule,
+    EarlyAccessModule,
+    AnalyticsModule,
+    AdminAnalyticsModule,
   ],
   controllers: [AppController],
   providers: [
@@ -118,6 +116,10 @@ import { ContactModule } from './modules/contact-us/contact.module';
     {
       provide: APP_GUARD,
       useClass: ThrottlerGuard,
+    },
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: ActivityInterceptor,
     },
 
     // StreaksService,

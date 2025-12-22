@@ -34,6 +34,14 @@ export class ChatConversation {
   })
   @Prop({ default: true })
   isActive: boolean;
+
+  @ApiProperty({
+    description:
+      'Short summary of recent messages to maintain conversation context',
+    example: 'User: Hello! Rea: Hi, how can I help you today?',
+  })
+  @Prop({ type: String, default: '' })
+  contextSummary?: string; // new field
 }
 
 export const ChatConversationSchema =

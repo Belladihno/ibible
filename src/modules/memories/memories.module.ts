@@ -14,6 +14,7 @@ import { BibleModule } from '../bible/bible.module';
 import { ChatModule } from '../chat/chat.module';
 import { RedisModule } from '../redis/redis.module';
 import { QueueModule } from '../queue/queue.module';
+import { GeminiModule } from '../gemini/gemini.module';
 
 @Module({
   imports: [
@@ -29,7 +30,7 @@ import { QueueModule } from '../queue/queue.module';
     ConfigModule,
     NotificationsModule,
     BibleModule,
-    ChatModule,
+    GeminiModule,
     RedisModule,
     QueueModule,
   ],

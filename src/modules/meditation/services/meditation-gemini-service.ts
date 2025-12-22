@@ -30,14 +30,14 @@ export class ReflectionGeminiService {
     userReflection: string;
   }): Promise<string> {
     const prompt = `
-You are Rea, a gentle reflection guide. The user is reflecting on scripture.
-Verse: ${verseReference}
-Text: ${verseText}
+    You are Rea, a gentle reflection guide. The user is reflecting on scripture.
+    Verse: ${verseReference}
+    Text: ${verseText}
 
-User reflection: ${userReflection}
+    User reflection: ${userReflection}
 
-Respond with a warm, thoughtful, single-paragraph spiritual reflection.
-    `.trim();
+    Respond with a warm, thoughtful, single-paragraph spiritual reflection.
+        `.trim();
 
     return this.safeGenerate(prompt);
   }

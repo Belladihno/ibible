@@ -42,6 +42,9 @@ import { SignupUserDto } from './dto/signup-user.dto';
 import { ResendVerificationDto } from './dto/resend-verification.dto';
 import { ResendPasswordResetDto } from './dto/resend-password-reset.dto';
 import * as SystemMessages from 'src/shared/constants/systemMessages';
+import { Roles } from '../../decorators/roles.decorator';
+import { UserRole } from './enums/user.enums';
+import { RolesGuard } from '../../guards/roles.guard';
 
 @ApiTags('User')
 @Controller('user')
@@ -321,6 +324,26 @@ export class UserController {
     };
   }
 
+  @Post('admin-login')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Super admin login' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Super admin login successful',
+  })
+  @ApiResponse({
+    status: HttpStatus.UNAUTHORIZED,
+    description: 'Invalid credentials or not super admin',
+  })
+  async adminLogin(@Body() body: { email: string; password: string }) {
+    const result = await this.users.adminLogin(body.email, body.password);
+    return {
+      statusCode: HttpStatus.OK,
+      message: SystemMessages.USER_LOGIN_SUCCESS,
+      data: { ...result, timestamp: new Date().toISOString() },
+    };
+  }
+
   @Post('google')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Authenticate with Google ID token' })
@@ -545,6 +568,30 @@ export class UserController {
     };
   }
 
+  @Get('super-admin-test')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(UserRole.SUPER_ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Test endpoint for Super Admin access' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Success',
+    schema: {
+      example: {
+        message: 'You have super admin access',
+      },
+    },
+  })
+  @ApiResponse({
+    status: HttpStatus.FORBIDDEN,
+    description: 'Forbidden resource',
+  })
+  async testSuperAdmin() {
+    return {
+      message: 'You have super admin access',
+    };
+  }
+
   @Get('me')
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth()
@@ -561,16 +608,16 @@ export class UserController {
         phoneNumber: '+1234567890',
         profilePicture: 'https://example.com/profile.jpg',
         aiSettings: {
-            tone: 'friendly',
-            voice: 'female',
-            alerts: 'sms',
-            follow_up: true,
-          },
-          user_preferences: {
-            preferred_translator: 'KJV',
-            scripture_frequency: 'balanced',
-            microphone: 'false',
-          },
+          tone: 'friendly',
+          voice: 'female',
+          alerts: 'sms',
+          follow_up: true,
+        },
+        user_preferences: {
+          preferred_translator: 'KJV',
+          scripture_frequency: 'balanced',
+          microphone: 'false',
+        },
         authProvider: 'EMAIL',
         emailVerified: true,
         isActive: true,

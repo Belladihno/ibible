@@ -9,6 +9,7 @@ import {
   Delete,
   Param,
 } from '@nestjs/common';
+import { TrackActivity } from 'src/decorators/track-activity.decorator';
 import {
   ApiBearerAuth,
   ApiOperation,
@@ -56,6 +57,7 @@ export class BookmarkController {
       },
     },
   })
+  @TrackActivity('bookmark_save', { body: ['type', 'reference', 'verse'] })
   async createBookmark(@Body() createDto: CreateBookmarkDto, @Request() req) {
     const userId = req.user.id;
     const response = await this.bookmarks.createBookmark(createDto, userId);

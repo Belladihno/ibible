@@ -5,7 +5,6 @@ import { ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { ChatService } from './chat.service';
 import { ChatController } from './chat.controller';
-import { GeminiService } from './services/gemini.service';
 import { ChatContextService } from './services/chat-context.service';
 import { ChatGateway } from './chat.gateway';
 import { WsJwtGuard } from './guards/ws-jwt.guard';
@@ -20,6 +19,8 @@ import {
 import { User } from '../../entities/user.entity';
 import Redis from 'ioredis';
 import appConfig from '../../config/auth.config';
+import { GeminiModule } from '../gemini/gemini.module';
+import { GeminiService } from '../gemini/gemini.service';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import appConfig from '../../config/auth.config';
       secret: appConfig().jwtSecret,
       signOptions: { expiresIn: '1h' },
     }),
+    GeminiModule,
   ],
   controllers: [ChatController],
   providers: [

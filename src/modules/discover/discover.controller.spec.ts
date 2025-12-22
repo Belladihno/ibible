@@ -4,12 +4,12 @@ import { DiscoverService } from './discover.service';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { UserEmotion } from 'src/entities/user-emotions.entity';
 import { User } from 'src/entities/user.entity';
-import { GeminiService } from '../chat/services/gemini.service';
 import { JwtService } from '@nestjs/jwt';
 import { AuthGuard } from 'src/guards/auth.guard';
 import { Reflector } from '@nestjs/core';
 import { RedisService } from '../redis/redis.service';
 import { BibleService } from '../bible/bible.service';
+import { GeminiService } from '../gemini/gemini.service';
 
 describe('DiscoverController', () => {
   let controller: DiscoverController;

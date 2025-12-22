@@ -150,14 +150,11 @@ export class MemoriesService {
     return cleanedMemory;
   }
 
-  // SAFE ID extraction without using toString() on objects
   private extractIdFromUnknown(value: unknown): string {
-    // Handle primitives safely
     if (value === null || value === undefined) {
       return '';
     }
 
-    // Handle strings
     if (typeof value === 'string') {
       return value;
     }
@@ -200,35 +197,31 @@ export class MemoriesService {
       }
     }
 
-    // Generate a hash from the object
     try {
       const jsonStr = JSON.stringify(obj);
-      // Extract any 24-character hex string (MongoDB ObjectId pattern)
+
       const hexMatch = jsonStr.match(/"([a-f0-9]{24})"/);
       if (hexMatch && hexMatch[1]) {
         return hexMatch[1];
       }
-      // Generate deterministic hash
+
       return `obj_${this.generateStableHash(jsonStr)}`;
     } catch {
-      // Last resort: timestamp + random
       return `id_${Date.now()}_${Math.floor(Math.random() * 1000000)}`;
     }
   }
 
-  // SAFE string conversion without using String() or toString() on objects
   private safeString(value: unknown): string {
     if (value === null || value === undefined) {
       return '';
     }
 
-    // Handle primitives
     if (typeof value === 'string') {
       return value;
     }
 
     if (typeof value === 'number') {
-      return value.toString(); // Safe on numbers
+      return value.toString();
     }
 
     if (typeof value === 'boolean') {
@@ -236,14 +229,13 @@ export class MemoriesService {
     }
 
     if (typeof value === 'bigint') {
-      return value.toString(); // Safe on bigint
+      return value.toString();
     }
 
     if (typeof value === 'symbol') {
-      return value.toString(); // Safe on symbols
+      return value.toString();
     }
 
-    // Handle objects - convert to JSON string
     try {
       return JSON.stringify(value);
     } catch {
@@ -256,7 +248,7 @@ export class MemoriesService {
     for (let i = 0; i < str.length; i++) {
       const char = str.charCodeAt(i);
       hash = (hash << 5) - hash + char;
-      hash = hash & hash; // Convert to 32bit integer
+      hash = hash & hash;
     }
     return Math.abs(hash).toString(16);
   }
@@ -277,7 +269,6 @@ export class MemoriesService {
   ): Promise<CleanedMemory | null> {
     this.logger.debug(`Creating memory for user ${userId}`);
 
-    // If AI service is available, generate a rephrased version
     let aiRephrase: { text?: string; source?: string } | undefined;
 
     if (this.aiMemoryService && payload.body && !payload.skipAI) {
@@ -302,7 +293,6 @@ export class MemoriesService {
       this.logger.debug('AI rephrase skipped (skipAI: true)');
     }
 
-    // Check for duplicate using Redis if available
     if (this.redisService && payload.body) {
       const contentHash = this.hashContent(payload.body);
       const duplicateKey = `memory:duplicate:${userId}:${contentHash}`;
@@ -461,7 +451,6 @@ export class MemoriesService {
 
     const skip = (page - 1) * limit;
 
-    // Try Redis cache first
     if (this.redisService) {
       const cacheKey = `memory:${userId}:list:${page}:${limit}`;
 

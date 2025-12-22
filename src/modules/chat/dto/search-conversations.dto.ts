@@ -42,6 +42,8 @@ export class SearchConversationsDto {
   limit?: number = 20;
 }
 
+import { ValidateIf, IsDefined } from 'class-validator';
+
 export class AdvancedSearchConversationsDto extends SearchConversationsDto {
   @ApiPropertyOptional({
     description: 'Filter by start date (ISO string)',
@@ -67,4 +69,12 @@ export class AdvancedSearchConversationsDto extends SearchConversationsDto {
   @IsOptional()
   @Type(() => Boolean)
   hasReferences?: boolean;
+
+  // Add validation to ensure at least one search criteria
+  @ValidateIf(
+    (o) =>
+      !o.query && !o.startDate && !o.endDate && o.hasReferences === undefined,
+  )
+  @IsDefined({ message: 'At least one search criteria must be provided' })
+  requireAtLeastOne?: never;
 }

@@ -26,6 +26,8 @@ import { CompleteSessionDto } from './dto/complete-session.dto';
 import { SendChatMessageDto } from './dto/send-chat-message.dto';
 import { CurrentUserId } from 'src/decorators/current-user-id.decorator';
 
+import { TrackActivity } from 'src/decorators/track-activity.decorator';
+
 @ApiTags('Meditation')
 @ApiBearerAuth()
 @UseGuards(AuthGuard)
@@ -72,6 +74,9 @@ export class MeditationController {
   }
 
   @Post('start')
+  @TrackActivity('meditation_start', {
+    body: ['meditationType', 'durationMinutes'],
+  })
   @ApiOperation({
     summary: 'Start meditation session with optional initial reflection',
   })
@@ -130,6 +135,7 @@ export class MeditationController {
   }
 
   @Post(':sessionId/complete')
+  @TrackActivity('meditation_complete', { params: ['sessionId'] })
   @ApiOperation({ summary: 'Complete meditation session' })
   async completeSession(
     @CurrentUserId() userId: string,

@@ -5,7 +5,6 @@ import { EmailVerificationToken } from '../../entities/email-verification-token.
 import { UserController } from './user.controller';
 import { UserService } from './user.service';
 import { JwtStrategy } from './strategy/jwt.strategy';
-import { GoogleStrategy } from './strategy/google.strategy';
 import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
@@ -14,6 +13,7 @@ import { EmailModule } from '../email/email.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { PasswordResetToken } from '../../entities/password-reset-token.entity';
 import { UploadModule } from '../upload/upload.module';
+import { AnalyticsModule } from '../analytics/analytics.module';
 
 @Module({
   imports: [
@@ -43,9 +43,10 @@ import { UploadModule } from '../upload/upload.module';
     }),
     EmailModule,
     UploadModule,
+    AnalyticsModule,
   ],
   controllers: [UserController],
-  providers: [UserService, JwtStrategy, GoogleStrategy],
+  providers: [UserService, JwtStrategy],
   exports: [UserService],
 })
 export class UserModule {}

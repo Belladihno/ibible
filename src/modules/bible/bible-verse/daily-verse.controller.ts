@@ -22,13 +22,14 @@ import type { Request } from 'express';
 
 import { DailyVerseSummaryResponse } from 'src/shared/types/bible-verse.types';
 import { BibleVerseService } from './daily-verse.service';
-import type {
-  StartConversationResponse,
+import { PostMessageDto } from './dto/post-message.dto';
+import {
   ConversationHistoryResponse,
   ConversationSummary,
   PostMessageResponse,
-} from './daily-verse.service';
-import { PostMessageDto } from './dto/post-message.dto';
+  StartConversationResponse,
+} from 'src/shared/interfaces/daily-verse.interface';
+import { TrackActivity } from 'src/decorators/track-activity.decorator';
 
 interface AuthenticatedUser {
   userId?: string;
@@ -42,6 +43,7 @@ export class BibleVerseController {
   constructor(private readonly bibleVerseService: BibleVerseService) {}
 
   @Get('daily')
+  @TrackActivity('bible_verse_daily')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Get daily Bible verse with AI-generated summary',
@@ -89,11 +91,15 @@ export class BibleVerseController {
       },
     },
   })
+  @TrackActivity('get_daily_verse', { response: ['verse.reference'] })
   async getDailyVerse(): Promise<DailyVerseSummaryResponse> {
     return await this.bibleVerseService.getDailyVerseWithSummary();
   }
 
   @Post('daily/start-conversation')
+  @TrackActivity('bible_verse_chat_start', {
+    response: ['conversation.id', 'conversation.verseReference'],
+  })
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth()
   @HttpCode(HttpStatus.CREATED)
