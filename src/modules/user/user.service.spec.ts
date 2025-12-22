@@ -22,6 +22,7 @@ import { EmailService } from '../email/email.service';
 import { AuthProvider, UserRole } from './enums/user.enums';
 import * as bcrypt from 'bcrypt';
 import { UploadService } from '../upload/upload.service';
+import { AnalyticsService } from '../analytics/analytics.service';
 
 jest.mock('bcrypt', () => ({
   hash: jest.fn(),
@@ -123,6 +124,11 @@ describe('UserService', () => {
       uploadFile: jest.fn(),
     };
 
+    const mockAnalyticsService = {
+      trackEvent: jest.fn(),
+      getSessionDuration: jest.fn(),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         UserService,
@@ -161,6 +167,10 @@ describe('UserService', () => {
         {
           provide: UploadService,
           useValue: mockUploadService,
+        },
+        {
+          provide: AnalyticsService,
+          useValue: mockAnalyticsService,
         },
       ],
     }).compile();

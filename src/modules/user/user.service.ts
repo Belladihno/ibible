@@ -29,6 +29,8 @@ import { EmailTemplateId } from '../email';
 import { User } from 'src/entities/user.entity';
 import { OAuth2Client } from 'google-auth-library';
 import { UploadService } from '../upload/upload.service';
+import { AnalyticsService } from '../analytics/analytics.service';
+import { ActivityType } from './enums/user.enums';
 
 // Custom TooManyRequestsException since NestJS doesn't have it by default
 export class TooManyRequestsException extends HttpException {
@@ -62,6 +64,7 @@ export class UserService {
     private emailVerificationTokenRepo: Repository<EmailVerificationToken>,
     private emailService: EmailService,
     private uploadService: UploadService,
+    private analyticsService: AnalyticsService,
   ) {
     this.client = new OAuth2Client(
       configService.get<string>('GOOGLE_CLIENT_ID'),
@@ -220,6 +223,12 @@ export class UserService {
     const otp = await this.generateEmailVerificationToken(user.id);
     await this.sendVerificationEmail(user.email, otp, user.fullName);
     const tokens = await this.generateTokens(user);
+    await this.analyticsService.trackEvent(
+      user.id,
+      ActivityType.LOGIN,
+      'signup',
+      { method: 'email' },
+    );
     return {
       user: {
         id: user.id,
@@ -264,6 +273,12 @@ export class UserService {
       );
     }
     const tokens = await this.generateTokens(user);
+    await this.analyticsService.trackEvent(
+      user.id,
+      ActivityType.LOGIN,
+      'login',
+      { method: 'email' },
+    );
     await this.update(user.id, { lastActiveAt: new Date() } as UpdateUserDto);
     return {
       user: {
@@ -410,6 +425,15 @@ export class UserService {
     }
     token.revoked = true;
     await this.accessTokenRepo.save(token);
+
+    const duration = await this.analyticsService.getSessionDuration(userId);
+    await this.analyticsService.trackEvent(
+      userId,
+      ActivityType.LOGOUT,
+      undefined,
+      undefined,
+      duration ?? undefined,
+    );
 
     // Revoke all refresh tokens for the user for safety
     await this.refreshTokenRepo.update(
@@ -730,6 +754,12 @@ export class UserService {
       // If user exists → LOGIN
       if (user) {
         const tokens = await this.generateTokens(user);
+        await this.analyticsService.trackEvent(
+          user.id,
+          ActivityType.LOGIN,
+          'google_auth',
+          { method: 'google', action: 'login' },
+        );
         return {
           user,
           tokens,
@@ -751,7 +781,12 @@ export class UserService {
 
       user = await this.repo.save(user);
       const tokens = await this.generateTokens(user);
-
+      await this.analyticsService.trackEvent(
+        user.id,
+        ActivityType.LOGIN,
+        'google_signup',
+        { method: 'google', action: 'signup' },
+      );
       return {
         user,
         tokens,

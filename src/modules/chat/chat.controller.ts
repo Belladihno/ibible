@@ -11,6 +11,7 @@ import {
   HttpStatus,
   Req,
 } from '@nestjs/common';
+import { TrackActivity } from 'src/decorators/track-activity.decorator';
 import {
   ApiTags,
   ApiOperation,
@@ -101,6 +102,10 @@ export class ChatController {
     description: 'Rate limit exceeded (20 messages per minute)',
   })
   @HttpCode(HttpStatus.CREATED)
+  @TrackActivity('chat_message_sent', {
+    body: ['content'],
+    response: ['conversation._id'],
+  })
   async sendMessage(
     @Body() createMessageDto: CreateMessageDto,
     @Req() req: Request & { user: UserPayload & { jti?: string; id?: string } },

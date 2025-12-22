@@ -7,6 +7,7 @@ import {
   Request,
   Get,
 } from '@nestjs/common';
+import { TrackActivity } from 'src/decorators/track-activity.decorator';
 import {
   ApiBearerAuth,
   ApiOperation,
@@ -55,6 +56,7 @@ export class DiscoverController {
       },
     },
   })
+  @TrackActivity('discover_emotion', { body: ['emotion'] })
   async createEmotion(
     @Body() logEmotionDto: LogEmotionDto,
     @Request() req: { user?: JwtPayload & { userId?: string; id?: string } },

@@ -3,7 +3,8 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
+import { ActivityInterceptor } from './interceptors/activity.interceptor';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { HealthModule } from './modules/health/health.module';
@@ -37,6 +38,8 @@ import { HistoryModule } from './modules/history/history.module';
 import { FeedbackModule } from './modules/feedback/feedback.module';
 import { ContactModule } from './modules/contact-us/contact.module';
 import { EarlyAccessModule } from './modules/early-access/early-access.module';
+import { AnalyticsModule } from './modules/analytics/analytics.module';
+import { AdminAnalyticsModule } from './modules/admin-analytics/admin-analytics.module';
 
 @Module({
   imports: [
@@ -104,6 +107,8 @@ import { EarlyAccessModule } from './modules/early-access/early-access.module';
     FeedbackModule,
     ContactModule,
     EarlyAccessModule,
+    AnalyticsModule,
+    AdminAnalyticsModule,
   ],
   controllers: [AppController],
   providers: [
@@ -111,6 +116,10 @@ import { EarlyAccessModule } from './modules/early-access/early-access.module';
     {
       provide: APP_GUARD,
       useClass: ThrottlerGuard,
+    },
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: ActivityInterceptor,
     },
 
     // StreaksService,

@@ -3,6 +3,7 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { StreaksService } from './streaks.service';
 import { UserStreak } from 'src/entities/user-streak.entity';
 import { StreakActivity } from 'src/entities/streak-activity.entity';
+import { AnalyticsService } from '../analytics/analytics.service';
 
 describe('StreaksService', () => {
   let service: StreaksService;
@@ -28,6 +29,10 @@ describe('StreaksService', () => {
         {
           provide: getRepositoryToken(StreakActivity),
           useValue: mockActivityRepo,
+        },
+        {
+          provide: AnalyticsService,
+          useValue: { trackEvent: jest.fn() },
         },
       ],
     }).compile();
