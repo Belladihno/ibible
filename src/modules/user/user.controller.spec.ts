@@ -11,6 +11,7 @@ import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { EmailService } from '../email/email.service';
 import { UploadService } from '../upload/upload.service';
+import { AnalyticsService } from '../analytics/analytics.service';
 
 describe('UserController', () => {
   let controller: UserController;
@@ -67,6 +68,11 @@ describe('UserController', () => {
       uploadFile: jest.fn(),
     };
 
+    const mockAnalyticsService = {
+      trackEvent: jest.fn(),
+      getSessionDuration: jest.fn(),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       controllers: [UserController],
       providers: [
@@ -106,6 +112,10 @@ describe('UserController', () => {
         {
           provide: UploadService,
           useValue: mockUploadService,
+        },
+        {
+          provide: AnalyticsService,
+          useValue: mockAnalyticsService,
         },
       ],
     }).compile();

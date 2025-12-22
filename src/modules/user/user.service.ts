@@ -29,6 +29,8 @@ import { EmailTemplateId } from '../email';
 import { User } from 'src/entities/user.entity';
 import { OAuth2Client } from 'google-auth-library';
 import { UploadService } from '../upload/upload.service';
+import { AnalyticsService } from '../analytics/analytics.service';
+import { ActivityType } from './enums/user.enums';
 
 // Custom TooManyRequestsException since NestJS doesn't have it by default
 export class TooManyRequestsException extends HttpException {
@@ -62,6 +64,7 @@ export class UserService {
     private emailVerificationTokenRepo: Repository<EmailVerificationToken>,
     private emailService: EmailService,
     private uploadService: UploadService,
+    private analyticsService: AnalyticsService,
   ) {
     this.client = new OAuth2Client(
       configService.get<string>('GOOGLE_CLIENT_ID'),
@@ -220,6 +223,12 @@ export class UserService {
     const otp = await this.generateEmailVerificationToken(user.id);
     await this.sendVerificationEmail(user.email, otp, user.fullName);
     const tokens = await this.generateTokens(user);
+    await this.analyticsService.trackEvent(
+      user.id,
+      ActivityType.LOGIN,
+      'signup',
+      { method: 'email' },
+    );
     return {
       user: {
         id: user.id,
@@ -263,6 +272,63 @@ export class UserService {
         'Please use the correct authentication method',
       );
     }
+    const tokens = await this.generateTokens(user);
+    await this.analyticsService.trackEvent(
+      user.id,
+      ActivityType.LOGIN,
+      'login',
+      { method: 'email' },
+    );
+    await this.update(user.id, { lastActiveAt: new Date() } as UpdateUserDto);
+    return {
+      user: {
+        id: user.id,
+        email: user.email,
+        fullName: user.fullName,
+        authProvider: user.authProvider,
+        profilePicture: user.profilePicture,
+        phoneNumber: user.phoneNumber,
+        about: user.about,
+      },
+      tokens,
+    };
+  }
+
+  async adminLogin(
+    email: string,
+    password: string,
+  ): Promise<{ user: Partial<User>; tokens: TokenResponseDto }> {
+    const user = await this.findOneByEmail(email);
+    if (!user) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
+    if (user.role !== UserRole.SUPER_ADMIN) {
+      throw new UnauthorizedException('Super admin access required');
+    }
+
+    if (!user.isActive) {
+      throw new UnauthorizedException('Account is deactivated');
+    }
+
+    if (!user.emailVerified) {
+      throw new UnauthorizedException('Email is not verified');
+    }
+
+    if (user.authProvider === AuthProvider.EMAIL) {
+      if (!user.passwordHash) {
+        throw new UnauthorizedException('Invalid authentication method');
+      }
+      const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
+      if (!isPasswordValid) {
+        throw new UnauthorizedException('Invalid credentials');
+      }
+    } else {
+      throw new UnauthorizedException(
+        'Please use the correct authentication method',
+      );
+    }
+
     const tokens = await this.generateTokens(user);
     await this.update(user.id, { lastActiveAt: new Date() } as UpdateUserDto);
     return {
@@ -410,6 +476,15 @@ export class UserService {
     }
     token.revoked = true;
     await this.accessTokenRepo.save(token);
+
+    const duration = await this.analyticsService.getSessionDuration(userId);
+    await this.analyticsService.trackEvent(
+      userId,
+      ActivityType.LOGOUT,
+      undefined,
+      undefined,
+      duration ?? undefined,
+    );
 
     // Revoke all refresh tokens for the user for safety
     await this.refreshTokenRepo.update(
@@ -730,6 +805,12 @@ export class UserService {
       // If user exists → LOGIN
       if (user) {
         const tokens = await this.generateTokens(user);
+        await this.analyticsService.trackEvent(
+          user.id,
+          ActivityType.LOGIN,
+          'google_auth',
+          { method: 'google', action: 'login' },
+        );
         return {
           user,
           tokens,
@@ -751,7 +832,12 @@ export class UserService {
 
       user = await this.repo.save(user);
       const tokens = await this.generateTokens(user);
-
+      await this.analyticsService.trackEvent(
+        user.id,
+        ActivityType.LOGIN,
+        'google_signup',
+        { method: 'google', action: 'signup' },
+      );
       return {
         user,
         tokens,

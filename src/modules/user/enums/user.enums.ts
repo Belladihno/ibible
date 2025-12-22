@@ -55,3 +55,11 @@ export enum UserRole {
   USER = 'user',
   SUPER_ADMIN = 'super_admin',
 }
+
+export enum ActivityType {
+  LOGIN = 'login',
+  LOGOUT = 'logout',
+  FEATURE_USAGE = 'feature_usage',
+  APP_OPEN = 'app_open',
+  SESSION_END = 'session_end',
+}

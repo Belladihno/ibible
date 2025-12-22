@@ -14,6 +14,7 @@ import { EmailModule } from '../email/email.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { PasswordResetToken } from '../../entities/password-reset-token.entity';
 import { UploadModule } from '../upload/upload.module';
+import { AnalyticsModule } from '../analytics/analytics.module';
 
 @Module({
   imports: [
@@ -43,6 +44,7 @@ import { UploadModule } from '../upload/upload.module';
     }),
     EmailModule,
     UploadModule,
+    AnalyticsModule,
   ],
   controllers: [UserController],
   providers: [UserService, JwtStrategy, GoogleStrategy],

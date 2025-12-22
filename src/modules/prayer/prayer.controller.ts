@@ -12,6 +12,7 @@ import {
   Req,
   Get,
 } from '@nestjs/common';
+import { TrackActivity } from 'src/decorators/track-activity.decorator';
 import { CreatePrayerDto } from './dto/create-prayer.dto';
 import { UpdatePrayerDto } from './dto/update-prayer.dto';
 import { PrayerService } from './prayer.service';
@@ -49,6 +50,7 @@ export class PrayerController {
     status: HttpStatus.OK,
     description: 'Rephrased prayer returned for confirmation',
   })
+  @TrackActivity('prayer_create_manual', { body: ['category', 'isPublic'] })
   async createPrayer(
     @Body() createPrayerDto: CreatePrayerDto,
     @Req()
@@ -88,6 +90,7 @@ export class PrayerController {
     status: HttpStatus.OK,
     description: 'AI prayer generated for existing prayer',
   })
+  @TrackActivity('prayer_generate_ai', { params: ['id'] })
   async confirmAndGeneratePrayer(
     @Param('id', ParseUUIDPipe) id: string,
     @Body('finalRequest') finalRequest: string | undefined,

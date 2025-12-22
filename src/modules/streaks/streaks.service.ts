@@ -4,6 +4,8 @@ import { UserStreak } from 'src/entities/user-streak.entity';
 import { StreakActivity } from 'src/entities/streak-activity.entity';
 import { Repository, Between } from 'typeorm';
 import { CalendarDay } from 'src/shared/interfaces/calendar.interface';
+import { AnalyticsService } from '../analytics/analytics.service';
+import { ActivityType } from '../user/enums/user.enums';
 
 @Injectable()
 export class StreaksService {
@@ -12,9 +14,16 @@ export class StreaksService {
     private streakRepo: Repository<UserStreak>,
     @InjectRepository(StreakActivity)
     private activityRepo: Repository<StreakActivity>,
+    private analyticsService: AnalyticsService,
   ) {}
 
   async ping(userId: string) {
+    void this.analyticsService.trackEvent(
+      userId,
+      ActivityType.APP_OPEN,
+      undefined,
+      { trigger: 'auto' },
+    );
     return this.updateStreak(userId, 'app_open');
   }
 
