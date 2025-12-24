@@ -13,7 +13,7 @@ import {
   UseGuards,
   ParseIntPipe,
 } from '@nestjs/common';
-import { AuthGuard } from '@nestjs/passport';
+import { AuthGuard } from 'src/guards/auth.guard';
 import {
   ApiTags,
   ApiOperation,
@@ -33,7 +33,7 @@ export class MemoriesController {
   constructor(private readonly memoriesService: MemoriesService) {}
 
   @Post()
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Create new memory' })
   @ApiBody({ type: CreateMemoryDto })
@@ -66,7 +66,7 @@ export class MemoriesController {
   }
 
   @Get()
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'List memories (paginated)' })
   @ApiResponse({
@@ -82,7 +82,7 @@ export class MemoriesController {
   }
 
   @Get('search')
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Search memories by keyword' })
   async search(
@@ -95,7 +95,7 @@ export class MemoriesController {
   }
 
   @Get('timeline')
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get chronological timeline of memories' })
   async timeline(@CurrentUserId() userId: string) {
@@ -106,7 +106,7 @@ export class MemoriesController {
   }
 
   @Get(':id')
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get specific memory' })
   async get(@Param('id') id: string, @CurrentUserId() userId?: string) {
@@ -117,7 +117,7 @@ export class MemoriesController {
   }
 
   @Patch(':id/followup')
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard)
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
   @ApiResponse({
@@ -135,7 +135,7 @@ export class MemoriesController {
   }
 
   @Patch(':id')
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard)
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
   @ApiResponse({
@@ -167,7 +167,7 @@ export class MemoriesController {
   }
 
   @Delete(':id')
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard)
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
   @ApiResponse({

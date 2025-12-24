@@ -1,7 +1,10 @@
+/* eslint-disable @typescript-eslint/unbound-method */
 import { AuthGuard } from '../auth.guard';
 import { Reflector } from '@nestjs/core';
 import { JwtService } from '@nestjs/jwt';
 import { ExecutionContext } from '@nestjs/common';
+import { Repository } from 'typeorm';
+import { AccessToken } from '../../entities/access-token.entity';
 import * as SYS_MSG from '../../shared/constants/systemMessages';
 import { UnauthorizedError } from '../../errors';
 
@@ -9,12 +12,16 @@ describe('AuthGuard', () => {
   let authGuard: AuthGuard;
   let jwtService: JwtService;
   let reflector: Reflector;
+  let accessTokenRepo: Repository<AccessToken>;
 
   beforeEach(() => {
     jwtService = new JwtService({ secret: 'test-secret' });
     reflector = new Reflector();
+    accessTokenRepo = {
+      findOne: jest.fn(),
+    } as unknown as Repository<AccessToken>;
 
-    authGuard = new AuthGuard(jwtService, reflector);
+    authGuard = new AuthGuard(jwtService, reflector, accessTokenRepo);
   });
 
   it('should allow access to public routes', async () => {
@@ -64,6 +71,13 @@ describe('AuthGuard', () => {
     jest.spyOn(jwtService, 'verifyAsync').mockResolvedValue({
       exp: Math.floor(Date.now() / 1000) + 1000,
       sub: 'user-id-123',
+      jti: 'token-id-123',
+    });
+
+    // Mock the access token repository to return a valid token
+    accessTokenRepo.findOne = jest.fn().mockResolvedValue({
+      jti: 'token-id-123',
+      revoked: false,
     });
 
     const context = createMockExecutionContext();
@@ -71,6 +85,9 @@ describe('AuthGuard', () => {
       'Bearer valid-token';
     const result = await authGuard.canActivate(context);
     expect(result).toBe(true);
+    expect(accessTokenRepo.findOne).toHaveBeenCalledWith({
+      where: { jti: 'token-id-123' },
+    });
   });
 
   function createMockExecutionContext(): ExecutionContext {

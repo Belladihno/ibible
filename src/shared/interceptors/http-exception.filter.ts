@@ -6,6 +6,7 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 import { Response } from 'express';
+import { AppError } from '../../errors/app.error';
 
 export interface ErrorResponse {
   statusCode: number;
@@ -37,6 +38,10 @@ export class HttpExceptionFilter implements ExceptionFilter {
         message = (responseObj.message as string) || message;
         error = (responseObj.error as string) || undefined;
       }
+    } else if (exception instanceof AppError) {
+      // Handle custom AppError instances (UnauthorizedError, BadRequestError, etc.)
+      status = exception.statusCode;
+      message = exception.message;
     } else if (exception instanceof Error) {
       message = exception.message;
     }

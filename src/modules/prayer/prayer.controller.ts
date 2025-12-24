@@ -16,7 +16,7 @@ import { TrackActivity } from 'src/decorators/track-activity.decorator';
 import { CreatePrayerDto } from './dto/create-prayer.dto';
 import { UpdatePrayerDto } from './dto/update-prayer.dto';
 import { PrayerService } from './prayer.service';
-import { AuthGuard } from '@nestjs/passport';
+import { AuthGuard } from 'src/guards/auth.guard';
 import type { Request } from 'express';
 import { ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { UserPayload } from '../user/strategy/interface.d';
@@ -40,7 +40,7 @@ export class PrayerController {
   }
 
   @Post()
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard)
   @ApiBearerAuth()
   @ApiOperation({
     summary:
@@ -81,7 +81,7 @@ export class PrayerController {
   }
 
   @Post(':id/confirm')
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard)
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Generate AI prayer for an existing prayer (owner only)',
@@ -120,7 +120,7 @@ export class PrayerController {
   }
 
   @Get()
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard)
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Get all prayers for the current user (paginated)',
@@ -150,7 +150,7 @@ export class PrayerController {
   }
 
   @Get('pray/:id')
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard)
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Get a single prayer (owner only)',
@@ -175,7 +175,7 @@ export class PrayerController {
   }
 
   @Patch(':id')
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard)
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Update an existing prayer (owner only)',
@@ -205,7 +205,7 @@ export class PrayerController {
   }
 
   @Delete(':id')
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard)
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Delete a prayer request (owner only)',

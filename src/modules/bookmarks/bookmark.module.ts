@@ -5,12 +5,13 @@ import { BookmarkController } from './bookmark.controller';
 import { BookmarkService } from './bookmark.service';
 import { BookMarks } from 'src/entities/bookmark.entity';
 import { User } from 'src/entities/user.entity';
+import { AccessToken } from 'src/entities/access-token.entity';
 import appConfig from 'src/config/auth.config';
 import { AuthGuard } from 'src/guards/auth.guard'; // your guard
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([BookMarks, User]),
+    TypeOrmModule.forFeature([BookMarks, User, AccessToken]),
     JwtModule.register({
       secret: appConfig().jwtSecret,
       signOptions: { expiresIn: '7d' },

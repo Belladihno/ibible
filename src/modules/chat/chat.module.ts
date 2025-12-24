@@ -18,6 +18,8 @@ import {
   ChatMessageSchema,
 } from '../../schemas/chat-message.schema';
 import { User } from '../../entities/user.entity';
+import { AccessToken } from '../../entities/access-token.entity';
+import { AuthGuard } from 'src/guards/auth.guard';
 import Redis from 'ioredis';
 import appConfig from '../../config/auth.config';
 
@@ -27,7 +29,7 @@ import appConfig from '../../config/auth.config';
       { name: ChatConversation.name, schema: ChatConversationSchema },
       { name: ChatMessage.name, schema: ChatMessageSchema },
     ]),
-    TypeOrmModule.forFeature([User]),
+    TypeOrmModule.forFeature([User, AccessToken]),
     JwtModule.register({
       secret: appConfig().jwtSecret,
       signOptions: { expiresIn: '1h' },
@@ -40,6 +42,7 @@ import appConfig from '../../config/auth.config';
     ChatContextService,
     ChatGateway,
     WsJwtGuard,
+    AuthGuard,
     {
       provide: 'REDIS_CLIENT',
       useFactory: (configService: ConfigService) => {

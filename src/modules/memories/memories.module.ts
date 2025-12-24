@@ -2,6 +2,7 @@
 import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { MongooseModule } from '@nestjs/mongoose';
+import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { Memory, MemorySchema } from './schemas/memory.schema';
 import { MemoriesService } from './memories.service';
@@ -14,10 +15,13 @@ import { BibleModule } from '../bible/bible.module';
 import { ChatModule } from '../chat/chat.module';
 import { RedisModule } from '../redis/redis.module';
 import { QueueModule } from '../queue/queue.module';
+import { AccessToken } from 'src/entities/access-token.entity';
+import { AuthGuard } from 'src/guards/auth.guard';
 
 @Module({
   imports: [
     MongooseModule.forFeature([{ name: Memory.name, schema: MemorySchema }]),
+    TypeOrmModule.forFeature([AccessToken]),
     JwtModule.registerAsync({
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => ({
@@ -39,6 +43,7 @@ import { QueueModule } from '../queue/queue.module';
     NotificationsAdapter,
     MemoriesScheduler,
     AiMemoryService,
+    AuthGuard,
   ],
   exports: [MemoriesService],
 })

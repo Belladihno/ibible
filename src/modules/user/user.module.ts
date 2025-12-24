@@ -15,6 +15,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { PasswordResetToken } from '../../entities/password-reset-token.entity';
 import { UploadModule } from '../upload/upload.module';
 import { AnalyticsModule } from '../analytics/analytics.module';
+import { AuthGuard } from 'src/guards/auth.guard';
 
 @Module({
   imports: [
@@ -47,7 +48,7 @@ import { AnalyticsModule } from '../analytics/analytics.module';
     AnalyticsModule,
   ],
   controllers: [UserController],
-  providers: [UserService, JwtStrategy, GoogleStrategy],
+  providers: [UserService, JwtStrategy, GoogleStrategy, AuthGuard],
   exports: [UserService],
 })
 export class UserModule {}

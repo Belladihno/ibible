@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, MoreThanOrEqual, LessThan, Between } from 'typeorm';
 import { User } from 'src/entities/user.entity';
 import { UserActivity } from 'src/entities/user-activity.entity';
+import { AppMetric } from 'src/entities/app-metric.entity';
 import { ActivityType } from '../user/enums/user.enums';
 
 @Injectable()
@@ -12,6 +13,8 @@ export class AdminAnalyticsService {
     private userRepo: Repository<User>,
     @InjectRepository(UserActivity)
     private activityRepo: Repository<UserActivity>,
+    @InjectRepository(AppMetric)
+    private appMetricRepo: Repository<AppMetric>,
   ) {}
 
   async getOverviewStats() {
@@ -73,6 +76,38 @@ export class AdminAnalyticsService {
       (activeUsersPreviousRaw as { count: string }).count || '0',
     );
 
+    // Calculate revenue from app metrics (last 30 days)
+    const revenueResult = await this.appMetricRepo
+      .createQueryBuilder('metric')
+      .select('SUM(metric.revenue)', 'total_revenue')
+      .where('metric.date >= :startDate', {
+        startDate: thirtyDaysAgo.toISOString().split('T')[0],
+      })
+      .andWhere('metric.date <= :endDate', {
+        endDate: now.toISOString().split('T')[0],
+      })
+      .getRawOne();
+
+    const totalRevenue = parseFloat(
+      (revenueResult as { total_revenue: string }).total_revenue || '0',
+    );
+
+    // Calculate revenue for previous 30 days
+    const revenuePreviousResult = await this.appMetricRepo
+      .createQueryBuilder('metric')
+      .select('SUM(metric.revenue)', 'total_revenue')
+      .where('metric.date >= :startDate', {
+        startDate: sixtyDaysAgo.toISOString().split('T')[0],
+      })
+      .andWhere('metric.date < :endDate', {
+        endDate: thirtyDaysAgo.toISOString().split('T')[0],
+      })
+      .getRawOne();
+
+    const totalRevenuePrevious = parseFloat(
+      (revenuePreviousResult as { total_revenue: string }).total_revenue || '0',
+    );
+
     const data = {
       totalUsers: {
         value: totalUsers,
@@ -85,6 +120,10 @@ export class AdminAnalyticsService {
       activeUsers: {
         value: activeUsersCount,
         change: calculateChange(activeUsersCount, activeUsersPreviousCount),
+      },
+      revenue: {
+        value: totalRevenue,
+        change: calculateChange(totalRevenue, totalRevenuePrevious),
       },
     };
 
@@ -166,5 +205,55 @@ export class AdminAnalyticsService {
       .getRawMany();
 
     return usageTrends as { feature: string; count: string }[];
+  }
+
+  async getGrowthMetrics(period: 'week' | 'month' = 'week') {
+    const now = new Date();
+    const days = period === 'week' ? 7 : 30;
+    const startDate = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
+
+    const metrics = await this.appMetricRepo
+      .createQueryBuilder('metric')
+      .select('metric.date', 'date')
+      .addSelect(
+        "SUM(CASE WHEN metric.platform = 'ios' THEN metric.downloads ELSE 0 END)",
+        'ios_downloads',
+      )
+      .addSelect(
+        "SUM(CASE WHEN metric.platform = 'android' THEN metric.downloads ELSE 0 END)",
+        'android_downloads',
+      )
+      .addSelect(
+        "SUM(CASE WHEN metric.platform = 'ios' THEN metric.uninstalls ELSE 0 END)",
+        'ios_uninstalls',
+      )
+      .addSelect(
+        "SUM(CASE WHEN metric.platform = 'android' THEN metric.uninstalls ELSE 0 END)",
+        'android_uninstalls',
+      )
+      .where('metric.date >= :startDate', {
+        startDate: startDate.toISOString().split('T')[0],
+      })
+      .groupBy('metric.date')
+      .orderBy('metric.date', 'ASC')
+      .getRawMany();
+
+    return metrics.map((row: any) => ({
+      date: String(row.date),
+      downloads:
+        parseInt(String(row.ios_downloads || '0')) +
+        parseInt(String(row.android_downloads || '0')),
+      uninstalls:
+        parseInt(String(row.ios_uninstalls || '0')) +
+        parseInt(String(row.android_uninstalls || '0')),
+      ios: {
+        downloads: parseInt(String(row.ios_downloads || '0')),
+        uninstalls: parseInt(String(row.ios_uninstalls || '0')),
+      },
+      android: {
+        downloads: parseInt(String(row.android_downloads || '0')),
+        uninstalls: parseInt(String(row.android_uninstalls || '0')),
+      },
+    }));
   }
 }

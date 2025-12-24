@@ -10,6 +10,7 @@ import { AuthGuard } from 'src/guards/auth.guard';
 import { Reflector } from '@nestjs/core';
 import { RedisService } from '../redis/redis.service';
 import { BibleService } from '../bible/bible.service';
+import { AccessToken } from 'src/entities/access-token.entity';
 
 describe('DiscoverController', () => {
   let controller: DiscoverController;
@@ -28,15 +29,15 @@ describe('DiscoverController', () => {
           useValue: {},
         },
         {
+          provide: getRepositoryToken(AccessToken),
+          useValue: {},
+        },
+        {
           provide: GeminiService,
           useValue: {},
         },
         {
           provide: JwtService,
-          useValue: {},
-        },
-        {
-          provide: AuthGuard,
           useValue: {},
         },
         {
@@ -54,7 +55,10 @@ describe('DiscoverController', () => {
         },
         Reflector,
       ],
-    }).compile();
+    })
+      .overrideGuard(AuthGuard)
+      .useValue({ canActivate: () => true })
+      .compile();
 
     controller = module.get<DiscoverController>(DiscoverController);
   });
