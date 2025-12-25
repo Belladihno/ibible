@@ -22,13 +22,13 @@ import type { Request } from 'express';
 
 import { DailyVerseSummaryResponse } from 'src/shared/types/bible-verse.types';
 import { BibleVerseService } from './daily-verse.service';
-import type {
-  StartConversationResponse,
+import { PostMessageDto } from './dto/post-message.dto';
+import {
   ConversationHistoryResponse,
   ConversationSummary,
   PostMessageResponse,
-} from './daily-verse.service';
-import { PostMessageDto } from './dto/post-message.dto';
+  StartConversationResponse,
+} from 'src/shared/interfaces/daily-verse.interface';
 import { TrackActivity } from 'src/decorators/track-activity.decorator';
 
 interface AuthenticatedUser {

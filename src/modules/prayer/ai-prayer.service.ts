@@ -1,19 +1,24 @@
 import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { PrayerGeminiService } from './services/prayer-gemini.service';
 import { PrayerType } from 'src/entities/prayer.entity';
+import { GeminiService } from '../gemini/gemini.service';
+import { ReaFeature } from 'src/shared/enums';
 
 @Injectable()
 export class AiPrayerService {
   private readonly logger = new Logger(AiPrayerService.name);
-  constructor(private prayerGeminiService: PrayerGeminiService) {}
+  constructor(private gemini: GeminiService) {}
 
   async rephrasePrayerRequest(
     prayerRequest: string,
     type: PrayerType,
+    userId: string,
   ): Promise<string> {
     try {
       const prompt = this.buildRephrasePrompt(prayerRequest, type);
-      const result = await this.prayerGeminiService.generateContent(prompt);
+      const result = await this.gemini.generate(ReaFeature.PRAYER, prompt, {
+        userId,
+      });
       this.logger.debug(`Rephrase prompt length=${prompt.length}`);
       this.logger.debug(`Rephrase result length=${result?.length ?? 0}`);
 
@@ -59,10 +64,13 @@ export class AiPrayerService {
   async generatePrayer(
     rephrasedRequest: string,
     type: PrayerType,
+    userId: string,
   ): Promise<string> {
     try {
       const prompt = this.buildPrayerGenerationPrompt(rephrasedRequest, type);
-      const result = await this.prayerGeminiService.generateContent(prompt);
+      const result = await this.gemini.generate(ReaFeature.PRAYER, prompt, {
+        userId,
+      });
       this.logger.debug(`Generate prompt length=${prompt.length}`);
       this.logger.debug(`Generated prayer length=${result?.length ?? 0}`);
 

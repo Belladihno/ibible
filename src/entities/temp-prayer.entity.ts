@@ -5,19 +5,15 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
 } from 'typeorm';
-
-export enum TempPrayerType {
-  SELF = 'self',
-  OTHERS = 'others',
-}
+import { PrayerType } from './prayer.entity';
 
 @Entity('temp_prayers')
 export class TempPrayer {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ type: 'enum', enum: TempPrayerType, default: TempPrayerType.SELF })
-  type: TempPrayerType;
+  @Column({ type: 'enum', enum: PrayerType, default: PrayerType.SELF })
+  type: PrayerType;
 
   @Column('text')
   originalRequest: string;

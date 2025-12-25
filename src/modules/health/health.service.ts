@@ -5,8 +5,9 @@ import { InjectConnection } from '@nestjs/mongoose';
 import { Connection } from 'mongoose';
 import Redis from 'ioredis';
 import { ConfigService } from '@nestjs/config';
-import { GeminiService } from '../chat/services/gemini.service';
 import { BibleService } from '../bible/bible.service';
+import { GeminiService } from '../gemini/gemini.service';
+import { ReaFeature } from 'src/shared/enums';
 
 @Injectable()
 export class HealthService {
@@ -81,7 +82,14 @@ export class HealthService {
       }));
 
     const geminiCheck = withTimeout(
-      this.geminiService.generateContent('ping'),
+      this.geminiService.generate(
+        ReaFeature.CHAT,
+        'Reply with a single word: pong',
+        {
+          temperature: 0,
+          maxTokens: 5,
+        },
+      ),
       5000,
       'Gemini',
     )
@@ -89,9 +97,9 @@ export class HealthService {
         key: 'gemini',
         status: 'up',
         detail:
-          typeof res === 'string' && res.length
+          typeof res === 'string' && res.toLowerCase().includes('pong')
             ? 'Gemini API responded'
-            : 'Gemini API returned empty response',
+            : 'Gemini API returned unexpected response',
       }))
       .catch((err: unknown) => ({
         key: 'gemini',

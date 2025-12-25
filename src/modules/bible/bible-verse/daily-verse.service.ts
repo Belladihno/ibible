@@ -16,61 +16,21 @@ import {
   DailyVerseSummaryResponse,
   DailyVerseWithSummary,
 } from 'src/shared/types/bible-verse.types';
-import { DailyVerseGeminiService } from './daily-verse-gemini.service';
 import { DailyVerseConversation } from '../../../entities/daily-verse-conversation.entity';
 import { DailyVerseConversationMessage } from '../../../entities/daily-verse-conversation-message.entity';
+import { GeminiService } from 'src/modules/gemini/gemini.service';
+import {
+  ConversationHistoryResponse,
+  ConversationMetadata,
+  ConversationSummary,
+  MessagePair,
+  PostMessageResponse,
+  StartConversationResponse,
+} from 'src/shared/interfaces/daily-verse.interface';
+import { ChatRole, ReaFeature } from 'src/shared/enums';
+import { ChatMessage } from 'src/shared/types/chat.types';
 
 type MessageSender = 'user' | 'assistant';
-
-export interface ConversationMetadata {
-  id: string;
-  userId: string;
-  verseReference: string;
-  isActive: boolean;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-export interface MessageInfo {
-  id: string;
-  content: string;
-  createdAt: Date;
-}
-
-export interface MessagePair {
-  user: MessageInfo | null;
-  assistant: MessageInfo | null;
-}
-
-export interface StartConversationResponse {
-  conversation: ConversationMetadata;
-  aiMessage: DailyVerseConversationMessage;
-}
-
-export interface PostMessageResponse {
-  conversation: ConversationMetadata;
-  messagePairs: MessagePair[];
-}
-
-export interface ConversationHistoryResponse {
-  conversation: ConversationMetadata;
-  messagePairs: MessagePair[];
-}
-
-export interface ConversationSummary {
-  id: string;
-  verseReference: string;
-  isActive: boolean;
-  createdAt: Date;
-  updatedAt: Date;
-  messagePairs: MessagePair[];
-  lastPair: MessagePair | null;
-}
-
-interface GeminiHistoryEntry {
-  role: string;
-  content: string;
-}
 
 @Injectable()
 export class BibleVerseService implements OnModuleInit {
@@ -89,7 +49,7 @@ export class BibleVerseService implements OnModuleInit {
     @InjectRepository(DailyVerseConversationMessage)
     private readonly messageRepo: Repository<DailyVerseConversationMessage>,
     private readonly httpService: HttpService,
-    private readonly dailyGemini: DailyVerseGeminiService,
+    private readonly geminiService: GeminiService,
   ) {}
 
   async onModuleInit(): Promise<void> {
@@ -114,39 +74,32 @@ export class BibleVerseService implements OnModuleInit {
       throw new Error('Failed to retrieve daily verse');
     }
 
-    console.log('Cached Verse Data:', cached.verseData);
+    this.logger.debug('Retrieved cached verse data', {
+      verseData: cached.verseData,
+    });
     return JSON.parse(cached.verseData) as BibleVerse;
   }
 
   async getDailyVerseWithSummary(): Promise<DailyVerseSummaryResponse> {
     await this.ensureDailyVerse();
     const today = this.getToday();
-
     const cached = await this.dailyVerseRepo.findOne({
       where: { date: today },
     });
 
-    if (!cached) {
-      throw new Error('Failed to retrieve daily verse');
-    }
+    if (!cached) throw new Error('Failed to retrieve daily verse');
 
-    console.log('Cached Verse Data:', cached.verseData);
     const verse = JSON.parse(cached.verseData) as BibleVerse;
 
-    // ✅ Use cached AI summary (with fallback for old data)
     let summary: string;
 
     if (cached.aiSummary) {
-      // Use pre-generated summary from cache
       summary = cached.aiSummary;
       this.logger.debug('Using cached AI summary');
     } else {
-      // Fallback: generate summary if missing (for old data or failed cron jobs)
       this.logger.warn('AI summary missing, generating on-demand...');
       try {
-        summary = await this.dailyGemini.summarizeVerse(verse);
-
-        // Update cache for next time
+        summary = await this.generateAISummary(verse);
         cached.aiSummary = summary;
         await this.dailyVerseRepo.save(cached);
       } catch (err) {
@@ -169,6 +122,39 @@ export class BibleVerseService implements OnModuleInit {
     };
   }
 
+  private async generateAISummary(verse: BibleVerse): Promise<string> {
+    try {
+      return await this.geminiService.generate(ReaFeature.BIBLE, verse.text, {
+        systemPrompt: `Summarize this Bible verse in 1-2 sentences, biblically accurate: ${verse.reference}`,
+        temperature: 0.7,
+        maxTokens: 120,
+      });
+    } catch (err) {
+      this.logger.error('GeminiService failed to generate summary', err);
+      return `Reflect on ${verse.reference}. What does this verse mean to you today?`;
+    }
+  }
+
+  private async generateAIReply(
+    content: string,
+    history: ChatMessage[],
+  ): Promise<string> {
+    try {
+      return await this.geminiService.generate(ReaFeature.BIBLE, content, {
+        systemPrompt: `
+          You are Rea, a Bible-focused assistant.
+          Respond thoughtfully, biblically, and conversationally.
+        `.trim(),
+        history,
+        temperature: 0.7,
+        maxTokens: 400,
+      });
+    } catch (err) {
+      this.logger.error('GeminiService failed to generate reply', err);
+      return "Let's reflect on the verse together. What comes to your mind?";
+    }
+  }
+
   async startConversationForUser(
     userId: string,
   ): Promise<StartConversationResponse> {
@@ -177,7 +163,7 @@ export class BibleVerseService implements OnModuleInit {
     }
 
     const verse = await this.getDailyVerse();
-    const full = await this.dailyGemini.summarizeVerse(verse);
+    const full = await this.generateAISummary(verse);
 
     const conv = this.conversationRepo.create({
       userId,
@@ -217,8 +203,10 @@ export class BibleVerseService implements OnModuleInit {
     userId: string,
     content: string,
   ): Promise<PostMessageResponse> {
+    // 1️⃣ Fetch conversation
     const conv = await this.conversationRepo.findOne({
       where: { id: conversationId },
+      relations: ['messages'], // Include messages for history
     });
 
     if (!conv) {
@@ -228,33 +216,38 @@ export class BibleVerseService implements OnModuleInit {
     if (conv.userId !== userId) {
       throw new BadRequestException('Not allowed');
     }
-
     const userMsg = this.messageRepo.create({
       conversation: conv,
       sender: 'user' as MessageSender,
       content,
     });
     await this.messageRepo.save(userMsg);
+    const historyEntities = (conv.messages || []).sort(
+      (a, b) => a.createdAt.getTime() - b.createdAt.getTime(),
+    );
 
-    const historyEntities = await this.messageRepo.find({
-      where: { conversation: { id: conv.id } },
-      order: { createdAt: 'ASC' },
-    });
-
-    const history: GeminiHistoryEntry[] = historyEntities.map((m) => ({
-      role: m.sender === 'user' ? 'user' : 'model',
+    const history: ChatMessage[] = historyEntities.map((m) => ({
+      role: m.sender === 'user' ? ChatRole.USER : ChatRole.ASSISTANT,
       content: m.content,
     }));
 
-    const aiReply = await this.dailyGemini.generateReply(content, history);
-    const verseReference = conv.verseReference; // e.g., "John 3:16"
+    let aiReply: string;
+    try {
+      aiReply = await this.geminiService.generate(ReaFeature.BIBLE, content, {
+        systemPrompt: `
+        You are Rea, a Bible-focused Christian assistant.
+        Respond thoughtfully, biblically, and conversationally.
+      `.trim(),
+        history,
+        temperature: 0.7,
+        maxTokens: 400,
+      });
+    } catch (err) {
+      this.logger.error('Failed to generate AI reply', err);
+      aiReply = `Reflect on ${conv.verseReference}. What does this verse mean to you today?`;
+    }
 
-    const dailyVerse = await this.getDailyVerse();
-    const verseContext = {
-      reference: verseReference,
-      text: dailyVerse.text,
-    };
-
+    // 5️⃣ Save AI message
     const aiMsg = this.messageRepo.create({
       conversation: conv,
       sender: 'assistant' as MessageSender,
@@ -262,7 +255,7 @@ export class BibleVerseService implements OnModuleInit {
     });
     await this.messageRepo.save(aiMsg);
 
-    // Get all messages and build pairs
+    // 6️⃣ Build message pairs
     const allMessages = await this.messageRepo.find({
       where: { conversation: { id: conv.id } },
       order: { createdAt: 'ASC' },
@@ -406,6 +399,20 @@ export class BibleVerseService implements OnModuleInit {
   }
 
   private async fetchAndCacheVerse(): Promise<void> {
+    const today = this.getToday();
+
+    // Check if verse already exists for today
+    const existingVerse = await this.dailyVerseRepo.findOne({
+      where: { date: today },
+    });
+
+    if (existingVerse) {
+      this.logger.debug(
+        `Daily verse already exists for ${today}, skipping cache`,
+      );
+      return;
+    }
+
     try {
       const response = await firstValueFrom(
         this.httpService.get<BibleApiResponse>(this.API_URL),
@@ -423,31 +430,51 @@ export class BibleVerseService implements OnModuleInit {
 
       let aiSummary: string | null = null;
       try {
-        aiSummary = await this.dailyGemini.summarizeVerse(verse);
+        aiSummary = await this.generateAISummary(verse);
         this.logger.log(`Generated AI summary for ${verse.reference}`);
       } catch (err) {
         this.logger.error('Failed to generate AI summary during caching', err);
         aiSummary = `Reflect on ${verse.reference}. What does this verse mean to you today?`;
       }
 
-      const today = this.getToday();
+      // Use upsert-like operation with error handling for race conditions
+      try {
+        await this.dailyVerseRepo.save({
+          date: today,
+          reference: verse.reference,
+          verseData: JSON.stringify(verse),
+          aiSummary,
+        });
 
-      // Delete old verses (optional cleanup)
-      await this.dailyVerseRepo.delete({
-        date: this.getYesterday(),
-      });
+        this.logger.log(
+          `Cached new daily verse: ${verse.reference} for ${today}`,
+        );
 
-      // Save new verse
-      await this.dailyVerseRepo.save({
-        date: today,
-        reference: verse.reference,
-        verseData: JSON.stringify(verse),
-        aiSummary,
-      });
-
-      this.logger.log(
-        `Cached new daily verse: ${verse.reference} for ${today}`,
-      );
+        // Clean up old verses after successful save
+        await this.dailyVerseRepo.delete({
+          date: this.getYesterday(),
+        });
+      } catch (saveError: any) {
+        // Handle potential race condition - check if another process already saved it
+        if (
+          saveError.code === '23505' ||
+          saveError.message?.includes('duplicate key')
+        ) {
+          this.logger.warn(
+            `Race condition detected: Daily verse for ${today} was already saved by another process`,
+          );
+          // Verify the verse exists
+          const verifyVerse = await this.dailyVerseRepo.findOne({
+            where: { date: today },
+          });
+          if (verifyVerse) {
+            this.logger.debug(`Confirmed existing verse for ${today}`);
+            return;
+          }
+        }
+        // Re-throw if it's not a duplicate key error
+        throw saveError;
+      }
     } catch (error) {
       this.logger.error('Failed to fetch and cache verse', error);
       throw error;

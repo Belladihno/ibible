@@ -1,17 +1,15 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { JwtModule } from '@nestjs/jwt';
 import { BibleVerseController } from './daily-verse.controller';
 import { BibleVerseService } from './daily-verse.service';
 import { DailyVerse } from 'src/entities/bible-verse.entity';
 import { HttpModule } from '@nestjs/axios';
-import { DailyVerseGeminiService } from './daily-verse-gemini.service';
 import { DailyVerseConversation } from '../../../entities/daily-verse-conversation.entity';
 import { DailyVerseConversationMessage } from '../../../entities/daily-verse-conversation-message.entity';
 import { BibleVersion } from 'src/entities/bible-version.entity';
+import { GeminiModule } from 'src/modules/gemini/gemini.module';
+import { UserModule } from 'src/modules/user/user.module';
 import { AccessToken } from 'src/entities/access-token.entity';
-import { AuthGuard } from 'src/guards/auth.guard';
-import appConfig from 'src/config/auth.config';
 
 @Module({
   imports: [
@@ -22,19 +20,12 @@ import appConfig from 'src/config/auth.config';
       DailyVerseConversationMessage,
       AccessToken,
     ]),
-    JwtModule.register({
-      secret: appConfig().jwtSecret,
-      signOptions: { expiresIn: '7d' },
-    }),
     HttpModule,
+    GeminiModule,
+    UserModule,
   ],
   controllers: [BibleVerseController],
-  providers: [
-    BibleVerseService,
-    DailyVerseGeminiService,
-    DailyVerseConversation,
-    AuthGuard,
-  ],
+  providers: [BibleVerseService, DailyVerseConversation],
   exports: [BibleVerseService, DailyVerseConversation],
 })
 export class BibleVerseModule {}

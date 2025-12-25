@@ -17,6 +17,7 @@ import { MeditationDailyVerse } from 'src/entities/meditation-daily-verse.entity
 import { MeditationSession } from 'src//entities/meditation-session.entity';
 import { AccessToken } from 'src/entities/access-token.entity';
 import { ScheduleModule } from '@nestjs/schedule';
+import { GeminiModule } from '../gemini/gemini.module';
 
 @Module({
   imports: [
@@ -34,13 +35,13 @@ import { ScheduleModule } from '@nestjs/schedule';
     }),
 
     ScheduleModule.forRoot(),
+    GeminiModule,
   ],
   controllers: [MeditationController],
   providers: [
     MeditationService,
     MeditationVerseService,
     MeditationSchedulerService,
-    ReflectionGeminiService,
     AuthGuard,
   ],
 

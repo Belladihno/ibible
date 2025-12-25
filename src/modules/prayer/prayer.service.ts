@@ -38,10 +38,11 @@ export class PrayerService {
     const rephrasedRequest = await this.aiPrayerService.rephrasePrayerRequest(
       createPrayerDto.originalRequest,
       createPrayerDto.type,
+      userId,
     );
 
     const temp = this.tempPrayerRepository.create({
-      type: createPrayerDto.type as any,
+      type: createPrayerDto.type,
       originalRequest: createPrayerDto.originalRequest,
       rephrasedRequest,
       userId,
@@ -88,11 +89,12 @@ export class PrayerService {
 
       const aiPrayer = await this.aiPrayerService.generatePrayer(
         source,
-        temp.type as any,
+        temp.type,
+        temp.userId,
       );
 
       const newPrayer = this.prayerRepository.create({
-        type: temp.type as any,
+        type: temp.type,
         originalRequest: temp.originalRequest,
         rephrasedRequest: rephrased,
         aiPrayer,
@@ -122,6 +124,7 @@ export class PrayerService {
     prayer.aiPrayer = await this.aiPrayerService.generatePrayer(
       source,
       prayer.type,
+      prayer.userId,
     );
 
     logger.debug(`Generated aiPrayer length=${prayer.aiPrayer?.length ?? 0}`);

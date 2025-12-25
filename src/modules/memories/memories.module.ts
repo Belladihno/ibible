@@ -15,8 +15,8 @@ import { BibleModule } from '../bible/bible.module';
 import { ChatModule } from '../chat/chat.module';
 import { RedisModule } from '../redis/redis.module';
 import { QueueModule } from '../queue/queue.module';
+import { GeminiModule } from '../gemini/gemini.module';
 import { AccessToken } from 'src/entities/access-token.entity';
-import { AuthGuard } from 'src/guards/auth.guard';
 
 @Module({
   imports: [
@@ -33,7 +33,7 @@ import { AuthGuard } from 'src/guards/auth.guard';
     ConfigModule,
     NotificationsModule,
     BibleModule,
-    ChatModule,
+    GeminiModule,
     RedisModule,
     QueueModule,
   ],
@@ -43,7 +43,6 @@ import { AuthGuard } from 'src/guards/auth.guard';
     NotificationsAdapter,
     MemoriesScheduler,
     AiMemoryService,
-    AuthGuard,
   ],
   exports: [MemoriesService],
 })

@@ -99,7 +99,8 @@ export class ChatController {
   })
   @ApiResponse({
     status: HttpStatus.TOO_MANY_REQUESTS,
-    description: 'Rate limit exceeded (20 messages per minute)',
+    description:
+      'Rate limit exceeded (3 AI requests per minute or 15 per day across all AI features)',
   })
   @HttpCode(HttpStatus.CREATED)
   @TrackActivity('chat_message_sent', {

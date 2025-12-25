@@ -7,9 +7,11 @@ import {
 } from '../../schemas/chat-conversation.schema';
 import { CreateMessageDto } from './dto/create-message.dto';
 import { MessageSender } from '../../schemas/chat-message.schema';
-import { GeminiService } from './services/gemini.service';
 import { ChatContextService } from './services/chat-context.service';
 import Redis from 'ioredis';
+import { GeminiService } from '../gemini/gemini.service';
+import { ChatRole, ReaFeature } from 'src/shared/enums';
+import { ChatMessage } from 'src/shared/types/chat.types';
 
 @Injectable()
 export class ChatService {
@@ -18,14 +20,11 @@ export class ChatService {
   constructor(
     @InjectModel(ChatConversation.name)
     private chatConversationModel: Model<ChatConversationDocument>,
-    private geminiService: GeminiService,
+    private gemini: GeminiService,
     private chatContextService: ChatContextService,
     @Inject('REDIS_CLIENT') private readonly redis: Redis,
   ) {}
 
-  /**
-   * Create conversation with AI title (wait for it)
-   */
   async createConversation(
     userId: string,
     firstMessage?: string,
@@ -35,7 +34,7 @@ export class ChatService {
     if (firstMessage) {
       try {
         // WAIT for AI title (fast, should be < 2 seconds)
-        title = await this.getAITitleWithTimeout(firstMessage);
+        title = await this.getAITitleWithTimeout(firstMessage, userId);
         this.logger.log(`AI title created: "${title}"`);
       } catch (error) {
         this.logger.warn(`AI title failed, using simple: ${error.message}`);
@@ -59,13 +58,27 @@ export class ChatService {
   /**
    * Get AI title with short timeout
    */
-  private async getAITitleWithTimeout(userMessage: string): Promise<string> {
-    const titlePromise = this.geminiService.generateTitle(userMessage);
+  private async getAITitleWithTimeout(
+    userMessage: string,
+    userId: string,
+  ): Promise<string> {
+    const prompt = `
+      Generate a very short title (2–5 words) for this conversation.
+      Do not use punctuation, quotes, or explanations.
+      Return ONLY the title text.
+      `.trim();
+    const titlePromise = this.gemini.generate(ReaFeature.CHAT, userMessage, {
+      systemPrompt: prompt,
+      temperature: 0.4,
+      maxTokens: 20,
+      userId: userId,
+    });
+
     const timeoutPromise = new Promise<string>((_, reject) => {
       setTimeout(() => reject(new Error('AI title timeout')), 2000);
     });
 
-    return await Promise.race([titlePromise, timeoutPromise]);
+    return Promise.race([titlePromise, timeoutPromise]);
   }
 
   /**
@@ -107,39 +120,26 @@ export class ChatService {
    * Main message handler
    */
   async sendMessage(userId: string, createMessageDto: CreateMessageDto) {
-    // Rate limiting
-    const rateLimitKey = `chat_limit:${userId}`;
-    const currentUsage = await this.redis.incr(rateLimitKey);
-    if (currentUsage === 1) {
-      await this.redis.expire(rateLimitKey, 60);
-    }
-    if (currentUsage > 20) {
-      throw new Error('Rate limit exceeded. Please try again later.');
-    }
-
-    // Find or create conversation
-    let conversation: ChatConversationDocument | null;
+    // -------------------- FETCH OR CREATE CONVERSATION --------------------
+    let conversation: ChatConversationDocument;
 
     if (createMessageDto.conversationId) {
-      const existingConversation = await this.chatConversationModel.findOne({
+      const existing = await this.chatConversationModel.findOne({
         _id: createMessageDto.conversationId,
         userId,
         isActive: true,
       });
 
-      if (!existingConversation) {
-        throw new NotFoundException('Conversation not found');
-      }
-      conversation = existingConversation;
+      if (!existing) throw new NotFoundException('Conversation not found');
+      conversation = existing;
     } else {
-      // NEW: Wait for AI title before responding
       conversation = await this.createConversation(
         userId,
         createMessageDto.content,
       );
     }
 
-    // Add user message
+    // -------------------- ADD USER MESSAGE --------------------
     conversation.messages.push({
       sender: MessageSender.USER,
       content: createMessageDto.content,
@@ -147,26 +147,31 @@ export class ChatService {
       references: [],
     });
 
-    // Extract scripture references
     const scriptureReferences = this.extractScriptureReferences(
       createMessageDto.content,
     );
-
     await conversation.save();
 
-    // Build context
+    // -------------------- BUILD SYSTEM PROMPT --------------------
     const systemPrompt = await this.chatContextService.buildContext(
       userId,
       conversation.id as string,
       createMessageDto.content,
     );
 
-    // Generate AI response
+    // -------------------- GENERATE AI RESPONSE --------------------
     let aiResponseContent: string;
+
     try {
-      aiResponseContent = await this.geminiService.generateContent(
+      aiResponseContent = await this.gemini.generate(
+        ReaFeature.CHAT,
         createMessageDto.content,
-        systemPrompt,
+        {
+          systemPrompt,
+          temperature: 0.7,
+          maxTokens: 1200, // increased to reduce cut-off
+          userId: userId,
+        },
       );
     } catch (error) {
       this.logger.error('AI response error:', error);
@@ -176,7 +181,7 @@ export class ChatService {
       );
     }
 
-    // Ensure response is not empty
+    // Ensure AI response is not empty
     if (!aiResponseContent || aiResponseContent.trim() === '') {
       aiResponseContent = this.getFallbackResponse(
         createMessageDto.content,
@@ -188,7 +193,7 @@ export class ChatService {
     const aiResponseReferences =
       this.extractScriptureReferences(aiResponseContent);
 
-    // Add AI response
+    // -------------------- ADD AI MESSAGE --------------------
     conversation.messages.push({
       sender: MessageSender.AI,
       content: aiResponseContent,
@@ -470,18 +475,32 @@ export class ChatService {
   // ==================== EXISTING METHODS ====================
 
   private extractScriptureReferences(content: string): string[] {
-    const regex =
-      /((?:[1-3]\s)?[A-Z][a-z]+(?:\s[A-Z][a-z]+)?)\s+(\d+):(\d+(?:-\d+)?)/g;
-    const matches: string[] = [];
-    let match;
+    // Split content into words
+    const words = content.split(/\s+/);
 
-    while ((match = regex.exec(content)) !== null) {
-      if (match[1] && match[2] && match[3]) {
-        matches.push(`${match[1]} ${match[2]}:${match[3]}`);
+    const references: string[] = [];
+
+    for (let i = 0; i < words.length; i++) {
+      let word = words[i];
+
+      word = word.replace(/^[^\w\d]+|[^\w\d]+$/g, '');
+      let bookName = word;
+      if (/^[1-3]$/.test(word) && words[i + 1]) {
+        bookName = `${word} ${words[i + 1].replace(/^[^\w\d]+|[^\w\d]+$/g, '')}`;
+        i++;
+      }
+
+      const nextWord = words[i + 1] || '';
+      const chapterVerseMatch = nextWord.match(/^(\d+):(\d+(?:-\d+)?)$/);
+      if (chapterVerseMatch) {
+        references.push(
+          `${bookName} ${chapterVerseMatch[1]}:${chapterVerseMatch[2]}`,
+        );
+        i++;
       }
     }
 
-    return matches;
+    return references;
   }
 
   private async generateAIResponse(
@@ -490,31 +509,39 @@ export class ChatService {
     conversation?: ChatConversationDocument,
   ): Promise<string> {
     try {
-      let response: string;
+      const history: ChatMessage[] =
+        conversation?.messages?.slice(0, -1).map((msg) => ({
+          role:
+            msg.sender === MessageSender.USER
+              ? ChatRole.USER
+              : ChatRole.ASSISTANT,
+          content: msg.content,
+        })) ?? [];
 
-      if (conversation && conversation.messages.length > 1) {
-        const history = conversation.messages.slice(0, -1).map((msg) => ({
-          role: msg.sender === MessageSender.USER ? 'user' : 'model',
-          parts: [{ text: msg.content }],
-        }));
+      const response = await this.gemini.generate(
+        ReaFeature.CHAT,
+        userMessage,
+        {
+          systemPrompt: `
+            You are Rea, a Bible-focused Christian assistant.
+            Respond thoughtfully, biblically, and conversationally.
+            If scripture references are provided, respect them.
+            Avoid bullet points and titles.
+            Never stop mid-sentence.
+            Respond in well-structured paragraphs.
+          `.trim(),
+          history,
+          temperature: 0.7,
+          maxTokens: 900,
+        },
+      );
 
-        response = await this.geminiService.generateBibleSpecificContent(
-          userMessage,
-          references,
-        );
-      } else {
-        response = await this.geminiService.generateBibleSpecificContent(
-          userMessage,
-          references,
-        );
-      }
-
-      if (!response || response.trim() === '') {
+      if (!response || !response.trim()) {
         return this.getFallbackResponse(userMessage, references);
       }
 
-      return response;
-    } catch (error) {
+      return response.trim();
+    } catch {
       return this.getFallbackResponse(userMessage, references);
     }
   }

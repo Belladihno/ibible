@@ -6,6 +6,7 @@ import { Prayer } from 'src/entities/prayer.entity';
 import { TempPrayer } from 'src/entities/temp-prayer.entity';
 import { PrayerReminder } from 'src/entities/prayer-reminder.entity';
 import { AiPrayerService } from './ai-prayer.service';
+import { CreatePrayerDto } from './dto/create-prayer.dto';
 
 describe('PrayerService', () => {
   let service: PrayerService;
@@ -29,8 +30,8 @@ describe('PrayerService', () => {
   const mockReminderRepo: Partial<Repository<PrayerReminder>> = {};
 
   const mockAiService: Partial<AiPrayerService> = {
-    rephrasePrayerRequest: jest.fn(),
-    generatePrayer: jest.fn(),
+    rephrasePrayerRequest: jest.fn().mockResolvedValue('Rephrased request'),
+    generatePrayer: jest.fn().mockResolvedValue('Generated prayer'),
   };
 
   beforeEach(async () => {
@@ -72,12 +73,13 @@ describe('PrayerService', () => {
       (tempRepo.save as jest.Mock).mockResolvedValue(createdTemp);
 
       const result = await service.createPrayer(
-        { originalRequest: 'original', type: 'self' } as any,
+        { originalRequest: 'original', type: 'self' } as CreatePrayerDto,
         'user-1',
       );
       expect(aiService.rephrasePrayerRequest).toHaveBeenCalledWith(
         'original',
         'self',
+        'user-1',
       );
       expect(tempRepo.save).toHaveBeenCalled();
       expect(result).toEqual(
@@ -127,6 +129,7 @@ describe('PrayerService', () => {
       expect(aiService.generatePrayer).toHaveBeenCalledWith(
         'rephrased',
         'self',
+        'user-1',
       );
       expect(prayerRepo.save).toHaveBeenCalledWith(createdPrayer);
       expect(tempRepo.delete).toHaveBeenCalledWith({ id: 'temp-1' });
@@ -159,6 +162,7 @@ describe('PrayerService', () => {
       expect(aiService.generatePrayer).toHaveBeenCalledWith(
         'rephrased',
         'self',
+        'user-1',
       );
       expect(prayerRepo.save).toHaveBeenCalled();
       expect(res.aiPrayer).toBe('generated text');
