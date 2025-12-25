@@ -277,6 +277,7 @@ export class MemoriesService {
         const rephrasedText = await this.aiMemoryService.rephraseMemory(
           payload.title ?? '',
           payload.body ?? '',
+          userId,
         );
         aiRephrase = { text: rephrasedText, source: 'gemini' };
         this.logger.debug('AI rephrase successful');
@@ -535,6 +536,7 @@ export class MemoriesService {
         const rephrasedText = await this.aiMemoryService.rephraseMemory(
           String(title),
           String(body),
+          String(doc.userId),
         );
 
         payload.aiRephrase = {

@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { GeminiService } from './gemini.service';
 import { ConfigService } from '@nestjs/config';
 import { ReaFeature, ChatRole } from 'src/shared/enums';
+import Redis from 'ioredis';
 
 describe('GeminiService', () => {
   let service!: GeminiService;
@@ -12,12 +13,20 @@ describe('GeminiService', () => {
       get: jest.fn().mockReturnValue('test-api-key'),
     };
 
+    const redisMock = {
+      incr: jest.fn(),
+      expire: jest.fn(),
+      get: jest.fn(),
+      set: jest.fn(),
+    };
+
     global.fetch = jest.fn();
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         GeminiService,
         { provide: ConfigService, useValue: configService },
+        { provide: 'REDIS_CLIENT', useValue: redisMock },
       ],
     }).compile();
 
@@ -35,8 +44,18 @@ describe('GeminiService', () => {
   it('throws if API key is missing', async () => {
     configService.get.mockReturnValueOnce(undefined);
 
+    const redisMock = {
+      incr: jest.fn(),
+      expire: jest.fn(),
+      get: jest.fn(),
+      set: jest.fn(),
+    };
+
     expect(() => {
-      new GeminiService(configService as any);
+      new GeminiService(
+        configService as unknown as ConfigService,
+        redisMock as unknown as Redis,
+      );
     }).toThrow('OPENROUTER_API_KEY is required');
   });
 

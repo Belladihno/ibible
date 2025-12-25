@@ -1,4 +1,11 @@
-import { Controller, Get, UseGuards, Query, HttpStatus } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  UseGuards,
+  Query,
+  HttpStatus,
+  Post,
+} from '@nestjs/common';
 import {
   ApiTags,
   ApiOperation,
@@ -10,7 +17,9 @@ import { AuthGuard } from 'src/guards/auth.guard';
 import { RolesGuard } from 'src/guards/roles.guard';
 import { Roles } from 'src/decorators/roles.decorator';
 import { UserRole } from '../user/enums/user.enums';
+import { Throttle } from '@nestjs/throttler';
 import { AdminAnalyticsService } from './admin-analytics.service';
+import { AppMetricsSyncService } from './app-metrics-sync.service';
 
 @ApiTags('Admin Analytics')
 @ApiBearerAuth()
@@ -18,7 +27,10 @@ import { AdminAnalyticsService } from './admin-analytics.service';
 @Roles(UserRole.SUPER_ADMIN)
 @Controller('admin/analytics')
 export class AdminAnalyticsController {
-  constructor(private readonly analyticsService: AdminAnalyticsService) {}
+  constructor(
+    private readonly analyticsService: AdminAnalyticsService,
+    private readonly appMetricsSyncService: AppMetricsSyncService,
+  ) {}
 
   @Get('overview')
   @ApiOperation({ summary: 'Get overview metrics for dashboard cards' })
@@ -30,6 +42,7 @@ export class AdminAnalyticsController {
         totalUsers: { value: 1250, change: 15 },
         newUsers: { value: 120, change: 8 },
         activeUsers: { value: 450, change: -2 },
+        revenue: { value: 15420.5, change: 12 },
       },
     },
   })
@@ -101,5 +114,55 @@ export class AdminAnalyticsController {
   async getUsage() {
     const trends = await this.analyticsService.getUsageTrends();
     return { trends };
+  }
+
+  @Get('growth')
+  @ApiOperation({ summary: 'Get app growth metrics (downloads vs uninstalls)' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Time series data for downloads and uninstalls',
+    schema: {
+      example: [
+        {
+          date: '2025-12-01',
+          downloads: 245,
+          uninstalls: 23,
+          ios: { downloads: 150, uninstalls: 15 },
+          android: { downloads: 95, uninstalls: 8 },
+        },
+      ],
+    },
+  })
+  @ApiQuery({
+    name: 'period',
+    required: false,
+    description: 'Time period (week or month)',
+    example: 'week',
+  })
+  async getGrowth(@Query('period') period: 'week' | 'month' = 'week') {
+    return this.analyticsService.getGrowthMetrics(period);
+  }
+
+  @Post('sync')
+  @Throttle({ short: { limit: 1, ttl: 30000 } }) // 1 request per 30 seconds
+  @ApiOperation({ summary: 'Manually trigger app metrics sync' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Sync completed successfully',
+    schema: {
+      example: {
+        message: 'App metrics sync completed for 2025-12-22',
+        date: '2025-12-22',
+      },
+    },
+  })
+  @ApiQuery({
+    name: 'date',
+    required: false,
+    description: 'Specific date to sync (YYYY-MM-DD)',
+    example: '2025-12-22',
+  })
+  async manualSync(@Query('date') date?: string) {
+    return this.appMetricsSyncService.manualSync(date);
   }
 }

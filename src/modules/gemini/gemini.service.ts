@@ -1,7 +1,8 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Inject } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { ChatRole, ReaFeature } from 'src/shared/enums';
 import { ChatMessage } from 'src/shared/types/chat.types';
+import Redis from 'ioredis';
 
 interface OpenRouterResponse {
   choices: { message: { content: string } }[];
@@ -13,7 +14,10 @@ export class GeminiService {
   private readonly apiKey: string;
   private readonly baseUrl = 'https://openrouter.ai/api/v1/chat/completions';
 
-  constructor(private readonly configService: ConfigService) {
+  constructor(
+    private readonly configService: ConfigService,
+    @Inject('REDIS_CLIENT') private readonly redis: Redis,
+  ) {
     const key = this.configService.get<string>('OPENROUTER_API_KEY');
     if (!key) throw new Error('OPENROUTER_API_KEY is required');
     this.apiKey = key;
@@ -37,8 +41,70 @@ export class GeminiService {
       history?: ChatMessage[];
       temperature?: number;
       maxTokens?: number;
+      userId?: string;
     },
   ): Promise<string> {
+    // GLOBAL AI RATE LIMIT
+    if (options?.userId) {
+      // Authenticated user limits
+      // Daily limit check
+      const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+      const dailyKey = `ai_daily_limit:${options.userId}:${today}`;
+      const dailyUsage = await this.redis.incr(dailyKey);
+      if (dailyUsage === 1) {
+        // Expire at end of day
+        const now = new Date();
+        const endOfDay = new Date(now);
+        endOfDay.setHours(23, 59, 59, 999);
+        const ttl = Math.floor((endOfDay.getTime() - now.getTime()) / 1000);
+        await this.redis.expire(dailyKey, ttl);
+      }
+      if (dailyUsage > 15) {
+        throw new Error(
+          'Daily AI request limit exceeded (15 requests per day). Please try again tomorrow.',
+        );
+      }
+
+      // Per-minute limit check
+      const rateLimitKey = `ai_limit:${options.userId}`;
+      const currentUsage = await this.redis.incr(rateLimitKey);
+      if (currentUsage === 1) await this.redis.expire(rateLimitKey, 60);
+      if (currentUsage > 3) {
+        throw new Error(
+          'AI request rate limit exceeded (3 requests per minute). Please try again later.',
+        );
+      }
+    } else {
+      // Public/unauthenticated limits - shared across all public requests
+      // Daily limit check
+      const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+      const dailyKey = `ai_public_daily_limit:${today}`;
+      const dailyUsage = await this.redis.incr(dailyKey);
+      if (dailyUsage === 1) {
+        // Expire at end of day
+        const now = new Date();
+        const endOfDay = new Date(now);
+        endOfDay.setHours(23, 59, 59, 999);
+        const ttl = Math.floor((endOfDay.getTime() - now.getTime()) / 1000);
+        await this.redis.expire(dailyKey, ttl);
+      }
+      if (dailyUsage > 5) {
+        throw new Error(
+          'Daily public AI request limit exceeded (5 requests per day). Please try again tomorrow.',
+        );
+      }
+
+      // Per-minute limit check
+      const rateLimitKey = `ai_public_limit`;
+      const currentUsage = await this.redis.incr(rateLimitKey);
+      if (currentUsage === 1) await this.redis.expire(rateLimitKey, 60);
+      if (currentUsage > 1) {
+        throw new Error(
+          'Public AI request rate limit exceeded (1 request per minute). Please try again later.',
+        );
+      }
+    }
+
     const model = GeminiService.FEATURE_MODEL_MAP[feature];
 
     const messages: ChatMessage[] = [

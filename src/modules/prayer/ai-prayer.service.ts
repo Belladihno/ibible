@@ -12,10 +12,13 @@ export class AiPrayerService {
   async rephrasePrayerRequest(
     prayerRequest: string,
     type: PrayerType,
+    userId: string,
   ): Promise<string> {
     try {
       const prompt = this.buildRephrasePrompt(prayerRequest, type);
-      const result = await this.gemini.generate(ReaFeature.PRAYER, prompt);
+      const result = await this.gemini.generate(ReaFeature.PRAYER, prompt, {
+        userId,
+      });
       this.logger.debug(`Rephrase prompt length=${prompt.length}`);
       this.logger.debug(`Rephrase result length=${result?.length ?? 0}`);
 
@@ -61,10 +64,13 @@ export class AiPrayerService {
   async generatePrayer(
     rephrasedRequest: string,
     type: PrayerType,
+    userId: string,
   ): Promise<string> {
     try {
       const prompt = this.buildPrayerGenerationPrompt(rephrasedRequest, type);
-      const result = await this.gemini.generate(ReaFeature.PRAYER, prompt);
+      const result = await this.gemini.generate(ReaFeature.PRAYER, prompt, {
+        userId,
+      });
       this.logger.debug(`Generate prompt length=${prompt.length}`);
       this.logger.debug(`Generated prayer length=${result?.length ?? 0}`);
 

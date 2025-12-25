@@ -17,7 +17,7 @@ import {
   ApiBody,
   ApiParam,
 } from '@nestjs/swagger';
-import { AuthGuard } from '@nestjs/passport';
+import { AuthGuard } from 'src/guards/auth.guard';
 import type { Request } from 'express';
 
 import { DailyVerseSummaryResponse } from 'src/shared/types/bible-verse.types';
@@ -100,7 +100,7 @@ export class BibleVerseController {
   @TrackActivity('bible_verse_chat_start', {
     response: ['conversation.id', 'conversation.verseReference'],
   })
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard)
   @ApiBearerAuth()
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({
@@ -164,7 +164,7 @@ export class BibleVerseController {
   }
 
   @Post('daily/conversations/:id/message')
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard)
   @ApiBearerAuth()
   @HttpCode(HttpStatus.CREATED)
   @ApiParam({
@@ -264,7 +264,7 @@ export class BibleVerseController {
   }
 
   @Get('daily/conversations/:id')
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard)
   @ApiBearerAuth()
   @HttpCode(HttpStatus.OK)
   @ApiParam({
@@ -340,7 +340,7 @@ export class BibleVerseController {
   }
 
   @Get('daily/conversations-history')
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard)
   @ApiBearerAuth()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({

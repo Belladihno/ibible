@@ -14,7 +14,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 
-import { AuthGuard } from '@nestjs/passport';
+import { AuthGuard } from 'src/guards/auth.guard';
 import type { Request } from 'express';
 import {
   ApiBearerAuth,
@@ -37,7 +37,7 @@ export class PrayerReminderController {
   constructor(private readonly prayerReminder: PrayerReminderService) {}
 
   @Post(':prayerId/reminders')
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard)
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Create a reminder for a specific prayer (owner only)',
@@ -83,7 +83,7 @@ export class PrayerReminderController {
   }
 
   @Get('reminders')
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard)
   @ApiBearerAuth()
   @ApiOperation({
     summary: "Get the authenticated user's reminders",
@@ -112,7 +112,7 @@ export class PrayerReminderController {
   }
 
   @Get('reminders/:id')
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get a single reminder by id (owner only)' })
   @ApiOkResponse({ description: SYM.REMINDER_FETCHED })
@@ -142,7 +142,7 @@ export class PrayerReminderController {
   }
 
   @Patch('reminders/:id')
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update a reminder (owner only)' })
   @ApiBody({ type: UpdateReminderDto })
@@ -176,7 +176,7 @@ export class PrayerReminderController {
   }
 
   @Delete('reminders/:id')
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Delete a reminder (owner only)' })
   @ApiOkResponse({ description: SYM.REMINDER_DELETED })

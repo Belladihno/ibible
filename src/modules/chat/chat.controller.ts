@@ -19,7 +19,7 @@ import {
   ApiBearerAuth,
   ApiQuery,
 } from '@nestjs/swagger';
-import { AuthGuard } from '@nestjs/passport';
+import { AuthGuard } from 'src/guards/auth.guard';
 import type { Request } from 'express';
 import { ChatService } from './chat.service';
 import { CreateMessageDto } from './dto/create-message.dto';
@@ -36,7 +36,7 @@ export class ChatController {
   constructor(private readonly chatService: ChatService) {}
 
   @Post('message')
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard)
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Send a message to Rea (Bible AI companion)',
@@ -99,7 +99,8 @@ export class ChatController {
   })
   @ApiResponse({
     status: HttpStatus.TOO_MANY_REQUESTS,
-    description: 'Rate limit exceeded (20 messages per minute)',
+    description:
+      'Rate limit exceeded (3 AI requests per minute or 15 per day across all AI features)',
   })
   @HttpCode(HttpStatus.CREATED)
   @TrackActivity('chat_message_sent', {
@@ -129,7 +130,7 @@ export class ChatController {
   }
 
   @Get('conversations')
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard)
   @ApiBearerAuth()
   @ApiOperation({
     summary: "Get user's conversation history",
@@ -195,7 +196,7 @@ export class ChatController {
   }
 
   @Get('conversations/search')
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard)
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Search conversations by title',
@@ -310,7 +311,7 @@ export class ChatController {
   }
 
   @Post('conversations/advanced-search')
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard)
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Advanced conversation search with multiple filters',
@@ -441,7 +442,7 @@ export class ChatController {
   }
 
   @Get('conversations/:id')
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get a specific conversation' })
   @ApiResponse({
@@ -503,7 +504,7 @@ export class ChatController {
   }
 
   @Delete('conversations/:id')
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Delete a specific conversation' })
   @ApiResponse({

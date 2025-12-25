@@ -4,6 +4,7 @@ import { DiscoverController } from './discover.controller';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { UserEmotion } from 'src/entities/user-emotions.entity';
 import { User } from 'src/entities/user.entity';
+import { AccessToken } from 'src/entities/access-token.entity';
 import { AuthGuard } from 'src/guards/auth.guard';
 import { JwtModule } from '@nestjs/jwt';
 import appConfig from 'src/config/auth.config';
@@ -13,7 +14,7 @@ import { GeminiModule } from '../gemini/gemini.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([UserEmotion, User]),
+    TypeOrmModule.forFeature([UserEmotion, User, AccessToken]),
     JwtModule.register({
       secret: appConfig().jwtSecret,
       signOptions: { expiresIn: '7d' },

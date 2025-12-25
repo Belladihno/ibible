@@ -74,7 +74,9 @@ export class BibleVerseService implements OnModuleInit {
       throw new Error('Failed to retrieve daily verse');
     }
 
-    console.log('Cached Verse Data:', cached.verseData);
+    this.logger.debug('Retrieved cached verse data', {
+      verseData: cached.verseData,
+    });
     return JSON.parse(cached.verseData) as BibleVerse;
   }
 
@@ -397,6 +399,20 @@ export class BibleVerseService implements OnModuleInit {
   }
 
   private async fetchAndCacheVerse(): Promise<void> {
+    const today = this.getToday();
+
+    // Check if verse already exists for today
+    const existingVerse = await this.dailyVerseRepo.findOne({
+      where: { date: today },
+    });
+
+    if (existingVerse) {
+      this.logger.debug(
+        `Daily verse already exists for ${today}, skipping cache`,
+      );
+      return;
+    }
+
     try {
       const response = await firstValueFrom(
         this.httpService.get<BibleApiResponse>(this.API_URL),
@@ -421,24 +437,44 @@ export class BibleVerseService implements OnModuleInit {
         aiSummary = `Reflect on ${verse.reference}. What does this verse mean to you today?`;
       }
 
-      const today = this.getToday();
+      // Use upsert-like operation with error handling for race conditions
+      try {
+        await this.dailyVerseRepo.save({
+          date: today,
+          reference: verse.reference,
+          verseData: JSON.stringify(verse),
+          aiSummary,
+        });
 
-      // Delete old verses (optional cleanup)
-      await this.dailyVerseRepo.delete({
-        date: this.getYesterday(),
-      });
+        this.logger.log(
+          `Cached new daily verse: ${verse.reference} for ${today}`,
+        );
 
-      // Save new verse
-      await this.dailyVerseRepo.save({
-        date: today,
-        reference: verse.reference,
-        verseData: JSON.stringify(verse),
-        aiSummary,
-      });
-
-      this.logger.log(
-        `Cached new daily verse: ${verse.reference} for ${today}`,
-      );
+        // Clean up old verses after successful save
+        await this.dailyVerseRepo.delete({
+          date: this.getYesterday(),
+        });
+      } catch (saveError: any) {
+        // Handle potential race condition - check if another process already saved it
+        if (
+          saveError.code === '23505' ||
+          saveError.message?.includes('duplicate key')
+        ) {
+          this.logger.warn(
+            `Race condition detected: Daily verse for ${today} was already saved by another process`,
+          );
+          // Verify the verse exists
+          const verifyVerse = await this.dailyVerseRepo.findOne({
+            where: { date: today },
+          });
+          if (verifyVerse) {
+            this.logger.debug(`Confirmed existing verse for ${today}`);
+            return;
+          }
+        }
+        // Re-throw if it's not a duplicate key error
+        throw saveError;
+      }
     } catch (error) {
       this.logger.error('Failed to fetch and cache verse', error);
       throw error;

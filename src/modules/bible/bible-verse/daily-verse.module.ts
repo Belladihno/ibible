@@ -8,6 +8,8 @@ import { DailyVerseConversation } from '../../../entities/daily-verse-conversati
 import { DailyVerseConversationMessage } from '../../../entities/daily-verse-conversation-message.entity';
 import { BibleVersion } from 'src/entities/bible-version.entity';
 import { GeminiModule } from 'src/modules/gemini/gemini.module';
+import { UserModule } from 'src/modules/user/user.module';
+import { AccessToken } from 'src/entities/access-token.entity';
 
 @Module({
   imports: [
@@ -16,9 +18,11 @@ import { GeminiModule } from 'src/modules/gemini/gemini.module';
       BibleVersion,
       DailyVerseConversation,
       DailyVerseConversationMessage,
+      AccessToken,
     ]),
     HttpModule,
     GeminiModule,
+    UserModule,
   ],
   controllers: [BibleVerseController],
   providers: [BibleVerseService, DailyVerseConversation],

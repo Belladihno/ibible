@@ -19,6 +19,7 @@ export class AiMemoryService {
   async rephraseMemory(
     memoryTitle: string,
     memoryBody: string,
+    userId?: string,
   ): Promise<string> {
     try {
       const prompt = this.buildRephrasePrompt(memoryTitle, memoryBody);
@@ -28,6 +29,7 @@ export class AiMemoryService {
 
       const result = await this.gemini.generate(ReaFeature.MEMORIES, prompt, {
         history: messages,
+        userId,
       });
 
       if (!result?.trim()) {

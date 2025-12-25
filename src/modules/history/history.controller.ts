@@ -14,7 +14,7 @@ import {
   ApiBearerAuth,
   ApiQuery,
 } from '@nestjs/swagger';
-import { AuthGuard } from '@nestjs/passport';
+import { AuthGuard } from 'src/guards/auth.guard';
 import type { Request } from 'express';
 import { HistoryService } from './history.service';
 import { UserPayload } from '../user/strategy/interface.d';
@@ -31,7 +31,7 @@ export class HistoryController {
   constructor(private readonly historyService: HistoryService) {}
 
   @Get()
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard)
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Get unified conversation history',
@@ -132,7 +132,7 @@ export class HistoryController {
     );
   }
   @Get('search')
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard)
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Search unified conversation history',

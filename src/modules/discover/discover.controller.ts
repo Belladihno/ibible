@@ -17,7 +17,8 @@ import {
 } from '@nestjs/swagger';
 import { DiscoverService } from './discover.service';
 import { LogEmotionDto } from './dto/log-emotion.dto';
-import { AuthGuard } from '@nestjs/passport';
+import { OptionalAuthGuard } from 'src/guards/optional-auth.guard';
+import { AuthGuard } from 'src/guards/auth.guard';
 import * as SYM from 'src/shared/constants/systemMessages';
 import { JwtPayload } from 'src/shared/interfaces/jwt-payload.interface';
 
@@ -27,6 +28,7 @@ export class DiscoverController {
   constructor(private readonly discoverService: DiscoverService) {}
 
   @Post('/emotion')
+  @UseGuards(OptionalAuthGuard)
   @ApiOperation({
     summary:
       'Log a user emotion and return Bible verses related to that emotion',
@@ -82,7 +84,7 @@ export class DiscoverController {
   }
 
   @Get('emotions/history')
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Retrieve all logged emotions for a user' })
   @ApiResponse({

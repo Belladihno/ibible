@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between } from 'typeorm';
@@ -23,6 +24,8 @@ import * as SystemMessages from 'src/shared/constants/systemMessages';
 
 @Injectable()
 export class MeditationService {
+  private readonly logger = new Logger(MeditationService.name);
+
   constructor(
     @InjectRepository(MeditationPlan)
     private readonly meditationPlanRepo: Repository<MeditationPlan>,
@@ -115,7 +118,7 @@ export class MeditationService {
       const aiReply = await this.gemini.generate(
         ReaFeature.REFLECTION,
         prompt,
-        { temperature: 0.6, maxTokens: 250 },
+        { temperature: 0.6, maxTokens: 250, userId },
       );
 
       await this.chatRepo.save({
@@ -181,6 +184,7 @@ Respond calmly, spiritually, and thoughtfully.
     const aiReply = await this.gemini.generate(ReaFeature.REFLECTION, prompt, {
       temperature: 0.7,
       maxTokens: 300,
+      userId,
     });
 
     await this.chatRepo.save({
@@ -326,7 +330,7 @@ Respond calmly, spiritually, and thoughtfully.
 
   private async checkStreakMilestone(userId: string, streak: number) {
     if ([7, 30, 90, 365].includes(streak)) {
-      console.log(`User ${userId} reached ${streak}-day streak`);
+      this.logger.log(`User ${userId} reached ${streak}-day streak milestone`);
     }
   }
 

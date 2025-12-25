@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { AdminAnalyticsController } from './admin-analytics.controller';
 import { AdminAnalyticsService } from './admin-analytics.service';
+import { AppMetricsSyncService } from './app-metrics-sync.service';
 import { UserRole } from '../user/enums/user.enums';
 import { AuthGuard } from 'src/guards/auth.guard';
 import { RolesGuard } from 'src/guards/roles.guard';
@@ -17,12 +18,20 @@ describe('AdminAnalyticsController', () => {
       getUsageTrends: jest.fn(),
     };
 
+    const mockAppMetricsSyncService = {
+      manualSync: jest.fn(),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       controllers: [AdminAnalyticsController],
       providers: [
         {
           provide: AdminAnalyticsService,
           useValue: mockService,
+        },
+        {
+          provide: AppMetricsSyncService,
+          useValue: mockAppMetricsSyncService,
         },
         Reflector,
       ],

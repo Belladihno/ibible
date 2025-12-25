@@ -6,7 +6,6 @@ import { UserController } from './user.controller';
 import { UserService } from './user.service';
 import { JwtStrategy } from './strategy/jwt.strategy';
 import { Module } from '@nestjs/common';
-import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { PassportModule } from '@nestjs/passport';
 import { EmailModule } from '../email/email.module';
@@ -14,6 +13,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { PasswordResetToken } from '../../entities/password-reset-token.entity';
 import { UploadModule } from '../upload/upload.module';
 import { AnalyticsModule } from '../analytics/analytics.module';
+import { AuthGuard } from 'src/guards/auth.guard';
 
 @Module({
   imports: [
@@ -25,22 +25,6 @@ import { AnalyticsModule } from '../analytics/analytics.module';
       EmailVerificationToken,
     ]),
     PassportModule,
-    JwtModule.registerAsync({
-      imports: [ConfigModule],
-      useFactory: (configService: ConfigService) => {
-        const expiresIn = configService.get<string>('JWT_EXPIRES_IN');
-        const expiresInSeconds = expiresIn
-          ? parseInt(expiresIn)
-          : 7 * 24 * 60 * 60;
-        return {
-          secret: configService.get<string>('JWT_SECRET') || 'fallback-secret',
-          signOptions: {
-            expiresIn: expiresInSeconds,
-          },
-        };
-      },
-      inject: [ConfigService],
-    }),
     EmailModule,
     UploadModule,
     AnalyticsModule,

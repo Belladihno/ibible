@@ -44,7 +44,7 @@ export class DiscoverService {
     if (cachedVerses) return cachedVerses;
 
     // Get verse references from Gemini
-    const references = await this.getVerseReferences(emotion);
+    const references = await this.getVerseReferences(emotion, userId);
 
     // Fetch actual verses
     const verses = await this.fetchVersesFromReferences(references);
@@ -65,7 +65,10 @@ export class DiscoverService {
     return verses;
   }
 
-  private async getVerseReferences(emotion: string): Promise<string[]> {
+  private async getVerseReferences(
+    emotion: string,
+    userId?: string,
+  ): Promise<string[]> {
     const prompt = `
       Return ONLY a valid JSON array of Bible verse references related to the emotion "${emotion}".
       NO markdown, NO explanation, NO code fences, NO tags.
@@ -77,6 +80,7 @@ export class DiscoverService {
       const response = await this.geminiService.generate(
         ReaFeature.DISCOVER,
         prompt,
+        userId ? { userId } : undefined,
       );
       const references = JSON.parse(response);
 

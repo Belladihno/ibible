@@ -28,7 +28,7 @@ import {
   ApiBearerAuth,
   ApiHeader,
 } from '@nestjs/swagger';
-import { AuthGuard } from '@nestjs/passport';
+import { AuthGuard } from 'src/guards/auth.guard';
 import { UserPayload } from './strategy/interface.d';
 import { ConfigService } from '@nestjs/config';
 import type { Response, Request } from 'express';
@@ -55,7 +55,7 @@ export class UserController {
   ) {}
 
   @Post('logout')
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard)
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Logout user (invalidate access and refresh tokens)',
@@ -100,7 +100,7 @@ export class UserController {
   }
 
   @Delete('me')
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Delete current user (hard delete from database)' })
   @ApiResponse({
@@ -129,7 +129,7 @@ export class UserController {
   }
 
   @Patch('me')
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update current user info' })
   @ApiResponse({
@@ -189,7 +189,7 @@ export class UserController {
   }
 
   @Post('profile-picture')
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard)
   @ApiBearerAuth()
   @UseInterceptors(FileInterceptor('file'))
   @ApiConsumes('multipart/form-data')
@@ -569,7 +569,7 @@ export class UserController {
   }
 
   @Get('super-admin-test')
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @UseGuards(AuthGuard, RolesGuard)
   @Roles(UserRole.SUPER_ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Test endpoint for Super Admin access' })
@@ -593,7 +593,7 @@ export class UserController {
   }
 
   @Get('me')
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get current user info' })
   @ApiResponse({

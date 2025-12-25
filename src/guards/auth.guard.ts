@@ -1,18 +1,23 @@
 import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { JwtService } from '@nestjs/jwt';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import { Request } from 'express';
 import appConfig from '../config/auth.config';
 import * as SYS_MSG from '../shared/constants/systemMessages';
 import { IS_PUBLIC_KEY } from '../shared/helpers/skipAuth';
 import { UnauthorizedError } from '../errors/';
 import { JwtPayload } from '../shared/interfaces/jwt-payload.interface';
+import { AccessToken } from '../entities/access-token.entity';
 
 @Injectable()
 export class AuthGuard implements CanActivate {
   constructor(
     private readonly jwtService: JwtService,
     private readonly reflector: Reflector,
+    @InjectRepository(AccessToken)
+    private readonly accessTokenRepo: Repository<AccessToken>,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -47,6 +52,16 @@ export class AuthGuard implements CanActivate {
     }
 
     if (this.isExpiredToken(payload)) {
+      throw new UnauthorizedError(SYS_MSG.UNAUTHENTICATED_MESSAGE);
+    }
+
+    // Token revocation check - verify token hasn't been revoked after logout
+    const jti = payload.jti as string | undefined;
+    if (!jti) {
+      throw new UnauthorizedError(SYS_MSG.UNAUTHENTICATED_MESSAGE);
+    }
+    const tokenRecord = await this.accessTokenRepo.findOne({ where: { jti } });
+    if (!tokenRecord || tokenRecord.revoked) {
       throw new UnauthorizedError(SYS_MSG.UNAUTHENTICATED_MESSAGE);
     }
 

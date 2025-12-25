@@ -15,6 +15,7 @@ import { MeditationSchedulerService } from './meditation-scheduler.service';
 import { MeditationVerseLibrary } from 'src/entities/meditation-verse-library.entity';
 import { MeditationDailyVerse } from 'src/entities/meditation-daily-verse.entity';
 import { MeditationSession } from 'src//entities/meditation-session.entity';
+import { AccessToken } from 'src/entities/access-token.entity';
 import { ScheduleModule } from '@nestjs/schedule';
 import { GeminiModule } from '../gemini/gemini.module';
 
@@ -26,6 +27,7 @@ import { GeminiModule } from '../gemini/gemini.module';
       MeditationDailyVerse,
       MeditationVerseLibrary,
       MeditationChat,
+      AccessToken,
     ]),
     JwtModule.register({
       secret: appConfig().jwtSecret,

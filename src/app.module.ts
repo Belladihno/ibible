@@ -40,6 +40,7 @@ import { ContactModule } from './modules/contact-us/contact.module';
 import { EarlyAccessModule } from './modules/early-access/early-access.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { AdminAnalyticsModule } from './modules/admin-analytics/admin-analytics.module';
+import { JwtModule } from '@nestjs/jwt';
 
 @Module({
   imports: [
@@ -65,6 +66,24 @@ import { AdminAnalyticsModule } from './modules/admin-analytics/admin-analytics.
       { name: ChatConversation.name, schema: ChatConversationSchema },
       { name: ChatMessage.name, schema: ChatMessageSchema },
     ]),
+
+    JwtModule.registerAsync({
+      imports: [ConfigModule],
+      useFactory: (configService: ConfigService) => {
+        const expiresIn = configService.get<string>('JWT_EXPIRES_IN');
+        const expiresInSeconds = expiresIn
+          ? parseInt(expiresIn)
+          : 7 * 24 * 60 * 60;
+        return {
+          secret: configService.get<string>('JWT_SECRET') || 'fallback-secret',
+          signOptions: {
+            expiresIn: expiresInSeconds,
+          },
+        };
+      },
+      inject: [ConfigService],
+      global: true,
+    }),
 
     QueueModule,
 

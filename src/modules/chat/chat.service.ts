@@ -34,7 +34,7 @@ export class ChatService {
     if (firstMessage) {
       try {
         // WAIT for AI title (fast, should be < 2 seconds)
-        title = await this.getAITitleWithTimeout(firstMessage);
+        title = await this.getAITitleWithTimeout(firstMessage, userId);
         this.logger.log(`AI title created: "${title}"`);
       } catch (error) {
         this.logger.warn(`AI title failed, using simple: ${error.message}`);
@@ -58,7 +58,10 @@ export class ChatService {
   /**
    * Get AI title with short timeout
    */
-  private async getAITitleWithTimeout(userMessage: string): Promise<string> {
+  private async getAITitleWithTimeout(
+    userMessage: string,
+    userId: string,
+  ): Promise<string> {
     const prompt = `
       Generate a very short title (2–5 words) for this conversation.
       Do not use punctuation, quotes, or explanations.
@@ -68,6 +71,7 @@ export class ChatService {
       systemPrompt: prompt,
       temperature: 0.4,
       maxTokens: 20,
+      userId: userId,
     });
 
     const timeoutPromise = new Promise<string>((_, reject) => {
@@ -116,13 +120,6 @@ export class ChatService {
    * Main message handler
    */
   async sendMessage(userId: string, createMessageDto: CreateMessageDto) {
-    // -------------------- RATE LIMIT --------------------
-    const rateLimitKey = `chat_limit:${userId}`;
-    const currentUsage = await this.redis.incr(rateLimitKey);
-    if (currentUsage === 1) await this.redis.expire(rateLimitKey, 60);
-    if (currentUsage > 20)
-      throw new Error('Rate limit exceeded. Please try again later.');
-
     // -------------------- FETCH OR CREATE CONVERSATION --------------------
     let conversation: ChatConversationDocument;
 
@@ -173,6 +170,7 @@ export class ChatService {
           systemPrompt,
           temperature: 0.7,
           maxTokens: 1200, // increased to reduce cut-off
+          userId: userId,
         },
       );
     } catch (error) {
@@ -362,7 +360,7 @@ export class ChatService {
     const validatedPage = Math.max(page, 1);
 
     // Build dynamic query
-    const query: any = {
+    const query: FilterQuery<ChatConversationDocument> = {
       userId,
       isActive: true,
     };

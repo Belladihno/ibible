@@ -3,6 +3,21 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { HistoryController } from './history.controller';
 import { HistoryService } from './history.service';
 import { AuthGuard } from '@nestjs/passport';
+import { getRepositoryToken } from '@nestjs/typeorm';
+import { AccessToken } from 'src/entities/access-token.entity';
+import { JwtService } from '@nestjs/jwt';
+import { Reflector } from '@nestjs/core';
+import { Request } from 'express';
+import { UserPayload } from '../user/strategy/interface.d';
+
+type MockRequestType = Request & {
+  user: UserPayload & {
+    jti?: string;
+    id?: string;
+    userId?: string | number;
+    sub?: string;
+  };
+};
 
 describe('HistoryController', () => {
   let controller: HistoryController;
@@ -14,9 +29,10 @@ describe('HistoryController', () => {
 
   const mockRequest = {
     user: {
+      email: 'test@example.com',
       userId: 'test-user-123',
     },
-  };
+  } as unknown as MockRequestType;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -26,9 +42,18 @@ describe('HistoryController', () => {
           provide: HistoryService,
           useValue: mockHistoryService,
         },
+        {
+          provide: getRepositoryToken(AccessToken),
+          useValue: {},
+        },
+        {
+          provide: JwtService,
+          useValue: {},
+        },
+        Reflector,
       ],
     })
-      .overrideGuard(AuthGuard('jwt'))
+      .overrideGuard(AuthGuard)
       .useValue({ canActivate: () => true })
       .compile();
 
@@ -65,7 +90,7 @@ describe('HistoryController', () => {
       mockHistoryService.getUnifiedHistory.mockResolvedValue(mockResponse);
 
       const result = await controller.getHistory(
-        mockRequest as any,
+        mockRequest,
         undefined,
         undefined,
       );
@@ -90,7 +115,7 @@ describe('HistoryController', () => {
 
       mockHistoryService.getUnifiedHistory.mockResolvedValue(mockResponse);
 
-      await controller.getHistory(mockRequest as any, 2, 10);
+      await controller.getHistory(mockRequest, 2, 10);
 
       expect(service.getUnifiedHistory).toHaveBeenCalledWith(
         'test-user-123',
@@ -112,7 +137,7 @@ describe('HistoryController', () => {
       mockHistoryService.getUnifiedHistory.mockResolvedValue(mockResponse);
 
       // Negative page should default to 1
-      await controller.getHistory(mockRequest as any, -1, undefined);
+      await controller.getHistory(mockRequest, -1, undefined);
 
       expect(service.getUnifiedHistory).toHaveBeenCalledWith(
         'test-user-123',
@@ -121,7 +146,7 @@ describe('HistoryController', () => {
       );
 
       // Zero page should default to 1
-      await controller.getHistory(mockRequest as any, 0, undefined);
+      await controller.getHistory(mockRequest, 0, undefined);
 
       expect(service.getUnifiedHistory).toHaveBeenCalledWith(
         'test-user-123',
@@ -143,7 +168,7 @@ describe('HistoryController', () => {
       mockHistoryService.getUnifiedHistory.mockResolvedValue(mockResponse);
 
       // Negative limit should default to 20
-      await controller.getHistory(mockRequest as any, undefined, -5);
+      await controller.getHistory(mockRequest, undefined, -5);
 
       expect(service.getUnifiedHistory).toHaveBeenCalledWith(
         'test-user-123',
@@ -152,7 +177,7 @@ describe('HistoryController', () => {
       );
 
       // Zero limit should default to 20
-      await controller.getHistory(mockRequest as any, undefined, 0);
+      await controller.getHistory(mockRequest, undefined, 0);
 
       expect(service.getUnifiedHistory).toHaveBeenCalledWith(
         'test-user-123',
@@ -170,34 +195,44 @@ describe('HistoryController', () => {
       mockHistoryService.getUnifiedHistory.mockResolvedValue(mockResponse);
 
       // Test with userId field
-      const req1 = { user: { userId: 'user-1' } };
-      await controller.getHistory(req1 as any, undefined, undefined);
+      const req1 = {
+        user: { email: 'test@example.com', userId: 'user-1' },
+      } as unknown as MockRequestType;
+      await controller.getHistory(req1, undefined, undefined);
       expect(service.getUnifiedHistory).toHaveBeenCalledWith('user-1', 1, 20);
 
       // Test with sub field
-      const req2 = { user: { sub: 'user-2' } };
-      await controller.getHistory(req2 as any, undefined, undefined);
+      const req2 = {
+        user: { email: 'test@example.com', sub: 'user-2' },
+      } as unknown as MockRequestType;
+      await controller.getHistory(req2, undefined, undefined);
       expect(service.getUnifiedHistory).toHaveBeenCalledWith('user-2', 1, 20);
 
       // Test with id field
-      const req3 = { user: { id: 'user-3' } };
-      await controller.getHistory(req3 as any, undefined, undefined);
+      const req3 = {
+        user: { email: 'test@example.com', id: 'user-3' },
+      } as unknown as MockRequestType;
+      await controller.getHistory(req3, undefined, undefined);
       expect(service.getUnifiedHistory).toHaveBeenCalledWith('user-3', 1, 20);
     });
 
     it('should throw error if userId is missing', async () => {
-      const reqWithoutUser = { user: {} };
+      const reqWithoutUser = {
+        user: { email: 'test@example.com' },
+      } as unknown as MockRequestType;
 
       await expect(
-        controller.getHistory(reqWithoutUser as any, undefined, undefined),
+        controller.getHistory(reqWithoutUser, undefined, undefined),
       ).rejects.toThrow('Invalid user id');
     });
 
     it('should throw error if userId is not a string', async () => {
-      const reqWithInvalidUser = { user: { userId: 123 } };
+      const reqWithInvalidUser = {
+        user: { email: 'test@example.com', userId: 123 },
+      } as unknown as MockRequestType;
 
       await expect(
-        controller.getHistory(reqWithInvalidUser as any, undefined, undefined),
+        controller.getHistory(reqWithInvalidUser, undefined, undefined),
       ).rejects.toThrow('Invalid user id');
     });
 
@@ -225,7 +260,7 @@ describe('HistoryController', () => {
       mockHistoryService.getUnifiedHistory.mockResolvedValue(mockResponse);
 
       const result = await controller.getHistory(
-        mockRequest as any,
+        mockRequest,
         undefined,
         undefined,
       );

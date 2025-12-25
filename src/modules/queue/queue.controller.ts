@@ -11,12 +11,12 @@ import {
 import { JobSummary } from 'src/shared/interfaces/sales.interface';
 import { QueueManagerService } from './queue.service';
 import { QueueName } from './queue-names.enum';
-import { AuthGuard } from '@nestjs/passport';
+import { AuthGuard } from 'src/guards/auth.guard';
 import { RolesGuard } from '../../guards/roles.guard';
 import { Roles } from '../../decorators/roles.decorator';
 import { UserRole } from '../user/enums/user.enums';
 
-@UseGuards(AuthGuard('jwt'), RolesGuard)
+@UseGuards(AuthGuard, RolesGuard)
 @Roles(UserRole.SUPER_ADMIN)
 @Controller('admin/queue')
 export class QueueController {

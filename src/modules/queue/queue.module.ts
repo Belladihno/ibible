@@ -1,14 +1,24 @@
 import { Global, Module } from '@nestjs/common';
 import { BullModule } from '@nestjs/bullmq';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { JwtModule } from '@nestjs/jwt';
 import { QueueName } from './queue-names.enum';
 import { QueueManagerService } from './queue.service';
 import { QueueController } from './queue.controller';
 import { MemoriesAiProcessor } from './processors/memories-ai.processor';
+import { AccessToken } from 'src/entities/access-token.entity';
+import { AuthGuard } from 'src/guards/auth.guard';
+import appConfig from 'src/config/auth.config';
 
 @Global()
 @Module({
   imports: [
+    TypeOrmModule.forFeature([AccessToken]),
+    JwtModule.register({
+      secret: appConfig().jwtSecret,
+      signOptions: { expiresIn: '7d' },
+    }),
     BullModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => ({
@@ -58,7 +68,7 @@ import { MemoriesAiProcessor } from './processors/memories-ai.processor';
       { name: QueueName.EMAIL_NOTIFICATION },
     ),
   ],
-  providers: [QueueManagerService, MemoriesAiProcessor],
+  providers: [QueueManagerService, MemoriesAiProcessor, AuthGuard],
   controllers: [QueueController],
   exports: [BullModule, QueueManagerService],
 })
