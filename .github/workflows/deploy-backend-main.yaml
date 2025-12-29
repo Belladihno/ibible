@@ -20,23 +20,6 @@ jobs:
         node-version: '20'
         cache: 'npm'
 
-    - name: Install dependencies
-      run: npm ci --legacy-peer-deps
-
-    - name: Run npm audit
-      run: npm audit --audit-level=high || true
-
-    - name: Run Trivy vulnerability scanner
-      uses: aquasecurity/trivy-action@master
-      with:
-        scan-type: 'fs'
-        scan-ref: '.'
-        exit-code: '1'
-        ignore-unfixed: true
-        vuln-type: 'os,library'
-        severity: 'CRITICAL,HIGH'
-      continue-on-error: true
-
     - name: Determine Environment
       id: envselect
       run: |
@@ -46,44 +29,54 @@ jobs:
           echo "SERVER_USER=${{ secrets.STAGING_SERVER_USER }}" >> $GITHUB_OUTPUT
           echo "SERVER_APP_DIR=/var/www/rea-bible-backend-staging" >> $GITHUB_OUTPUT
           echo "PM2_APP_NAME=rea-backend-staging" >> $GITHUB_OUTPUT
-          echo "ENV_NAME=Staging" >> $GITHUB_OUTPUT
+          echo "HEALTH_PORT=3002" >> $GITHUB_OUTPUT
         elif [[ "${{ github.ref_name }}" == "prod" || "${{ github.ref_name }}" == "main" ]]; then
           echo "SERVER_HOST=${{ secrets.PROD_SERVER_HOST }}" >> $GITHUB_OUTPUT
           echo "SERVER_USER=${{ secrets.PROD_SERVER_USER }}" >> $GITHUB_OUTPUT
           echo "SERVER_APP_DIR=/var/www/rea-bible-backend-prod" >> $GITHUB_OUTPUT
           echo "PM2_APP_NAME=rea-backend-prod" >> $GITHUB_OUTPUT
-          echo "ENV_NAME=Production" >> $GITHUB_OUTPUT
+          echo "HEALTH_PORT=3000" >> $GITHUB_OUTPUT
         else
           echo "Unknown branch!"
           exit 1
         fi
 
-    # --- Create deploy dir and change ownership ---
-    - name: Prepare server directory
-      uses: appleboy/ssh-action@v1
-      with:
-        host: ${{ steps.envselect.outputs.SERVER_HOST }}
-        username: ${{ steps.envselect.outputs.SERVER_USER }}
-        key: ${{ secrets.SSH_PRIVATE_KEY }}
-        script: |
-          sudo mkdir -p ${{ steps.envselect.outputs.SERVER_APP_DIR }} || true
-          sudo chown -R ${{ steps.envselect.outputs.SERVER_USER }}:${{ steps.envselect.outputs.SERVER_USER }} ${{ steps.envselect.outputs.SERVER_APP_DIR }} || true
+    - name: Install dependencies
+      run: npm ci --legacy-peer-deps
 
-    # --- Upload Source to server ---
-    - name: Copy files to server
+    - name: Run npm audit
+      run: npm audit --audit-level=high || true
+
+    # CRITICAL: Build TypeScript - generate dist/ folder
+    - name: Build TypeScript
+      run: npm run build
+
+    # CRITICAL: Verify build output
+    - name: Verify build output
+      run: |
+        if [ ! -f "dist/main.js" ]; then
+          echo "ERROR: dist/main.js not found!"
+          ls -R dist
+          exit 1
+        fi
+        echo "✅ dist/main.js exists."
+
+    # --- Deploy files to server ---
+    - name: Deploy files to server
       uses: appleboy/scp-action@v1
       with:
         host: ${{ steps.envselect.outputs.SERVER_HOST }}
         username: ${{ steps.envselect.outputs.SERVER_USER }}
         key: ${{ secrets.SSH_PRIVATE_KEY }}
-        source: './*'
+        source: '.'
         target: '${{ steps.envselect.outputs.SERVER_APP_DIR }}'
         exclude: |
           .git
           .github
           node_modules
 
-    - name: Deploy via SSH
+    # --- Restart PM2 on server ---
+    - name: Restart PM2 on server
       uses: appleboy/ssh-action@v1
       with:
         host: ${{ steps.envselect.outputs.SERVER_HOST }}
@@ -94,19 +87,33 @@ jobs:
           echo "📦 Navigating to application directory..."
           cd ${{ steps.envselect.outputs.SERVER_APP_DIR }}
           
-          echo "📥 Installing dependencies..."
-          npm ci --legacy-peer-deps --ignore-scripts
-
-          echo "🔨 Building application on server..."
-          npm run build
-
-          echo "🚀 Restarting application with PM2..."
-          pm2 reload "${{ steps.envselect.outputs.PM2_APP_NAME }}" --update-env || pm2 restart "${{ steps.envselect.outputs.PM2_APP_NAME }}"
+          echo "� Restarting application with PM2 using ecosystem.config.js..."
+          # Start or Restart using the ecosystem file for specific config
+          pm2 startOrRestart ecosystem.config.js --only ${{ steps.envselect.outputs.PM2_APP_NAME }} --update-env
+          
           pm2 save
           pm2 list
-
-    - name: Verify Deployment
+    
+    # --- Health check ---
+    - name: Health check
       run: |
-        echo "Waiting for app to start..."
+        PORT=${{ steps.envselect.outputs.HEALTH_PORT }}
+        SERVER_IP=${{ steps.envselect.outputs.SERVER_HOST }}
+        
+        # If running on the same server (self-hosted), use localhost or private IP
+        # We'll use SERVER_HOST if public, or localhost if undefined/local.
+        # Since this runs on the runner, and the runner is self-hosted on the server (presumably),
+        # curling localhost:$PORT is the most reliable check.
+        
+        TARGET_URL="http://localhost:$PORT/api/v1/health"
+        
+        echo "🏥 Checking health at $TARGET_URL..."
         sleep 10
-        echo "Deployment triggered successfully."
+        
+        curl -f $TARGET_URL || {
+           echo "❌ Health check failed!"
+           # Try public IP if localhost fails
+           echo "Retrying with public IP..."
+           curl -f "http://$SERVER_IP:$PORT/api/v1/health" || exit 1
+        }
+        echo "✅ Health check passed."
