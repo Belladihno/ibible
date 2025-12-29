@@ -37,9 +37,6 @@ jobs:
         severity: 'CRITICAL,HIGH'
       continue-on-error: true
 
-    - name: Build NestJS app
-      run: npm run build
-
     - name: Determine Environment
       id: envselect
       run: |
@@ -61,26 +58,52 @@ jobs:
           exit 1
         fi
 
+    # --- Create deploy dir and change ownership ---
+    - name: Prepare server directory
+      uses: appleboy/ssh-action@v1
+      with:
+        host: ${{ steps.envselect.outputs.SERVER_HOST }}
+        username: ${{ steps.envselect.outputs.SERVER_USER }}
+        key: ${{ secrets.SSH_PRIVATE_KEY }}
+        script: |
+          sudo mkdir -p ${{ steps.envselect.outputs.SERVER_APP_DIR }} || true
+          sudo chown -R ${{ steps.envselect.outputs.SERVER_USER }}:${{ steps.envselect.outputs.SERVER_USER }} ${{ steps.envselect.outputs.SERVER_APP_DIR }} || true
+
+    # --- Upload Source to server ---
+    - name: Copy files to server
+      uses: appleboy/scp-action@v1
+      with:
+        host: ${{ steps.envselect.outputs.SERVER_HOST }}
+        username: ${{ steps.envselect.outputs.SERVER_USER }}
+        key: ${{ secrets.SSH_PRIVATE_KEY }}
+        source: './*'
+        target: '${{ steps.envselect.outputs.SERVER_APP_DIR }}'
+        exclude: |
+          .git
+          .github
+          node_modules
+
     - name: Deploy via SSH
-      run: |
-        mkdir -p ~/.ssh
-        echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
-        chmod 600 ~/.ssh/deploy_key
-        ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
-          ${{ steps.envselect.outputs.SERVER_USER }}@${{ steps.envselect.outputs.SERVER_HOST }} << 'ENDSSH'
+      uses: appleboy/ssh-action@v1
+      with:
+        host: ${{ steps.envselect.outputs.SERVER_HOST }}
+        username: ${{ steps.envselect.outputs.SERVER_USER }}
+        key: ${{ secrets.SSH_PRIVATE_KEY }}
+        script: |
           set -e
           echo "📦 Navigating to application directory..."
           cd ${{ steps.envselect.outputs.SERVER_APP_DIR }}
           
-          echo "📥 Installing production dependencies..."
-          npm ci --omit=dev --legacy-peer-deps --ignore-scripts
+          echo "📥 Installing dependencies..."
+          npm ci --legacy-peer-deps --ignore-scripts
+
+          echo "🔨 Building application on server..."
+          npm run build
 
           echo "🚀 Restarting application with PM2..."
           pm2 reload "${{ steps.envselect.outputs.PM2_APP_NAME }}" --update-env || pm2 restart "${{ steps.envselect.outputs.PM2_APP_NAME }}"
           pm2 save
           pm2 list
-        ENDSSH
-        rm -f ~/.ssh/deploy_key
 
     - name: Verify Deployment
       run: |
