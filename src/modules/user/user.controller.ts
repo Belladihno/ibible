@@ -41,6 +41,7 @@ import { VerifyEmailDto } from './dto/verify-email.dto';
 import { SignupUserDto } from './dto/signup-user.dto';
 import { ResendVerificationDto } from './dto/resend-verification.dto';
 import { ResendPasswordResetDto } from './dto/resend-password-reset.dto';
+import { AdminLoginDto } from './dto/admin-login.dto';
 import * as SystemMessages from 'src/shared/constants/systemMessages';
 import { Roles } from '../../decorators/roles.decorator';
 import { UserRole } from './enums/user.enums';
@@ -52,7 +53,7 @@ export class UserController {
   constructor(
     private readonly users: UserService,
     private readonly configService: ConfigService,
-  ) {}
+  ) { }
 
   @Post('logout')
   @UseGuards(AuthGuard)
@@ -327,6 +328,7 @@ export class UserController {
   @Post('admin-login')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Super admin login' })
+  @ApiBody({ type: AdminLoginDto })
   @ApiResponse({
     status: HttpStatus.OK,
     description: 'Super admin login successful',
@@ -335,8 +337,11 @@ export class UserController {
     status: HttpStatus.UNAUTHORIZED,
     description: 'Invalid credentials or not super admin',
   })
-  async adminLogin(@Body() body: { email: string; password: string }) {
-    const result = await this.users.adminLogin(body.email, body.password);
+  async adminLogin(@Body() adminLoginDto: AdminLoginDto) {
+    const result = await this.users.adminLogin(
+      adminLoginDto.email,
+      adminLoginDto.password,
+    );
     return {
       statusCode: HttpStatus.OK,
       message: SystemMessages.USER_LOGIN_SUCCESS,
