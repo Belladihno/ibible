@@ -70,7 +70,7 @@ jobs:
           cd ${{ steps.envselect.outputs.SERVER_APP_DIR }}
           
           echo "📥 Installing production dependencies..."
-          npm ci --omit=dev --legacy-peer-deps
+          npm ci --omit=dev --legacy-peer-deps --ignore-scripts
 
           echo "🚀 Restarting application with PM2..."
           pm2 reload "${{ steps.envselect.outputs.PM2_APP_NAME }}" --update-env || pm2 restart "${{ steps.envselect.outputs.PM2_APP_NAME }}"
