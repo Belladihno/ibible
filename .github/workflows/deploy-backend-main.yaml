@@ -61,6 +61,17 @@ jobs:
         fi
         echo "dist/main.js exists."
 
+    # --- Run Database Migrations ---
+    - name: Run Database Migrations
+      run: |
+        echo "Running database migrations..."
+        if ! npm run migration:run; then
+          echo "Migration failed! Check logs above."
+          echo "Database may be in inconsistent state - manual intervention needed."
+          exit 1
+        fi
+        echo "Migrations completed successfully"
+
     # --- Deploy files to server ---
     - name: Deploy files to server
       uses: appleboy/scp-action@v1
