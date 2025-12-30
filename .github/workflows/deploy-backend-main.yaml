@@ -97,8 +97,8 @@ jobs:
           echo "Navigating to application directory..."
           cd ${{ steps.envselect.outputs.SERVER_APP_DIR }}
           
-          echo "Installing production dependencies..."
-          npm ci --omit=dev --legacy-peer-deps
+          echo "Installing all dependencies..."
+          npm ci --legacy-peer-deps
           
           echo "Running database migrations..."
           if ! npm run migration:run; then
@@ -149,4 +149,6 @@ jobs:
           done
           
           echo "Health check failed after $MAX_RETRIES attempts"
+          echo "=== PM2 Logs for ${{ steps.envselect.outputs.PM2_APP_NAME }} ==="
+          pm2 logs ${{ steps.envselect.outputs.PM2_APP_NAME }} --lines 50 --nostream
           exit 1
