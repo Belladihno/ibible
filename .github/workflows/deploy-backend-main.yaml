@@ -99,21 +99,40 @@ jobs:
       run: |
         PORT=${{ steps.envselect.outputs.HEALTH_PORT }}
         SERVER_IP=${{ steps.envselect.outputs.SERVER_HOST }}
-        
-        # If running on the same server (self-hosted), use localhost or private IP
-        # We'll use SERVER_HOST if public, or localhost if undefined/local.
-        # Since this runs on the runner, and the runner is self-hosted on the server (presumably),
-        # curling localhost:$PORT is the most reliable check.
-        
         TARGET_URL="http://localhost:$PORT/api/v1/health"
         
         echo "Checking health at $TARGET_URL..."
-        sleep 10
         
-        curl -f $TARGET_URL || {
-           echo "Health check failed!"
-           # Try public IP if localhost fails
-           echo "Retrying with public IP..."
-           curl -f "http://$SERVER_IP:$PORT/api/v1/health" || exit 1
-        }
-        echo "Health check passed."
+        # Wait for app to start (NestJS needs time to initialize)
+        sleep 20
+        
+        # Retry up to 5 times with 5 second intervals
+        MAX_RETRIES=5
+        RETRY_COUNT=0
+        
+        while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+          echo "Attempt $((RETRY_COUNT + 1))/$MAX_RETRIES..."
+          
+          if curl -f -s $TARGET_URL > /dev/null 2>&1; then
+            echo "Health check passed!"
+            exit 0
+          fi
+          
+          RETRY_COUNT=$((RETRY_COUNT + 1))
+          if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
+            echo "Retrying in 5 seconds..."
+            sleep 5
+          fi
+        done
+        
+        # All retries failed, try public IP as last resort
+        echo "Localhost health check failed after $MAX_RETRIES attempts"
+        echo "Trying public IP: http://$SERVER_IP:$PORT/api/v1/health"
+        
+        if curl -f -s "http://$SERVER_IP:$PORT/api/v1/health" > /dev/null 2>&1; then
+          echo "Health check passed via public IP!"
+          exit 0
+        fi
+        
+        echo "Health check failed completely!"
+        exit 1
