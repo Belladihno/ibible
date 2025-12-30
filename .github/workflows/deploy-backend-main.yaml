@@ -59,7 +59,7 @@ jobs:
           ls -R dist
           exit 1
         fi
-        echo "✅ dist/main.js exists."
+        echo "dist/main.js exists."
 
     # --- Deploy files to server ---
     - name: Deploy files to server
@@ -84,10 +84,10 @@ jobs:
         key: ${{ secrets.SSH_PRIVATE_KEY }}
         script: |
           set -e
-          echo "📦 Navigating to application directory..."
+          echo "Navigating to application directory..."
           cd ${{ steps.envselect.outputs.SERVER_APP_DIR }}
           
-          echo "� Restarting application with PM2 using ecosystem.config.js..."
+          echo "Restarting application with PM2 using ecosystem.config.js..."
           # Start or Restart using the ecosystem file for specific config
           pm2 startOrRestart ecosystem.config.js --only ${{ steps.envselect.outputs.PM2_APP_NAME }} --update-env
           
@@ -107,13 +107,13 @@ jobs:
         
         TARGET_URL="http://localhost:$PORT/api/v1/health"
         
-        echo "🏥 Checking health at $TARGET_URL..."
+        echo "Checking health at $TARGET_URL..."
         sleep 10
         
         curl -f $TARGET_URL || {
-           echo "❌ Health check failed!"
+           echo "Health check failed!"
            # Try public IP if localhost fails
            echo "Retrying with public IP..."
            curl -f "http://$SERVER_IP:$PORT/api/v1/health" || exit 1
         }
-        echo "✅ Health check passed."
+        echo "Health check passed."
