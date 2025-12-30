@@ -30,12 +30,22 @@ jobs:
           echo "SERVER_APP_DIR=/var/www/rea-bible-backend-staging" >> $GITHUB_OUTPUT
           echo "PM2_APP_NAME=rea-backend-staging" >> $GITHUB_OUTPUT
           echo "HEALTH_PORT=3002" >> $GITHUB_OUTPUT
+          echo "DB_HOST=${{ secrets.STAGING_DB_HOST }}" >> $GITHUB_OUTPUT
+          echo "DB_PORT=${{ secrets.STAGING_DB_PORT }}" >> $GITHUB_OUTPUT
+          echo "DB_USERNAME=${{ secrets.STAGING_DB_USERNAME }}" >> $GITHUB_OUTPUT
+          echo "DB_PASSWORD=${{ secrets.STAGING_DB_PASSWORD }}" >> $GITHUB_OUTPUT
+          echo "DB_NAME=${{ secrets.STAGING_DB_NAME }}" >> $GITHUB_OUTPUT
         elif [[ "${{ github.ref_name }}" == "prod" || "${{ github.ref_name }}" == "main" ]]; then
           echo "SERVER_HOST=${{ secrets.PROD_SERVER_HOST }}" >> $GITHUB_OUTPUT
           echo "SERVER_USER=${{ secrets.PROD_SERVER_USER }}" >> $GITHUB_OUTPUT
           echo "SERVER_APP_DIR=/var/www/rea-bible-backend-prod" >> $GITHUB_OUTPUT
           echo "PM2_APP_NAME=rea-backend-prod" >> $GITHUB_OUTPUT
           echo "HEALTH_PORT=3000" >> $GITHUB_OUTPUT
+          echo "DB_HOST=${{ secrets.PROD_DB_HOST }}" >> $GITHUB_OUTPUT
+          echo "DB_PORT=${{ secrets.PROD_DB_PORT }}" >> $GITHUB_OUTPUT
+          echo "DB_USERNAME=${{ secrets.PROD_DB_USERNAME }}" >> $GITHUB_OUTPUT
+          echo "DB_PASSWORD=${{ secrets.PROD_DB_PASSWORD }}" >> $GITHUB_OUTPUT
+          echo "DB_NAME=${{ secrets.PROD_DB_NAME }}" >> $GITHUB_OUTPUT
         else
           echo "Unknown branch!"
           exit 1
@@ -60,17 +70,6 @@ jobs:
           exit 1
         fi
         echo "dist/main.js exists."
-
-    # --- Run Database Migrations ---
-    - name: Run Database Migrations
-      run: |
-        echo "Running database migrations..."
-        if ! npm run migration:run; then
-          echo "Migration failed! Check logs above."
-          echo "Database may be in inconsistent state - manual intervention needed."
-          exit 1
-        fi
-        echo "Migrations completed successfully"
 
     # --- Deploy files to server ---
     - name: Deploy files to server
@@ -97,6 +96,17 @@ jobs:
           set -e
           echo "Navigating to application directory..."
           cd ${{ steps.envselect.outputs.SERVER_APP_DIR }}
+          
+          echo "Installing production dependencies..."
+          npm ci --omit=dev --legacy-peer-deps
+          
+          echo "Running database migrations..."
+          if ! npm run migration:run; then
+            echo "Migration failed! Check logs above."
+            echo "Database may be in inconsistent state - manual intervention needed."
+            exit 1
+          fi
+          echo "Migrations completed successfully"
           
           echo "Restarting application with PM2 using ecosystem.config.js..."
           # Start or Restart using the ecosystem file for specific config
