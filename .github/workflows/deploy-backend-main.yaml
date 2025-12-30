@@ -97,8 +97,8 @@ jobs:
           echo "Navigating to application directory..."
           cd ${{ steps.envselect.outputs.SERVER_APP_DIR }}
           
-          echo "Installing production dependencies..."
-          npm ci --omit=dev --legacy-peer-deps
+          echo "Installing all dependencies..."
+          npm ci --legacy-peer-deps
           
           echo "Running database migrations..."
           if ! npm run migration:run; then
@@ -107,6 +107,9 @@ jobs:
             exit 1
           fi
           echo "Migrations completed successfully"
+          
+          echo "Removing dev dependencies..."
+          npm prune --production
           
           echo "Restarting application with PM2 using ecosystem.config.js..."
           # Start or Restart using the ecosystem file for specific config
