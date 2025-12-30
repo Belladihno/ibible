@@ -108,9 +108,6 @@ jobs:
           fi
           echo "Migrations completed successfully"
           
-          echo "Removing dev dependencies..."
-          npm prune --production
-          
           echo "Restarting application with PM2 using ecosystem.config.js..."
           # Start or Restart using the ecosystem file for specific config
           pm2 startOrRestart ecosystem.config.js --only ${{ steps.envselect.outputs.PM2_APP_NAME }} --update-env
@@ -152,4 +149,6 @@ jobs:
           done
           
           echo "Health check failed after $MAX_RETRIES attempts"
+          echo "=== PM2 Logs for ${{ steps.envselect.outputs.PM2_APP_NAME }} ==="
+          pm2 logs ${{ steps.envselect.outputs.PM2_APP_NAME }} --lines 50 --nostream
           exit 1
