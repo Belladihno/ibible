@@ -210,7 +210,8 @@ export class UserController {
     description: 'Profile picture uploaded successfully',
   })
   async uploadProfilePicture(
-    @Req() req: Request & { user: { userId: string; id?: string } },
+    @Req()
+    req: Request & { user: { userId?: string; sub?: string; id?: string } },
     @UploadedFile(
       new ParseFilePipe({
         validators: [
@@ -221,8 +222,18 @@ export class UserController {
     )
     file: Express.Multer.File,
   ) {
-    const userId = req.user.userId || req.user.id;
-    if (!userId) throw new BadRequestException('Invalid user id');
+    // Safely extract userId from possible JWT payload keys
+    type JwtPayload = {
+      userId?: string;
+      sub?: string;
+      id?: string;
+      [key: string]: unknown;
+    };
+    const payload = req.user as unknown as JwtPayload;
+    const userId = payload.userId ?? payload.sub ?? payload.id;
+    if (!userId || typeof userId !== 'string') {
+      throw new BadRequestException('Invalid user id');
+    }
 
     const profilePictureUrl = await this.users.uploadProfilePicture(
       userId,
