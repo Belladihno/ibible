@@ -94,45 +94,38 @@ jobs:
           pm2 save
           pm2 list
     
-    # --- Health check ---
-    - name: Health check
-      run: |
-        PORT=${{ steps.envselect.outputs.HEALTH_PORT }}
-        SERVER_IP=${{ steps.envselect.outputs.SERVER_HOST }}
-        TARGET_URL="http://localhost:$PORT/api/v1/health"
-        
-        echo "Checking health at $TARGET_URL..."
-        
-        # Wait for app to start (NestJS needs time to initialize)
-        sleep 20
-        
-        # Retry up to 5 times with 5 second intervals
-        MAX_RETRIES=5
-        RETRY_COUNT=0
-        
-        while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
-          echo "Attempt $((RETRY_COUNT + 1))/$MAX_RETRIES..."
+    # --- Health check via SSH (Run on server host) ---
+    - name: Health check via SSH
+      uses: appleboy/ssh-action@v1
+      with:
+        host: ${{ steps.envselect.outputs.SERVER_HOST }}
+        username: ${{ steps.envselect.outputs.SERVER_USER }}
+        key: ${{ secrets.SSH_PRIVATE_KEY }}
+        script: |
+          PORT=${{ steps.envselect.outputs.HEALTH_PORT }}
+          TARGET_URL="http://localhost:$PORT/api/v1/health"
           
-          if curl -f -s $TARGET_URL > /dev/null 2>&1; then
-            echo "Health check passed!"
-            exit 0
-          fi
+          echo "Checking health at $TARGET_URL..."
+          sleep 20
           
-          RETRY_COUNT=$((RETRY_COUNT + 1))
-          if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
-            echo "Retrying in 5 seconds..."
-            sleep 5
-          fi
-        done
-        
-        # All retries failed, try public IP as last resort
-        echo "Localhost health check failed after $MAX_RETRIES attempts"
-        echo "Trying public IP: http://$SERVER_IP:$PORT/api/v1/health"
-        
-        if curl -f -s "http://$SERVER_IP:$PORT/api/v1/health" > /dev/null 2>&1; then
-          echo "Health check passed via public IP!"
-          exit 0
-        fi
-        
-        echo "Health check failed completely!"
-        exit 1
+          # Retry loop
+          MAX_RETRIES=5
+          RETRY_COUNT=0
+          
+          while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+            echo "Attempt $((RETRY_COUNT + 1))/$MAX_RETRIES..."
+            
+            if curl -f -s $TARGET_URL > /dev/null 2>&1; then
+               echo "Health check passed!"
+               exit 0
+            fi
+            
+            RETRY_COUNT=$((RETRY_COUNT + 1))
+            if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
+               echo "Retrying in 5 seconds..."
+               sleep 5
+            fi
+          done
+          
+          echo "Health check failed after $MAX_RETRIES attempts"
+          exit 1
