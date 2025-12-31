@@ -12,6 +12,7 @@ import Redis from 'ioredis';
 import { GeminiService } from '../gemini/gemini.service';
 import { ChatRole, ReaFeature } from 'src/shared/enums';
 import { ChatMessage } from 'src/shared/types/chat.types';
+import * as SYS_MSG from '../../shared/constants/systemMessages';
 
 @Injectable()
 export class ChatService {
@@ -67,11 +68,10 @@ export class ChatService {
       Do not use punctuation, quotes, or explanations.
       Return ONLY the title text.
       `.trim();
-    const titlePromise = this.gemini.generate(ReaFeature.CHAT, userMessage, {
+    const titlePromise = this.gemini.generate(ReaFeature.TITLE, userMessage, {
       systemPrompt: prompt,
       temperature: 0.4,
       maxTokens: 20,
-      userId: userId,
     });
 
     const timeoutPromise = new Promise<string>((_, reject) => {
@@ -569,5 +569,23 @@ export class ChatService {
 
     const { _id, ...rest } = conversation.toObject();
     return { id: _id.toString(), ...rest };
+  }
+
+  async deleteConversation(conversationId: string, userId: string) {
+    const conversation = await this.chatConversationModel.findOne({
+      _id: conversationId,
+      userId,
+    });
+
+    if (!conversation) {
+      throw new NotFoundException('Conversation not found or access denied');
+    }
+
+    await this.chatConversationModel.deleteOne({
+      _id: conversationId,
+      userId,
+    });
+
+    return { message: SYS_MSG.CONVERSATION_DELETED };
   }
 }
