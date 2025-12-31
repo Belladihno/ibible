@@ -524,7 +524,17 @@ export class ChatController {
     @Param('id') id: string,
     @Req() req: Request & { user: UserPayload & { jti?: string; id?: string } },
   ) {
-    // TODO: Implement actual deletion logic
-    return { message: 'Conversation deleted successfully' };
+    type JwtPayload = {
+      userId?: string;
+      sub?: string;
+      id?: string;
+      [key: string]: unknown;
+    };
+    const payload = req.user as unknown as JwtPayload;
+    const userId = payload.userId ?? payload.sub ?? payload.id;
+    if (!userId || typeof userId !== 'string') {
+      throw new Error('Invalid user id');
+    }
+    return await this.chatService.deleteConversation(id, userId);
   }
 }
