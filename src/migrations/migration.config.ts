@@ -4,7 +4,6 @@ import { DataSource } from 'typeorm';
 
 config();
 
-
 const configService = new ConfigService();
 const isProduction = configService.get('NODE_ENV') === 'production';
 
@@ -19,7 +18,7 @@ const dataSource = new DataSource({
   migrations: ['dist/db/migrations/*.js'],
   ssl: isProduction
     ? { rejectUnauthorized: false } // cloud DBs
-    : false,                         // local DB 
+    : false, // local DB
 });
 
 export async function initializeDataSource() {

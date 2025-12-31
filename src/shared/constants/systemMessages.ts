@@ -99,3 +99,6 @@ export const PRAYER_ID_MISMATCH =
 export const DELETE_MEMORIES_BY_ID = `Memory successfully deleted`;
 export const UPDATE_MEMORIES_BY_ID = `Follow up status successfully updated`;
 export const MEMORY_NOT_FOUND = `Memory Not Found`;
+
+// Chat
+export const CONVERSATION_DELETED = 'Conversation deleted successfully';

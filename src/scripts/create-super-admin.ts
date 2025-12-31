@@ -27,6 +27,9 @@ async function promoteUserToSuperAdmin() {
     database: process.env.DATABASE_NAME,
     entities: [path.join(__dirname, '..', 'entities', '*.entity.ts')],
     synchronize: false,
+    ssl: {
+      rejectUnauthorized: false,
+    },
   });
 
   console.log(`Connecting to database...`);
