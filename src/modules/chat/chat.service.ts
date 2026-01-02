@@ -73,7 +73,7 @@ export class ChatService {
       Do not use punctuation, quotes, or explanations.
       Return ONLY the title text.
       `.trim();
-    const titlePromise = this.gemini
+    const titlePromise: Promise<string> = this.gemini
       .generate(ReaFeature.TITLE, userMessage, {
         systemPrompt: prompt,
         temperature: 0.4,
