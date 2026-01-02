@@ -29,16 +29,21 @@ export class ChatService {
   async createConversation(
     userId: string,
     firstMessage?: string,
+    generateTitle: boolean = true,
   ): Promise<ChatConversationDocument> {
     let title = 'New Conversation';
 
     if (firstMessage) {
-      try {
-        // WAIT for AI title (fast, should be < 2 seconds)
-        title = await this.getAITitleWithTimeout(firstMessage, userId);
-        this.logger.log(`AI title created: "${title}"`);
-      } catch (error) {
-        this.logger.warn(`AI title failed, using simple: ${error.message}`);
+      if (generateTitle) {
+        try {
+          // WAIT for AI title (fast, should be < 2 seconds)
+          title = await this.getAITitleWithTimeout(firstMessage, userId);
+          this.logger.log(`AI title created: "${title}"`);
+        } catch (error) {
+          this.logger.warn(`AI title failed, using simple: ${error.message}`);
+          title = this.getSimpleTitle(firstMessage);
+        }
+      } else {
         title = this.getSimpleTitle(firstMessage);
       }
     }
@@ -136,6 +141,7 @@ export class ChatService {
       conversation = await this.createConversation(
         userId,
         createMessageDto.content,
+        false,
       );
     }
 
@@ -163,16 +169,58 @@ export class ChatService {
     let aiResponseContent: string;
 
     try {
-      aiResponseContent = await this.gemini.generate(
+      let result = await this.gemini.generate(
         ReaFeature.CHAT,
         createMessageDto.content,
         {
           systemPrompt,
           temperature: 0.7,
-          maxTokens: 1200, // increased to reduce cut-off
+          maxTokens: 3000, // Increased for better completion
           userId: userId,
         },
       );
+
+      aiResponseContent = result.content;
+
+      // Check for truncation and request continuation if needed
+      let loopCount = 0;
+      const MAX_LOOPS = 2; // Safety limit
+
+      while (result.finishReason === 'length' && loopCount < MAX_LOOPS) {
+        const continuation = await this.gemini.generate(
+          ReaFeature.CHAT,
+          'Please complete your previous response precisely starting from where you cut off.',
+          {
+            systemPrompt: systemPrompt,
+            history: [
+              { role: ChatRole.USER, content: createMessageDto.content },
+              { role: ChatRole.ASSISTANT, content: aiResponseContent },
+            ],
+            temperature: 0.7,
+            maxTokens: 1000,
+            userId: userId,
+          },
+        );
+
+        aiResponseContent += continuation.content;
+        result = continuation;
+        loopCount++;
+      }
+
+      // Generate AI title for new conversation after successful AI response
+      if (!createMessageDto.conversationId) {
+        try {
+          const aiTitle = await this.getAITitleWithTimeout(
+            createMessageDto.content,
+            userId,
+          );
+          conversation.title = aiTitle;
+          await conversation.save();
+          this.logger.log(`Updated conversation title to: "${aiTitle}"`);
+        } catch (error) {
+          this.logger.warn(`AI title update failed: ${error.message}`);
+        }
+      }
     } catch (error) {
       this.logger.error('AI response error:', error);
       aiResponseContent = this.getFallbackResponse(
@@ -518,11 +566,8 @@ export class ChatService {
           content: msg.content,
         })) ?? [];
 
-      const response = await this.gemini.generate(
-        ReaFeature.CHAT,
-        userMessage,
-        {
-          systemPrompt: `
+      const result = await this.gemini.generate(ReaFeature.CHAT, userMessage, {
+        systemPrompt: `
             You are Rea, a Bible-focused Christian assistant.
             Respond thoughtfully, biblically, and conversationally.
             If scripture references are provided, respect them.
@@ -530,17 +575,16 @@ export class ChatService {
             Never stop mid-sentence.
             Respond in well-structured paragraphs.
           `.trim(),
-          history,
-          temperature: 0.7,
-          maxTokens: 900,
-        },
-      );
+        history,
+        temperature: 0.7,
+        maxTokens: 900,
+      });
 
-      if (!response || !response.trim()) {
+      if (!result.content || !result.content.trim()) {
         return this.getFallbackResponse(userMessage, references);
       }
 
-      return response.trim();
+      return String(result.content).trim();
     } catch {
       return this.getFallbackResponse(userMessage, references);
     }

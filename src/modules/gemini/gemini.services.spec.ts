@@ -3,6 +3,7 @@ import { GeminiService } from './gemini.service';
 import { ConfigService } from '@nestjs/config';
 import { ReaFeature, ChatRole } from 'src/shared/enums';
 import Redis from 'ioredis';
+import { AiUsageService } from '../ai-usage/ai-usage.service';
 
 describe('GeminiService', () => {
   let service!: GeminiService;
@@ -20,6 +21,10 @@ describe('GeminiService', () => {
       set: jest.fn(),
     };
 
+    const aiUsageServiceMock = {
+      logUsage: jest.fn(),
+    };
+
     global.fetch = jest.fn();
 
     const module: TestingModule = await Test.createTestingModule({
@@ -27,6 +32,7 @@ describe('GeminiService', () => {
         GeminiService,
         { provide: ConfigService, useValue: configService },
         { provide: 'REDIS_CLIENT', useValue: redisMock },
+        { provide: AiUsageService, useValue: aiUsageServiceMock },
       ],
     }).compile();
 
@@ -55,6 +61,7 @@ describe('GeminiService', () => {
       new GeminiService(
         configService as unknown as ConfigService,
         redisMock as unknown as Redis,
+        {} as unknown as AiUsageService,
       );
     }).toThrow('OPENROUTER_API_KEY is required');
   });
@@ -63,13 +70,17 @@ describe('GeminiService', () => {
     (fetch as jest.Mock).mockResolvedValue({
       ok: true,
       json: async () => ({
-        choices: [{ message: { content: 'Hello from AI' } }],
+        choices: [
+          { message: { content: 'Hello from AI' }, finish_reason: 'stop' },
+        ],
       }),
     });
 
     const result = await service.generate(ReaFeature.CHAT, 'Hello');
 
-    expect(result).toBe('Hello from AI');
+    expect(result.content).toBe('Hello from AI');
+    expect(result.finishReason).toBe('stop');
+    expect(result.isComplete).toBe(true);
     expect(fetch).toHaveBeenCalled();
   });
 

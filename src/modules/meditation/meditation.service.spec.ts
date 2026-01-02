@@ -118,7 +118,11 @@ describe('MeditationService', () => {
       const session = { id: 'sess2', chatCount: 0, save: jest.fn() };
       sessionRepo.create.mockReturnValue(session);
       sessionRepo.save.mockResolvedValue(session);
-      gemini.generate.mockResolvedValue('AI Reflection Reply');
+      gemini.generate.mockResolvedValue({
+        content: 'AI Reflection Reply',
+        finishReason: 'stop',
+        isComplete: true,
+      });
       chatRepo.save.mockResolvedValue(true);
 
       const result = await service.startSession('user1', {
@@ -151,7 +155,11 @@ describe('MeditationService', () => {
       chatRepo.find.mockResolvedValue([
         { role: ChatRole.USER, message: 'Hello' },
       ]);
-      gemini.generate.mockResolvedValue('AI Reply');
+      gemini.generate.mockResolvedValue({
+        content: 'AI Reply',
+        finishReason: 'stop',
+        isComplete: true,
+      });
       chatRepo.save.mockResolvedValue(true);
       sessionRepo.save.mockResolvedValue(session);
 

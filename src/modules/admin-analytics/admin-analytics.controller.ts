@@ -93,7 +93,23 @@ export class AdminAnalyticsController {
     example: 10,
   })
   async getUsers(@Query('page') page = '1', @Query('limit') limit = '10') {
-    return this.analyticsService.getUserAnalytics(Number(page), Number(limit));
+    return this.analyticsService.getEnhancedUserAnalytics(
+      Number(page),
+      Number(limit),
+    );
+  }
+
+  @Get('users/growth')
+  @ApiOperation({ summary: 'Get user growth by subscription tier' })
+  @ApiQuery({
+    name: 'period',
+    required: false,
+    enum: ['week', 'month', 'year'],
+  })
+  async getUserGrowth(
+    @Query('period') period: 'week' | 'month' | 'year' = 'month',
+  ) {
+    return this.analyticsService.getUserGrowthByTier(period);
   }
 
   @Get('usage')
@@ -164,5 +180,92 @@ export class AdminAnalyticsController {
   })
   async manualSync(@Query('date') date?: string) {
     return this.appMetricsSyncService.manualSync(date);
+  }
+
+  @Get('ai-usage')
+  @ApiOperation({ summary: 'Get AI usage overview (cost, tokens, breakdown)' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'AI usage statistics for last 30 days',
+    schema: {
+      example: {
+        overview: {
+          totalCost: 12.45,
+          totalInputTokens: 1500000,
+          totalOutputTokens: 500000,
+          totalTokens: 2000000,
+          totalRequests: 1250,
+        },
+        byFeature: [
+          { feature: 'CHAT', cost: 5.2, tokens: 800000, requests: 450 },
+          { feature: 'PRAYER', cost: 3.1, tokens: 600000, requests: 320 },
+        ],
+        byModel: [
+          {
+            model: 'google/gemini-2.5-pro',
+            cost: 8.5,
+            tokens: 1200000,
+            requests: 600,
+          },
+        ],
+      },
+    },
+  })
+  async getAiUsage() {
+    return this.analyticsService.getAiUsageOverview();
+  }
+
+  @Get('ai-usage/user/:userId')
+  @ApiOperation({ summary: 'Get AI usage for a specific user' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'User-specific AI usage data',
+    schema: {
+      example: {
+        userId: '507f1f77bcf86cd799439011',
+        totalCost: 2.35,
+        totalTokens: 350000,
+        totalRequests: 125,
+        recentLogs: [
+          {
+            id: '...',
+            feature: 'CHAT',
+            model: 'google/gemini-2.5-pro',
+            inputTokens: 1200,
+            outputTokens: 450,
+            cost: 0.00215,
+            createdAt: '2025-12-30T09:00:00Z',
+          },
+        ],
+      },
+    },
+  })
+  async getUserAiUsage(@Query('userId') userId: string) {
+    return this.analyticsService.getUserAiUsage(userId);
+  }
+
+  @Get('ai-usage/timeline')
+  @ApiOperation({ summary: 'Get AI usage cost/token timeline' })
+  @ApiQuery({
+    name: 'period',
+    required: false,
+    enum: ['week', 'month', 'year'],
+  })
+  async getAiUsageTimeline(
+    @Query('period') period: 'week' | 'month' | 'year' = 'month',
+  ) {
+    return this.analyticsService.getAiUsageTimeline(period);
+  }
+
+  @Get('credits/available')
+  @ApiOperation({ summary: 'Get available AI credits for admin' })
+  async getAvailableCredits() {
+    return this.analyticsService.getAvailableCredits();
+  }
+
+  @Post('reports/export')
+  @ApiOperation({ summary: 'Export dashboard data as a report' })
+  async exportReport() {
+    return this.analyticsService.exportDashboardReport();
   }
 }

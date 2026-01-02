@@ -112,7 +112,11 @@ describe('ChatService', () => {
 
       const result = await service.sendMessage('user1', { content: 'test' });
       expect(result).toBeDefined();
-      expect(createConversationSpy).toHaveBeenCalledWith('user1', 'test');
+      expect(createConversationSpy).toHaveBeenCalledWith(
+        'user1',
+        'test',
+        false,
+      );
     });
 
     it('should proceed when within limits', async () => {

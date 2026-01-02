@@ -161,7 +161,11 @@ describe('BibleVerseService', () => {
         aiSummary: null,
       });
       const aiSummary = 'This verse shows God’s love.';
-      mockGeminiSvc.generate.mockResolvedValue(aiSummary);
+      mockGeminiSvc.generate.mockResolvedValue({
+        content: aiSummary,
+        finishReason: 'stop',
+        isComplete: true,
+      });
 
       const result = await service.getDailyVerseWithSummary();
 
@@ -192,8 +196,11 @@ describe('BibleVerseService', () => {
         { ...mockMessage, sender: 'user', content: userContent },
         { ...mockMessage, sender: 'assistant', content: aiReply },
       ]);
-
-      mockGeminiSvc.generate.mockResolvedValue(aiReply);
+      mockGeminiSvc.generate.mockResolvedValue({
+        content: aiReply,
+        finishReason: 'stop',
+        isComplete: true,
+      });
 
       const result = await service.postMessageToConversation(
         'conv-id',

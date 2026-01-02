@@ -117,9 +117,10 @@ export class UserController {
   })
   @ApiResponse({ status: HttpStatus.UNAUTHORIZED, description: 'Unauthorized' })
   async deleteMe(
-    @Req() req: Request & { user: { userId: string; id?: string } },
+    @Req()
+    req: Request & { user: { userId: string; id?: string; sub?: string } },
   ) {
-    const userId = req.user.userId || req.user.id;
+    const userId = req.user.userId ?? req.user.sub ?? req.user.id;
     if (!userId) throw new BadRequestException('Invalid user id');
     await this.users.delete(userId);
     return {
@@ -165,10 +166,12 @@ export class UserController {
   })
   @ApiResponse({ status: HttpStatus.UNAUTHORIZED, description: 'Unauthorized' })
   async updateMe(
-    @Req() req: Request & { user: { userId: string; id?: string } },
+    @Req()
+    req: Request & { user: { userId: string; id?: string; sub?: string } },
     @Body() data: UpdateUserDto,
   ) {
-    const userId = req.user.userId || req.user.id;
+    const userId = req.user.userId ?? req.user.sub ?? req.user.id;
+    console.log(userId);
     if (!userId) throw new BadRequestException('Invalid user id');
     const user = await this.users.update(userId, data);
     const filtered = {
