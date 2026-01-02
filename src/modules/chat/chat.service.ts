@@ -73,11 +73,13 @@ export class ChatService {
       Do not use punctuation, quotes, or explanations.
       Return ONLY the title text.
       `.trim();
-    const titlePromise = this.gemini.generate(ReaFeature.TITLE, userMessage, {
-      systemPrompt: prompt,
-      temperature: 0.4,
-      maxTokens: 20,
-    });
+    const titlePromise: Promise<string> = this.gemini
+      .generate(ReaFeature.TITLE, userMessage, {
+        systemPrompt: prompt,
+        temperature: 0.4,
+        maxTokens: 20,
+      })
+      .then((res) => String(res.content));
 
     const timeoutPromise = new Promise<string>((_, reject) => {
       setTimeout(() => reject(new Error('AI title timeout')), 2000);
