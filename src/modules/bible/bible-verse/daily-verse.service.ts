@@ -18,7 +18,10 @@ import {
 } from 'src/shared/types/bible-verse.types';
 import { DailyVerseConversation } from '../../../entities/daily-verse-conversation.entity';
 import { DailyVerseConversationMessage } from '../../../entities/daily-verse-conversation-message.entity';
-import { GeminiService } from 'src/modules/gemini/gemini.service';
+import {
+  GeminiService,
+  GenerateResult,
+} from 'src/modules/gemini/gemini.service';
 import {
   ConversationHistoryResponse,
   ConversationMetadata,
@@ -102,8 +105,11 @@ export class BibleVerseService implements OnModuleInit {
         summary = await this.generateAISummary(verse);
         cached.aiSummary = summary;
         await this.dailyVerseRepo.save(cached);
-      } catch (err) {
-        this.logger.error('Failed to generate AI summary', err);
+      } catch (err: unknown) {
+        this.logger.error(
+          'Failed to generate AI summary',
+          this.getErrorMessage(err),
+        );
         summary = `Reflect on ${verse.reference}. What does this verse mean to you today?`;
       }
     }
@@ -124,13 +130,21 @@ export class BibleVerseService implements OnModuleInit {
 
   private async generateAISummary(verse: BibleVerse): Promise<string> {
     try {
-      return await this.geminiService.generate(ReaFeature.BIBLE, verse.text, {
-        systemPrompt: `Summarize this Bible verse in 1-2 sentences, biblically accurate: ${verse.reference}`,
-        temperature: 0.7,
-        maxTokens: 120,
-      });
-    } catch (err) {
-      this.logger.error('GeminiService failed to generate summary', err);
+      const result: GenerateResult = await this.geminiService.generate(
+        ReaFeature.BIBLE,
+        verse.text,
+        {
+          systemPrompt: `Summarize this Bible verse in 1-2 sentences, biblically accurate: ${verse.reference}`,
+          temperature: 0.7,
+          maxTokens: 120,
+        },
+      );
+      return result.content;
+    } catch (err: unknown) {
+      this.logger.error(
+        'GeminiService failed to generate summary',
+        this.getErrorMessage(err),
+      );
       return `Reflect on ${verse.reference}. What does this verse mean to you today?`;
     }
   }
@@ -140,17 +154,25 @@ export class BibleVerseService implements OnModuleInit {
     history: ChatMessage[],
   ): Promise<string> {
     try {
-      return await this.geminiService.generate(ReaFeature.BIBLE, content, {
-        systemPrompt: `
+      const result: GenerateResult = await this.geminiService.generate(
+        ReaFeature.BIBLE,
+        content,
+        {
+          systemPrompt: `
           You are Rea, a Bible-focused assistant.
           Respond thoughtfully, biblically, and conversationally.
         `.trim(),
-        history,
-        temperature: 0.7,
-        maxTokens: 400,
-      });
-    } catch (err) {
-      this.logger.error('GeminiService failed to generate reply', err);
+          history,
+          temperature: 0.7,
+          maxTokens: 400,
+        },
+      );
+      return result.content;
+    } catch (err: unknown) {
+      this.logger.error(
+        'GeminiService failed to generate reply',
+        this.getErrorMessage(err),
+      );
       return "Let's reflect on the verse together. What comes to your mind?";
     }
   }
@@ -233,17 +255,25 @@ export class BibleVerseService implements OnModuleInit {
 
     let aiReply: string;
     try {
-      aiReply = await this.geminiService.generate(ReaFeature.BIBLE, content, {
-        systemPrompt: `
+      const result: GenerateResult = await this.geminiService.generate(
+        ReaFeature.BIBLE,
+        content,
+        {
+          systemPrompt: `
         You are Rea, a Bible-focused Christian assistant.
         Respond thoughtfully, biblically, and conversationally.
       `.trim(),
-        history,
-        temperature: 0.7,
-        maxTokens: 400,
-      });
-    } catch (err) {
-      this.logger.error('Failed to generate AI reply', err);
+          history,
+          temperature: 0.7,
+          maxTokens: 400,
+        },
+      );
+      aiReply = result.content;
+    } catch (err: unknown) {
+      this.logger.error(
+        'Failed to generate AI reply',
+        this.getErrorMessage(err),
+      );
       aiReply = `Reflect on ${conv.verseReference}. What does this verse mean to you today?`;
     }
 
@@ -432,8 +462,11 @@ export class BibleVerseService implements OnModuleInit {
       try {
         aiSummary = await this.generateAISummary(verse);
         this.logger.log(`Generated AI summary for ${verse.reference}`);
-      } catch (err) {
-        this.logger.error('Failed to generate AI summary during caching', err);
+      } catch (err: unknown) {
+        this.logger.error(
+          'Failed to generate AI summary during caching',
+          this.getErrorMessage(err),
+        );
         aiSummary = `Reflect on ${verse.reference}. What does this verse mean to you today?`;
       }
 
@@ -454,12 +487,10 @@ export class BibleVerseService implements OnModuleInit {
         await this.dailyVerseRepo.delete({
           date: this.getYesterday(),
         });
-      } catch (saveError: any) {
+      } catch (saveError: unknown) {
         // Handle potential race condition - check if another process already saved it
-        if (
-          saveError.code === '23505' ||
-          saveError.message?.includes('duplicate key')
-        ) {
+        const { code, message } = this.getErrorInfo(saveError);
+        if (code === '23505' || message?.includes('duplicate key')) {
           this.logger.warn(
             `Race condition detected: Daily verse for ${today} was already saved by another process`,
           );
@@ -473,12 +504,37 @@ export class BibleVerseService implements OnModuleInit {
           }
         }
         // Re-throw if it's not a duplicate key error
-        throw saveError;
+        if (saveError instanceof Error) throw saveError;
+        throw new Error(String(saveError));
       }
-    } catch (error) {
-      this.logger.error('Failed to fetch and cache verse', error);
-      throw error;
+    } catch (error: unknown) {
+      this.logger.error(
+        'Failed to fetch and cache verse',
+        this.getErrorMessage(error),
+      );
+      if (error instanceof Error) throw error;
+      throw new Error(String(error));
     }
+  }
+
+  private getErrorMessage(err: unknown): string {
+    if (err instanceof Error) return err.stack ?? err.message;
+    try {
+      return JSON.stringify(err);
+    } catch {
+      return String(err);
+    }
+  }
+
+  private getErrorInfo(err: unknown): { code?: string; message?: string } {
+    if (err && typeof err === 'object') {
+      const e = err as Record<string, unknown>;
+      return {
+        code: typeof e['code'] === 'string' ? e['code'] : undefined,
+        message: typeof e['message'] === 'string' ? e['message'] : undefined,
+      };
+    }
+    return {};
   }
 
   private getToday(): string {

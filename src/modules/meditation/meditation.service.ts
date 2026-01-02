@@ -125,13 +125,13 @@ export class MeditationService {
         sessionId: session.id,
         userId,
         role: ChatRole.ASSISTANT,
-        message: aiReply,
+        message: aiReply.content,
       });
 
       session.chatCount = 2;
       await this.meditationSessionRepo.save(session);
 
-      initialChatMessage = aiReply;
+      initialChatMessage = aiReply.content;
     }
 
     return {
@@ -191,14 +191,14 @@ Respond calmly, spiritually, and thoughtfully.
       sessionId,
       userId,
       role: ChatRole.ASSISTANT,
-      message: aiReply,
+      message: aiReply.content,
     });
 
     session.chatCount = history.length + 2;
     await this.meditationSessionRepo.save(session);
 
     return {
-      reply: aiReply,
+      reply: aiReply.content,
       timestamp: new Date(),
     };
   }

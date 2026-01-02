@@ -96,10 +96,9 @@ export class HealthService {
       .then((res) => ({
         key: 'gemini',
         status: 'up',
-        detail:
-          typeof res === 'string' && res.toLowerCase().includes('pong')
-            ? 'Gemini API responded'
-            : 'Gemini API returned unexpected response',
+        detail: String(res.content).toLowerCase().includes('pong')
+          ? 'Gemini API responded'
+          : 'Gemini API returned unexpected response',
       }))
       .catch((err: unknown) => ({
         key: 'gemini',

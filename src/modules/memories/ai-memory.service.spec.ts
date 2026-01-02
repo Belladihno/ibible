@@ -72,9 +72,11 @@ describe('AiMemoryService', () => {
 
   describe('rephraseMemory', () => {
     it('returns cleaned text from GeminiService', async () => {
-      geminiService.generate.mockResolvedValue(
-        'Here is a rephrased memory: Rephrased memory text',
-      );
+      geminiService.generate.mockResolvedValue({
+        content: 'Here is a rephrased memory: Rephrased memory text',
+        finishReason: 'stop',
+        isComplete: true,
+      });
       const result = await service.rephraseMemory('Title', 'Original memory');
       expect(result).toBe('Rephrased memory text');
     });
@@ -94,3 +96,4 @@ describe('AiMemoryService', () => {
     });
   });
 });
+

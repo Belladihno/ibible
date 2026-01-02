@@ -82,7 +82,7 @@ export class DiscoverService {
         prompt,
         userId ? { userId } : undefined,
       );
-      const references = JSON.parse(response);
+      const references = JSON.parse(String(response.content));
 
       if (!Array.isArray(references) || references.length === 0) {
         throw new BadRequestException(

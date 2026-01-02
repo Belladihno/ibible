@@ -4,8 +4,26 @@ import { ChatRole, ReaFeature } from 'src/shared/enums';
 import { ChatMessage } from 'src/shared/types/chat.types';
 import Redis from 'ioredis';
 
+/**
+ * Response structure from OpenRouter API
+ */
 interface OpenRouterResponse {
-  choices: { message: { content: string } }[];
+  choices: {
+    message: { content: string };
+    finish_reason: 'stop' | 'length' | 'content_filter' | null;
+  }[];
+}
+
+/**
+ * Result returned by generate method
+ * - content: The AI response text
+ * - finishReason: Why the model stopped generating
+ * - isComplete: Quick check if response finished naturally
+ */
+export interface GenerateResult {
+  content: string;
+  finishReason: 'stop' | 'length' | 'content_filter' | null;
+  isComplete: boolean;
 }
 
 @Injectable()
@@ -43,65 +61,67 @@ export class GeminiService {
       maxTokens?: number;
       userId?: string;
     },
-  ): Promise<string> {
-    // GLOBAL AI RATE LIMIT
-    if (options?.userId) {
-      // Authenticated user limits
-      // Daily limit check
-      const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
-      const dailyKey = `ai_daily_limit:${options.userId}:${today}`;
-      const dailyUsage = await this.redis.incr(dailyKey);
-      if (dailyUsage === 1) {
-        // Expire at end of day
-        const now = new Date();
-        const endOfDay = new Date(now);
-        endOfDay.setHours(23, 59, 59, 999);
-        const ttl = Math.floor((endOfDay.getTime() - now.getTime()) / 1000);
-        await this.redis.expire(dailyKey, ttl);
-      }
-      if (dailyUsage > 15) {
-        throw new Error(
-          'Daily AI request limit exceeded (15 requests per day). Please try again tomorrow.',
-        );
-      }
+  ): Promise<GenerateResult> {
+    // GLOBAL AI RATE LIMIT (TITLE generation is free)
+    if (feature !== ReaFeature.TITLE) {
+      if (options?.userId) {
+        // Authenticated user limits
+        // Daily limit check
+        const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+        const dailyKey = `ai_daily_limit:${options.userId}:${today}`;
+        const dailyUsage = await this.redis.incr(dailyKey);
+        if (dailyUsage === 1) {
+          // Expire at end of day
+          const now = new Date();
+          const endOfDay = new Date(now);
+          endOfDay.setHours(23, 59, 59, 999);
+          const ttl = Math.floor((endOfDay.getTime() - now.getTime()) / 1000);
+          await this.redis.expire(dailyKey, ttl);
+        }
+        if (dailyUsage > 15) {
+          throw new Error(
+            'Daily AI request limit exceeded (15 requests per day). Please try again tomorrow.',
+          );
+        }
 
-      // Per-minute limit check
-      const rateLimitKey = `ai_limit:${options.userId}`;
-      const currentUsage = await this.redis.incr(rateLimitKey);
-      if (currentUsage === 1) await this.redis.expire(rateLimitKey, 60);
-      if (currentUsage > 3) {
-        throw new Error(
-          'AI request rate limit exceeded (3 requests per minute). Please try again later.',
-        );
-      }
-    } else {
-      // Public/unauthenticated limits - shared across all public requests
-      // Daily limit check
-      const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
-      const dailyKey = `ai_public_daily_limit:${today}`;
-      const dailyUsage = await this.redis.incr(dailyKey);
-      if (dailyUsage === 1) {
-        // Expire at end of day
-        const now = new Date();
-        const endOfDay = new Date(now);
-        endOfDay.setHours(23, 59, 59, 999);
-        const ttl = Math.floor((endOfDay.getTime() - now.getTime()) / 1000);
-        await this.redis.expire(dailyKey, ttl);
-      }
-      if (dailyUsage > 5) {
-        throw new Error(
-          'Daily public AI request limit exceeded (5 requests per day). Please try again tomorrow.',
-        );
-      }
+        // Per-minute limit check
+        const rateLimitKey = `ai_limit:${options.userId}`;
+        const currentUsage = await this.redis.incr(rateLimitKey);
+        if (currentUsage === 1) await this.redis.expire(rateLimitKey, 60);
+        if (currentUsage > 3) {
+          throw new Error(
+            'AI request rate limit exceeded (3 requests per minute). Please try again later.',
+          );
+        }
+      } else {
+        // Public/unauthenticated limits - shared across all public requests
+        // Daily limit check
+        const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+        const dailyKey = `ai_public_daily_limit:${today}`;
+        const dailyUsage = await this.redis.incr(dailyKey);
+        if (dailyUsage === 1) {
+          // Expire at end of day
+          const now = new Date();
+          const endOfDay = new Date(now);
+          endOfDay.setHours(23, 59, 59, 999);
+          const ttl = Math.floor((endOfDay.getTime() - now.getTime()) / 1000);
+          await this.redis.expire(dailyKey, ttl);
+        }
+        if (dailyUsage > 5) {
+          throw new Error(
+            'Daily public AI request limit exceeded (5 requests per day). Please try again tomorrow.',
+          );
+        }
 
-      // Per-minute limit check
-      const rateLimitKey = `ai_public_limit`;
-      const currentUsage = await this.redis.incr(rateLimitKey);
-      if (currentUsage === 1) await this.redis.expire(rateLimitKey, 60);
-      if (currentUsage > 1) {
-        throw new Error(
-          'Public AI request rate limit exceeded (1 request per minute). Please try again later.',
-        );
+        // Per-minute limit check
+        const rateLimitKey = `ai_public_limit`;
+        const currentUsage = await this.redis.incr(rateLimitKey);
+        if (currentUsage === 1) await this.redis.expire(rateLimitKey, 60);
+        if (currentUsage > 1) {
+          throw new Error(
+            'Public AI request rate limit exceeded (1 request per minute). Please try again later.',
+          );
+        }
       }
     }
 
@@ -144,7 +164,12 @@ export class GeminiService {
         throw new Error('OpenRouter returned no content');
       }
 
-      return data.choices[0].message.content;
+      const choice = data.choices[0];
+      return {
+        content: choice.message.content,
+        finishReason: choice.finish_reason,
+        isComplete: choice.finish_reason === 'stop',
+      };
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : String(error);
       this.logger.error(`LLM error [${feature} → ${model}]: ${msg}`);

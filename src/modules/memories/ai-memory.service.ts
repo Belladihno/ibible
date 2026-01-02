@@ -32,7 +32,7 @@ export class AiMemoryService {
         userId,
       });
 
-      if (!result?.trim()) {
+      if (!result.content?.trim()) {
         this.logger.error('Empty rephrase result from Gemini for memory');
         throw new HttpException(
           'Empty rephrase result from AI',
@@ -40,7 +40,7 @@ export class AiMemoryService {
         );
       }
 
-      return this.cleanResult(result);
+      return this.cleanResult(result.content);
     } catch (error: unknown) {
       this.logger.error('Failed to rephrase memory', error);
       throw new HttpException(
