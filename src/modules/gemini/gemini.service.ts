@@ -3,9 +3,15 @@ import { ConfigService } from '@nestjs/config';
 import { ChatRole, ReaFeature } from 'src/shared/enums';
 import { ChatMessage } from 'src/shared/types/chat.types';
 import Redis from 'ioredis';
+import { AiUsageService } from '../ai-usage/ai-usage.service';
 
 interface OpenRouterResponse {
   choices: { message: { content: string } }[];
+  usage?: {
+    prompt_tokens: number;
+    completion_tokens: number;
+    total_tokens: number;
+  };
 }
 
 @Injectable()
@@ -13,10 +19,12 @@ export class GeminiService {
   private readonly logger = new Logger(GeminiService.name);
   private readonly apiKey: string;
   private readonly baseUrl = 'https://openrouter.ai/api/v1/chat/completions';
+  private readonly creditsUrl = 'https://openrouter.ai/api/v1/credits';
 
   constructor(
     private readonly configService: ConfigService,
     @Inject('REDIS_CLIENT') private readonly redis: Redis,
+    private readonly aiUsageService: AiUsageService,
   ) {
     const key = this.configService.get<string>('OPENROUTER_API_KEY');
     if (!key) throw new Error('OPENROUTER_API_KEY is required');
@@ -31,6 +39,13 @@ export class GeminiService {
     [ReaFeature.TITLE]: 'google/gemini-2.5-flash',
     [ReaFeature.MEMORIES]: 'google/gemini-2.5-pro',
     [ReaFeature.BIBLE]: 'google/gemini-2.5-pro',
+  };
+
+  private readonly MODEL_PRICING = {
+    'google/gemini-2.5-flash': { input: 0.1, output: 0.4 },
+    'google/gemini-2.5-pro': { input: 1.25, output: 5.0 },
+    'google/gemini-1.5-flash': { input: 0.1, output: 0.4 },
+    'google/gemini-1.5-pro': { input: 1.25, output: 5.0 },
   };
 
   async generate(
@@ -144,10 +159,173 @@ export class GeminiService {
         throw new Error('OpenRouter returned no content');
       }
 
+      // Log AI usage
+      if (data.usage) {
+        await this.aiUsageService.logUsage({
+          userId: options?.userId || null,
+          feature,
+          model,
+          provider: 'openrouter',
+          inputTokens: data.usage.prompt_tokens,
+          outputTokens: data.usage.completion_tokens,
+          metadata: {
+            temperature: options?.temperature,
+            maxTokens: options?.maxTokens,
+            systemPrompt: options?.systemPrompt,
+          },
+        });
+      }
+
       return data.choices[0].message.content;
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : String(error);
       this.logger.error(`LLM error [${feature} → ${model}]: ${msg}`);
+      throw new Error(msg);
+    }
+  }
+
+  async generateWithCostControl(
+    feature: ReaFeature,
+    prompt: string,
+    options?: {
+      systemPrompt?: string;
+      history?: ChatMessage[];
+      temperature?: number;
+      maxTokens?: number;
+      userId?: string;
+      maxCost?: number; // Maximum allowed cost for this request
+    },
+  ): Promise<{
+    content: string;
+    cost: number;
+    tokens: { input: number; output: number };
+  }> {
+    const model = GeminiService.FEATURE_MODEL_MAP[feature];
+    const pricing =
+      this.MODEL_PRICING[model as keyof typeof this.MODEL_PRICING];
+
+    // Estimate cost based on approximate token counts
+    if (options?.maxCost && pricing) {
+      // Simple estimation: ~4 characters per token for English
+      let estimatedInputTokens = Math.ceil(prompt.length / 4);
+      // Add tokens from history if present
+      if (options?.history) {
+        estimatedInputTokens += options.history.reduce(
+          (acc, msg) => acc + Math.ceil(msg.content.length / 4),
+          0,
+        );
+      }
+
+      const estimatedCost = (estimatedInputTokens / 1_000_000) * pricing.input;
+
+      if (estimatedCost > options.maxCost) {
+        throw new Error(
+          `Estimated cost ($${estimatedCost.toFixed(6)}) exceeds maximum allowed ($${options.maxCost})`,
+        );
+      }
+    }
+
+    const messages: ChatMessage[] = [
+      ...(options?.systemPrompt
+        ? [{ role: ChatRole.SYSTEM, content: options.systemPrompt }]
+        : []),
+      ...(options?.history ?? []),
+      { role: ChatRole.USER, content: prompt },
+    ];
+
+    try {
+      const response = await fetch(this.baseUrl, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${this.apiKey}`,
+          'Content-Type': 'application/json',
+          'HTTP-Referer': 'http://localhost:3000',
+          'X-Title': 'REA Backend',
+        },
+        body: JSON.stringify({
+          model,
+          messages,
+          temperature: options?.temperature ?? 0.7,
+          max_tokens: options?.maxTokens ?? 1000,
+        }),
+      });
+
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(`OpenRouter ${response.status}: ${text}`);
+      }
+
+      const data: OpenRouterResponse =
+        (await response.json()) as OpenRouterResponse;
+
+      if (!data.choices?.[0]?.message?.content) {
+        throw new Error('OpenRouter returned no content');
+      }
+
+      let cost = 0;
+      if (data.usage && pricing) {
+        // Calculate actual cost
+        const inputCost =
+          (data.usage.prompt_tokens / 1_000_000) * pricing.input;
+        const outputCost =
+          (data.usage.completion_tokens / 1_000_000) * pricing.output;
+        cost = inputCost + outputCost;
+
+        // Log AI usage with actual cost
+        await this.aiUsageService.logUsage({
+          userId: options?.userId || null,
+          feature,
+          model,
+          provider: 'openrouter',
+          inputTokens: data.usage.prompt_tokens,
+          outputTokens: data.usage.completion_tokens,
+          metadata: {
+            temperature: options?.temperature,
+            maxTokens: options?.maxTokens,
+            systemPrompt: options?.systemPrompt,
+            calculatedCost: cost,
+          },
+        });
+      }
+
+      return {
+        content: data.choices[0].message.content,
+        cost,
+        tokens: {
+          input: data.usage?.prompt_tokens || 0,
+          output: data.usage?.completion_tokens || 0,
+        },
+      };
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : String(error);
+      this.logger.error(`LLM error [${feature} → ${model}]: ${msg}`);
+      throw new Error(msg);
+    }
+  }
+
+  async getCredits(): Promise<{ total_credits: number; total_usage: number }> {
+    try {
+      const response = await fetch(this.creditsUrl, {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${this.apiKey}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(`OpenRouter Credits ${response.status}: ${text}`);
+      }
+
+      const { data } = (await response.json()) as {
+        data: { total_credits: number; total_usage: number };
+      };
+
+      return data;
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : String(error);
+      this.logger.error(`OpenRouter Credits Error: ${msg}`);
       throw new Error(msg);
     }
   }

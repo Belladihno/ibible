@@ -3,6 +3,7 @@ import { GeminiService } from './gemini.service';
 import { ConfigService } from '@nestjs/config';
 import { ReaFeature, ChatRole } from 'src/shared/enums';
 import Redis from 'ioredis';
+import { AiUsageService } from '../ai-usage/ai-usage.service';
 
 describe('GeminiService', () => {
   let service!: GeminiService;
@@ -20,6 +21,10 @@ describe('GeminiService', () => {
       set: jest.fn(),
     };
 
+    const aiUsageServiceMock = {
+      logUsage: jest.fn(),
+    };
+
     global.fetch = jest.fn();
 
     const module: TestingModule = await Test.createTestingModule({
@@ -27,6 +32,7 @@ describe('GeminiService', () => {
         GeminiService,
         { provide: ConfigService, useValue: configService },
         { provide: 'REDIS_CLIENT', useValue: redisMock },
+        { provide: AiUsageService, useValue: aiUsageServiceMock },
       ],
     }).compile();
 
@@ -55,6 +61,7 @@ describe('GeminiService', () => {
       new GeminiService(
         configService as unknown as ConfigService,
         redisMock as unknown as Redis,
+        {} as unknown as AiUsageService,
       );
     }).toThrow('OPENROUTER_API_KEY is required');
   });

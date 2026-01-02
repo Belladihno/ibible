@@ -122,12 +122,16 @@ export class BibleVerseService implements OnModuleInit {
     };
   }
 
-  private async generateAISummary(verse: BibleVerse): Promise<string> {
+  private async generateAISummary(
+    verse: BibleVerse,
+    userId?: string,
+  ): Promise<string> {
     try {
       return await this.geminiService.generate(ReaFeature.BIBLE, verse.text, {
         systemPrompt: `Summarize this Bible verse in 1-2 sentences, biblically accurate: ${verse.reference}`,
         temperature: 0.7,
         maxTokens: 120,
+        userId,
       });
     } catch (err) {
       this.logger.error('GeminiService failed to generate summary', err);
@@ -138,6 +142,7 @@ export class BibleVerseService implements OnModuleInit {
   private async generateAIReply(
     content: string,
     history: ChatMessage[],
+    userId?: string,
   ): Promise<string> {
     try {
       return await this.geminiService.generate(ReaFeature.BIBLE, content, {
@@ -148,6 +153,7 @@ export class BibleVerseService implements OnModuleInit {
         history,
         temperature: 0.7,
         maxTokens: 400,
+        userId,
       });
     } catch (err) {
       this.logger.error('GeminiService failed to generate reply', err);
@@ -163,7 +169,7 @@ export class BibleVerseService implements OnModuleInit {
     }
 
     const verse = await this.getDailyVerse();
-    const full = await this.generateAISummary(verse);
+    const full = await this.generateAISummary(verse, userId);
 
     const conv = this.conversationRepo.create({
       userId,
@@ -241,6 +247,7 @@ export class BibleVerseService implements OnModuleInit {
         history,
         temperature: 0.7,
         maxTokens: 400,
+        userId,
       });
     } catch (err) {
       this.logger.error('Failed to generate AI reply', err);
@@ -430,7 +437,7 @@ export class BibleVerseService implements OnModuleInit {
 
       let aiSummary: string | null = null;
       try {
-        aiSummary = await this.generateAISummary(verse);
+        aiSummary = await this.generateAISummary(verse, undefined);
         this.logger.log(`Generated AI summary for ${verse.reference}`);
       } catch (err) {
         this.logger.error('Failed to generate AI summary during caching', err);

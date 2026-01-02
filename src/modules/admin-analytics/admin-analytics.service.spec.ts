@@ -4,14 +4,18 @@ import { Repository } from 'typeorm';
 import { User } from 'src/entities/user.entity';
 import { UserActivity } from 'src/entities/user-activity.entity';
 import { AppMetric } from 'src/entities/app-metric.entity';
+import { AiUsageLog } from 'src/entities/ai-usage-log.entity';
 import { AdminAnalyticsService } from './admin-analytics.service';
 import { ActivityType } from '../user/enums/user.enums';
+import { GeminiService } from '../gemini/gemini.service';
 
 describe('AdminAnalyticsService', () => {
   let service: AdminAnalyticsService;
   let userRepo: any;
   let activityRepo: any;
   let appMetricRepo: any;
+  let aiUsageRepo: any;
+  let geminiService: any;
 
   beforeEach(async () => {
     const mockUserRepo = {
@@ -46,6 +50,24 @@ describe('AdminAnalyticsService', () => {
       }),
     };
 
+    const mockAiUsageRepo = {
+      createQueryBuilder: jest.fn().mockReturnValue({
+        select: jest.fn().mockReturnThis(),
+        addSelect: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        groupBy: jest.fn().mockReturnThis(),
+        orderBy: jest.fn().mockReturnThis(),
+        getRawOne: jest.fn(),
+        getRawMany: jest.fn(),
+      }),
+      find: jest.fn(),
+    };
+
+    const mockGeminiService = {
+      getCredits: jest.fn(),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AdminAnalyticsService,
@@ -61,6 +83,14 @@ describe('AdminAnalyticsService', () => {
           provide: getRepositoryToken(AppMetric),
           useValue: mockAppMetricRepo,
         },
+        {
+          provide: getRepositoryToken(AiUsageLog),
+          useValue: mockAiUsageRepo,
+        },
+        {
+          provide: GeminiService,
+          useValue: mockGeminiService,
+        },
       ],
     }).compile();
 
@@ -68,6 +98,8 @@ describe('AdminAnalyticsService', () => {
     userRepo = module.get(getRepositoryToken(User));
     activityRepo = module.get(getRepositoryToken(UserActivity));
     appMetricRepo = module.get(getRepositoryToken(AppMetric));
+    aiUsageRepo = module.get(getRepositoryToken(AiUsageLog));
+    geminiService = module.get(GeminiService);
   });
 
   describe('getOverviewStats', () => {
@@ -119,14 +151,15 @@ describe('AdminAnalyticsService', () => {
     });
   });
 
-  describe('getUserAnalytics', () => {
-    it('should return users with activity metrics', async () => {
+  describe('getEnhancedUserAnalytics', () => {
+    it('should return users with activity and AI metrics', async () => {
       const mockUsers = [
         {
           id: '1',
           fullName: 'User 1',
           email: 'u1@e.com',
           createdAt: new Date(),
+          subscriptionTier: 'free',
         },
       ];
       userRepo.findAndCount.mockResolvedValue([mockUsers as any, 1]);
@@ -134,15 +167,23 @@ describe('AdminAnalyticsService', () => {
         createdAt: new Date(),
       } as unknown as UserActivity);
 
-      const queryBuilder = activityRepo.createQueryBuilder();
-      (queryBuilder.getRawOne as jest.Mock).mockResolvedValue({
-        total_duration: '3660',
+      const activityQueryBuilder = activityRepo.createQueryBuilder();
+      (activityQueryBuilder.getRawOne as jest.Mock).mockResolvedValue({
+        total: '3660',
       });
 
-      const result = await service.getUserAnalytics(1, 10);
+      const aiUsageQueryBuilder = aiUsageRepo.createQueryBuilder();
+      (aiUsageQueryBuilder.getRawOne as jest.Mock).mockResolvedValue({
+        totalCost: '0.50',
+        totalTokens: '1500',
+      });
+
+      const result = await service.getEnhancedUserAnalytics(1, 10);
 
       expect(result.meta.total).toBe(1);
       expect(result.data[0].activityLength).toBe('1h 1m');
+      expect(result.data[0].creditUsed).toBe(0.5);
+      expect(result.data[0].tokensUsed).toBe(1500);
     });
   });
 
