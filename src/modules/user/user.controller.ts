@@ -238,6 +238,7 @@ export class UserController {
     if (!userId || typeof userId !== 'string') {
       throw new BadRequestException('Invalid user id');
     }
+
     const profilePictureUrl = await this.users.uploadProfilePicture(
       userId,
       file,
