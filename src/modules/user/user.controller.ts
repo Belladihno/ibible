@@ -116,7 +116,10 @@ export class UserController {
     },
   })
   @ApiResponse({ status: HttpStatus.UNAUTHORIZED, description: 'Unauthorized' })
-  async deleteMe(@Req() req: Request & { user: { userId: string; id?: string; sub?: string } }) {
+  async deleteMe(
+    @Req()
+    req: Request & { user: { userId: string; id?: string; sub?: string } },
+  ) {
     const userId = req.user.userId ?? req.user.sub ?? req.user.id;
     if (!userId) throw new BadRequestException('Invalid user id');
     await this.users.delete(userId);
@@ -162,8 +165,10 @@ export class UserController {
     },
   })
   @ApiResponse({ status: HttpStatus.UNAUTHORIZED, description: 'Unauthorized' })
-  async updateMe(@Req() req: Request & { user: { userId: string; id?: string; sub?: string } }, 
-  @Body() data: UpdateUserDto
+  async updateMe(
+    @Req()
+    req: Request & { user: { userId: string; id?: string; sub?: string } },
+    @Body() data: UpdateUserDto,
   ) {
     const userId = req.user.userId ?? req.user.sub ?? req.user.id;
     console.log(userId);
@@ -186,7 +191,6 @@ export class UserController {
       data: filtered,
     };
   }
-
 
   @Post('profile-picture')
   @UseGuards(AuthGuard)
@@ -656,7 +660,6 @@ export class UserController {
     if (!userId || typeof userId !== 'string') {
       throw new BadRequestException('Invalid user id');
     }
-
 
     // Load full user from DB to return up-to-date profile fields
     const user = await this.users.findOne(userId);

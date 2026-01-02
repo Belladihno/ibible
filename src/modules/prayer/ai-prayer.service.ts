@@ -20,9 +20,11 @@ export class AiPrayerService {
         userId,
       });
       this.logger.debug(`Rephrase prompt length=${prompt.length}`);
-      this.logger.debug(`Rephrase result length=${result?.length ?? 0}`);
+      this.logger.debug(
+        `Rephrase result length=${result.content?.length ?? 0}`,
+      );
 
-      if (!result || !result.trim()) {
+      if (!result.content || !result.content.trim()) {
         this.logger.error('Empty rephrase result from Gemini');
         throw new HttpException(
           'Empty rephrase result from AI',
@@ -31,7 +33,7 @@ export class AiPrayerService {
       }
 
       // Defensive cleanup: remove common preambles/labels and surrounding quotes
-      let cleaned = result.trim();
+      let cleaned = result.content.trim();
       // Remove common leading phrases like 'Here is a rephrased version...'
       cleaned = cleaned.replace(
         /^Here is a rephrased version[\s\S]*?:\s*/i,
@@ -72,9 +74,11 @@ export class AiPrayerService {
         userId,
       });
       this.logger.debug(`Generate prompt length=${prompt.length}`);
-      this.logger.debug(`Generated prayer length=${result?.length ?? 0}`);
+      this.logger.debug(
+        `Generated prayer length=${result.content?.length ?? 0}`,
+      );
 
-      if (!result || !result.trim()) {
+      if (!result.content || !result.content.trim()) {
         this.logger.error('Empty generated prayer from Gemini');
         throw new HttpException(
           'Server busy, please try again later',
@@ -82,7 +86,7 @@ export class AiPrayerService {
         );
       }
 
-      return result;
+      return result.content;
     } catch (error) {
       this.logger.error('Failed to generate prayer', error?.message ?? error);
       // If it's already an HttpException, re-throw it

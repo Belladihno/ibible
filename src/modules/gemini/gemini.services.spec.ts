@@ -70,13 +70,17 @@ describe('GeminiService', () => {
     (fetch as jest.Mock).mockResolvedValue({
       ok: true,
       json: async () => ({
-        choices: [{ message: { content: 'Hello from AI' } }],
+        choices: [
+          { message: { content: 'Hello from AI' }, finish_reason: 'stop' },
+        ],
       }),
     });
 
     const result = await service.generate(ReaFeature.CHAT, 'Hello');
 
-    expect(result).toBe('Hello from AI');
+    expect(result.content).toBe('Hello from AI');
+    expect(result.finishReason).toBe('stop');
+    expect(result.isComplete).toBe(true);
     expect(fetch).toHaveBeenCalled();
   });
 
