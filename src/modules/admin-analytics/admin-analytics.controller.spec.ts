@@ -14,8 +14,14 @@ describe('AdminAnalyticsController', () => {
   beforeEach(async () => {
     const mockService = {
       getOverviewStats: jest.fn(),
-      getUserAnalytics: jest.fn(),
+      getEnhancedUserAnalytics: jest.fn(),
       getUsageTrends: jest.fn(),
+      getUserGrowthByTier: jest.fn(),
+      getAiUsageOverview: jest.fn(),
+      getUserAiUsage: jest.fn(),
+      getAiUsageTimeline: jest.fn(),
+      getAvailableCredits: jest.fn(),
+      exportDashboardReport: jest.fn(),
     };
 
     const mockAppMetricsSyncService = {
@@ -58,9 +64,9 @@ describe('AdminAnalyticsController', () => {
   });
 
   describe('getUsers', () => {
-    it('should call service.getUserAnalytics with defaults', async () => {
+    it('should call service.getEnhancedUserAnalytics with defaults', async () => {
       await controller.getUsers('1', '10');
-      expect(service.getUserAnalytics).toHaveBeenCalledWith(1, 10);
+      expect(service.getEnhancedUserAnalytics).toHaveBeenCalledWith(1, 10);
     });
   });
 

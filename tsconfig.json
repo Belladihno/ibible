@@ -19,12 +19,20 @@
     "noFallthroughCasesInSwitch": false,
     "esModuleInterop": true,
     "resolveJsonModule": true,
-    "strict": false
-  },
-  "paths": {
-    "@db/*": ["src/db/*"],
-    "@modules/*": ["src/modules/*"],
-    "@config/*": ["src/config/*"],
-    "@entities/*": ["src/entities/*"]
+    "strict": false,
+    "paths": {
+      "@db/*": [
+        "src/db/*"
+      ],
+      "@modules/*": [
+        "src/modules/*"
+      ],
+      "@config/*": [
+        "src/config/*"
+      ],
+      "@entities/*": [
+        "src/entities/*"
+      ]
+    }
   }
 }

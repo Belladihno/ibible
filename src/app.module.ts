@@ -40,6 +40,7 @@ import { ContactModule } from './modules/contact-us/contact.module';
 import { EarlyAccessModule } from './modules/early-access/early-access.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { AdminAnalyticsModule } from './modules/admin-analytics/admin-analytics.module';
+import { AiUsageModule } from './modules/ai-usage/ai-usage.module';
 import { JwtModule } from '@nestjs/jwt';
 
 @Module({
@@ -128,6 +129,7 @@ import { JwtModule } from '@nestjs/jwt';
     EarlyAccessModule,
     AnalyticsModule,
     AdminAnalyticsModule,
+    AiUsageModule,
   ],
   controllers: [AppController],
   providers: [

@@ -189,10 +189,6 @@ export class ChatService {
       const MAX_LOOPS = 2; // Safety limit
 
       while (result.finishReason === 'length' && loopCount < MAX_LOOPS) {
-        this.logger.log(
-          `Response truncated (length), requesting continuation... (Loop ${loopCount + 1})`,
-        );
-
         const continuation = await this.gemini.generate(
           ReaFeature.CHAT,
           'Please complete your previous response precisely starting from where you cut off.',
