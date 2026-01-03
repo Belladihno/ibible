@@ -46,6 +46,7 @@ import * as SystemMessages from 'src/shared/constants/systemMessages';
 import { Roles } from '../../decorators/roles.decorator';
 import { UserRole } from './enums/user.enums';
 import { RolesGuard } from '../../guards/roles.guard';
+import { RefreshTokenDto } from './dto/refreshToken.dto';
 
 @ApiTags('User')
 @Controller('user')
@@ -682,4 +683,51 @@ export class UserController {
       },
     };
   }
+
+  @Post('refresh-token')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Refresh access token' })
+  @ApiBody({
+    schema: {
+      example: {
+        refreshToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
+      },
+    },
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Token refreshed successfully',
+    schema: {
+      example: {
+        statusCode: HttpStatus.OK,
+        message: 'Token refreshed successfully',
+        data: {
+          accessToken: 'new-access-token',
+          refreshToken: 'new-refresh-token',
+          expiresIn: 604800,
+          tokenType: 'Bearer',
+          timestamp: '2025-11-20T00:00:00.000Z',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: HttpStatus.UNAUTHORIZED,
+    description: 'Invalid or expired refresh token',
+  })
+  async refreshToken(
+    @Body('refreshToken') refreshToken: string,
+  ) {
+    const tokens = await this.users.refreshToken(refreshToken);
+
+    return {
+      statusCode: HttpStatus.OK,
+      message: 'Token refreshed successfully',
+      data: {
+        ...tokens,
+        timestamp: new Date().toISOString(),
+      },
+    };
+  }
+
 }
