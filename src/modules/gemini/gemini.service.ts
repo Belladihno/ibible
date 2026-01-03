@@ -57,7 +57,7 @@ export class GeminiService {
   private static FEATURE_MODEL_MAP: Record<ReaFeature, string> = {
     [ReaFeature.DISCOVER]: 'google/gemini-2.5-flash',
     [ReaFeature.PRAYER]: 'google/gemini-2.5-flash',
-    [ReaFeature.CHAT]: 'google/gemini-2.5-pro',
+    [ReaFeature.CHAT]: 'google/gemini-2.5-flash',
     [ReaFeature.REFLECTION]: 'google/gemini-2.5-flash',
     [ReaFeature.TITLE]: 'google/gemini-2.5-flash',
     [ReaFeature.MEMORIES]: 'google/gemini-2.5-pro',

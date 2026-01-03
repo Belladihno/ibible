@@ -34,20 +34,8 @@ export class ChatService {
     let title = 'New Conversation';
 
     if (firstMessage) {
-      if (generateTitle) {
-        try {
-          // WAIT for AI title (fast, should be < 2 seconds)
-          title = await this.getAITitleWithTimeout(firstMessage, userId);
-          this.logger.log(`AI title created: "${title}"`);
-        } catch (error) {
-          this.logger.warn(`AI title failed, using simple: ${error.message}`);
-          title = this.getSimpleTitle(firstMessage);
-        }
-      } else {
-        title = this.getSimpleTitle(firstMessage);
-      }
+      title = this.getSimpleTitle(firstMessage);
     }
-
     // Make unique if needed
     const uniqueTitle = await this.makeTitleUnique(userId, title);
 
@@ -58,7 +46,44 @@ export class ChatService {
       isActive: true,
     });
 
-    return await conversation.save();
+    const savedConversation = await conversation.save();
+
+    // run title generation in background
+    if (firstMessage && generateTitle) {
+      void this.generateTitleInBackground(
+        savedConversation._id.toString(),
+        firstMessage,
+        userId,
+      );
+    }
+
+    return savedConversation;
+  }
+
+  //Background task to generate and update title
+  private async generateTitleInBackground(
+    conversationId: string,
+    message: string,
+    userId: string,
+  ) {
+    try {
+      // Small delay to let the initial request finish
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      const title = await this.getAITitleWithTimeout(message, userId);
+      const uniqueTitle = await this.makeTitleUnique(userId, title);
+
+      await this.chatConversationModel.updateOne(
+        { _id: conversationId },
+        { title: uniqueTitle },
+      );
+
+      this.logger.log(
+        `Background: Updated title for ${conversationId} to "${uniqueTitle}"`,
+      );
+    } catch (error) {
+      this.logger.warn(`Background title generation failed: ${error.message}`);
+    }
   }
 
   /**
@@ -209,19 +234,14 @@ export class ChatService {
         loopCount++;
       }
 
-      // Generate AI title for new conversation after successful AI response
+      // Generate AI title for new conversation in BACKGROUND
+      // We don't await this to make sure the user gets their response faster
       if (!createMessageDto.conversationId) {
-        try {
-          const aiTitle = await this.getAITitleWithTimeout(
-            createMessageDto.content,
-            userId,
-          );
-          conversation.title = aiTitle;
-          await conversation.save();
-          this.logger.log(`Updated conversation title to: "${aiTitle}"`);
-        } catch (error) {
-          this.logger.warn(`AI title update failed: ${error.message}`);
-        }
+        void this.generateTitleInBackground(
+          conversation.id as string,
+          createMessageDto.content,
+          userId,
+        );
       }
     } catch (error) {
       this.logger.error('AI response error:', error);
