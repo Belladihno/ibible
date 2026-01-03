@@ -34,7 +34,18 @@ export class ChatService {
     let title = 'New Conversation';
 
     if (firstMessage) {
-      title = this.getSimpleTitle(firstMessage);
+      if (generateTitle) {
+        try {
+          // WAIT for AI title (fast, should be < 2 seconds)
+          title = await this.getAITitleWithTimeout(firstMessage, userId);
+          this.logger.log(`AI title created: "${title}"`);
+        } catch (error) {
+          this.logger.warn(`AI title failed, using simple: ${error.message}`);
+          title = this.getSimpleTitle(firstMessage);
+        }
+      } else {
+        title = this.getSimpleTitle(firstMessage);
+      }
     }
     // Make unique if needed
     const uniqueTitle = await this.makeTitleUnique(userId, title);
@@ -234,14 +245,19 @@ export class ChatService {
         loopCount++;
       }
 
-      // Generate AI title for new conversation in BACKGROUND
-      // We don't await this to make sure the user gets their response faster
+      // Generate AI title for new conversation after successful AI response
       if (!createMessageDto.conversationId) {
-        void this.generateTitleInBackground(
-          conversation.id as string,
-          createMessageDto.content,
-          userId,
-        );
+        try {
+          const aiTitle = await this.getAITitleWithTimeout(
+            createMessageDto.content,
+            userId,
+          );
+          conversation.title = aiTitle;
+          await conversation.save();
+          this.logger.log(`Updated conversation title to: "${aiTitle}"`);
+        } catch (error) {
+          this.logger.warn(`AI title update failed: ${error.message}`);
+        }
       }
     } catch (error) {
       this.logger.error('AI response error:', error);
