@@ -47,7 +47,6 @@ export class ChatService {
         title = this.getSimpleTitle(firstMessage);
       }
     }
-
     // Make unique if needed
     const uniqueTitle = await this.makeTitleUnique(userId, title);
 
@@ -58,7 +57,44 @@ export class ChatService {
       isActive: true,
     });
 
-    return await conversation.save();
+    const savedConversation = await conversation.save();
+
+    // run title generation in background
+    if (firstMessage && generateTitle) {
+      void this.generateTitleInBackground(
+        savedConversation._id.toString(),
+        firstMessage,
+        userId,
+      );
+    }
+
+    return savedConversation;
+  }
+
+  //Background task to generate and update title
+  private async generateTitleInBackground(
+    conversationId: string,
+    message: string,
+    userId: string,
+  ) {
+    try {
+      // Small delay to let the initial request finish
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      const title = await this.getAITitleWithTimeout(message, userId);
+      const uniqueTitle = await this.makeTitleUnique(userId, title);
+
+      await this.chatConversationModel.updateOne(
+        { _id: conversationId },
+        { title: uniqueTitle },
+      );
+
+      this.logger.log(
+        `Background: Updated title for ${conversationId} to "${uniqueTitle}"`,
+      );
+    } catch (error) {
+      this.logger.warn(`Background title generation failed: ${error.message}`);
+    }
   }
 
   /**
