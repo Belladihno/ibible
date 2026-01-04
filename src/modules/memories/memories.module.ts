@@ -1,10 +1,8 @@
-// modules/memories/memories.module.ts
 import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
-import { MongooseModule } from '@nestjs/mongoose';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { Memory, MemorySchema } from './schemas/memory.schema';
+import { Memory } from '../../entities/memory.entity';
 import { MemoriesService } from './memories.service';
 import { MemoriesController } from './memories.controller';
 import { NotificationsAdapter } from './notifications.adapter';
@@ -20,8 +18,7 @@ import { AccessToken } from 'src/entities/access-token.entity';
 
 @Module({
   imports: [
-    MongooseModule.forFeature([{ name: Memory.name, schema: MemorySchema }]),
-    TypeOrmModule.forFeature([AccessToken]),
+    TypeOrmModule.forFeature([Memory, AccessToken]),
     JwtModule.registerAsync({
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => ({

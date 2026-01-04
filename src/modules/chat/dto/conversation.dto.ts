@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { MessageSender } from '../../../schemas/chat-message.schema';
+import { MessageSender } from '../../../shared/enums';
 
 export class ChatMessageDto {
   @ApiProperty({ enum: MessageSender })

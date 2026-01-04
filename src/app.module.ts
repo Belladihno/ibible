@@ -1,7 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { MongooseModule } from '@nestjs/mongoose';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ActivityInterceptor } from './interceptors/activity.interceptor';
@@ -16,11 +15,6 @@ import { MemoriesModule } from './modules/memories/memories.module';
 import { UserModule } from 'src/modules/user/user.module';
 import { BibleVerseModule } from './modules/bible/bible-verse/daily-verse.module';
 import { ChatModule } from './modules/chat/chat.module';
-import {
-  ChatConversation,
-  ChatConversationSchema,
-} from './schemas/chat-conversation.schema';
-import { ChatMessage, ChatMessageSchema } from './schemas/chat-message.schema';
 import { MeditationModule } from './modules/meditation/meditation.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import dataSource from './migrations/migration.config';
@@ -55,18 +49,6 @@ import { JwtModule } from '@nestjs/jwt';
       }),
       dataSourceFactory: async () => dataSource,
     }),
-
-    MongooseModule.forRootAsync({
-      useFactory: (configService: ConfigService) => ({
-        uri: configService.get<string>('MONGODB_URI'),
-      }),
-      inject: [ConfigService],
-    }),
-
-    MongooseModule.forFeature([
-      { name: ChatConversation.name, schema: ChatConversationSchema },
-      { name: ChatMessage.name, schema: ChatMessageSchema },
-    ]),
 
     JwtModule.registerAsync({
       imports: [ConfigModule],

@@ -1,31 +1,100 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { getModelToken } from '@nestjs/mongoose';
+import { getRepositoryToken, getDataSourceToken } from '@nestjs/typeorm';
 import { NotFoundException } from '@nestjs/common';
-import { Model } from 'mongoose';
+import { Repository, DataSource, QueryRunner } from 'typeorm';
 import { ChatService } from './chat.service';
-import {
-  ChatConversation,
-  ChatConversationDocument,
-} from '../../schemas/chat-conversation.schema';
+import { ChatConversation } from '../../entities/chat-conversation.entity';
+import { ChatMessage } from '../../entities/chat-message.entity';
 import { GeminiService } from '../gemini/gemini.service';
 import { ChatContextService } from './services/chat-context.service';
 
 describe('ChatService', () => {
   let service: ChatService;
-  let model: Model<any>;
+  let chatConversationRepo: any;
+  let chatMessageRepo: any;
+  let dataSource: any;
+  let queryRunner: any;
 
   beforeEach(async () => {
+    // Mock QueryRunner
+    queryRunner = {
+      connect: jest.fn(),
+      startTransaction: jest.fn(),
+      commitTransaction: jest.fn(),
+      rollbackTransaction: jest.fn(),
+      release: jest.fn(),
+      manager: {
+        save: jest.fn(),
+        findOne: jest.fn(),
+        create: jest
+          .fn()
+          .mockImplementation(
+            (entity: Partial<ChatConversation>) => entity as ChatConversation,
+          ),
+      },
+    };
+
+    // Mock DataSource
+    dataSource = {
+      createQueryRunner: jest.fn().mockReturnValue(queryRunner),
+    };
+
+    // Mock Repositories
+    chatConversationRepo = {
+      create: jest
+        .fn()
+        .mockImplementation(
+          (dto: Partial<ChatConversation>) => dto as ChatConversation,
+        ),
+      save: jest.fn().mockImplementation((entity: ChatConversation) => {
+        const saved = { ...entity } as ChatConversation;
+        if (!saved.id) saved.id = 'saved-id';
+        return Promise.resolve(saved);
+      }),
+      findOne: jest.fn(),
+      find: jest.fn(),
+      count: jest.fn(),
+      createQueryBuilder: jest.fn().mockReturnValue({
+        select: jest.fn().mockReturnThis(),
+        addSelect: jest.fn().mockReturnThis(),
+        innerJoin: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        setParameter: jest.fn().mockReturnThis(),
+        orderBy: jest.fn().mockReturnThis(),
+        skip: jest.fn().mockReturnThis(),
+        take: jest.fn().mockReturnThis(),
+        getManyAndCount: jest.fn().mockResolvedValue([[], 0]),
+        getOne: jest.fn(),
+      }),
+    };
+
+    chatMessageRepo = {
+      create: jest
+        .fn()
+        .mockImplementation((dto: Partial<ChatMessage>) => dto as ChatMessage),
+      save: jest.fn().mockImplementation((entity: ChatMessage) => {
+        const saved = { ...entity } as ChatMessage;
+        if (!saved.id) saved.id = 'msg-id';
+        return Promise.resolve(saved);
+      }),
+      find: jest.fn(),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ChatService,
         {
-          provide: getModelToken(ChatConversation.name),
-          useValue: {
-            find: jest.fn(),
-            findOne: jest.fn(),
-            countDocuments: jest.fn(),
-            save: jest.fn(),
-          },
+          provide: getRepositoryToken(ChatConversation),
+          useValue: chatConversationRepo,
+        },
+        {
+          provide: getRepositoryToken(ChatMessage),
+          useValue: chatMessageRepo,
+        },
+        {
+          provide: getDataSourceToken(),
+          useValue: dataSource,
         },
         { provide: GeminiService, useValue: { generate: jest.fn() } },
         { provide: ChatContextService, useValue: { buildContext: jest.fn() } },
@@ -37,7 +106,6 @@ describe('ChatService', () => {
     }).compile();
 
     service = module.get<ChatService>(ChatService);
-    model = module.get<Model<any>>(getModelToken(ChatConversation.name));
   });
 
   it('should be defined', () => {
@@ -52,22 +120,21 @@ describe('ChatService', () => {
         incr: jest.fn(),
         expire: jest.fn(),
       };
-      // Re-get service with mocked redis
+
       const module: TestingModule = await Test.createTestingModule({
         providers: [
           ChatService,
           {
-            provide: getModelToken(ChatConversation.name),
-            useValue: class MockModel {
-              constructor(data: any) {
-                Object.assign(this, data);
-                this.save = jest.fn().mockResolvedValue(this);
-              }
-              save: jest.MockedFunction<any>;
-              static find = jest.fn();
-              static findOne = jest.fn();
-              static countDocuments = jest.fn();
-            },
+            provide: getRepositoryToken(ChatConversation),
+            useValue: chatConversationRepo,
+          },
+          {
+            provide: getRepositoryToken(ChatMessage),
+            useValue: chatMessageRepo,
+          },
+          {
+            provide: getDataSourceToken(),
+            useValue: dataSource,
           },
           {
             provide: GeminiService,
@@ -84,12 +151,12 @@ describe('ChatService', () => {
     });
 
     it('should throw NotFoundException if conversation not found', async () => {
-      jest.spyOn(model, 'findOne').mockResolvedValue(null);
+      chatConversationRepo.findOne.mockResolvedValue(null);
 
       await expect(
         service.sendMessage('user1', {
           content: 'test',
-          conversationId: '6584f2e5c5e123456789abcd',
+          conversationId: 'non-existent-id',
         }),
       ).rejects.toThrow(NotFoundException);
     });
@@ -98,17 +165,19 @@ describe('ChatService', () => {
       redisMock.incr.mockResolvedValueOnce(1); // Daily ok
       redisMock.incr.mockResolvedValueOnce(1); // Per-minute ok
 
-      jest.spyOn(model, 'findOne').mockResolvedValue(null);
+      // Since createConversation calls makeTitleUnique and uses queryBuilder, we need to mock that flow if tested deeply
+      // But typically we test if createConversation is called or works.
+      // Here we mock the internal createConversation call for simplicity or mock repos deep enough
+
       const mockConversation = {
-        _id: 'conv1',
+        id: 'conv1',
         userId: 'user1',
         title: 'Test',
-        messages: [],
         isActive: true,
-        save: jest.fn().mockResolvedValue({}),
-      } as unknown as ChatConversationDocument;
+      };
+
       const createConversationSpy = jest.spyOn(service, 'createConversation');
-      createConversationSpy.mockResolvedValue(mockConversation);
+      createConversationSpy.mockResolvedValue(mockConversation as any);
 
       const result = await service.sendMessage('user1', { content: 'test' });
       expect(result).toBeDefined();
@@ -123,18 +192,15 @@ describe('ChatService', () => {
       redisMock.incr.mockResolvedValueOnce(1); // Daily ok
       redisMock.incr.mockResolvedValueOnce(1); // Per-minute ok
 
-      jest.spyOn(model, 'findOne').mockResolvedValue(null);
       const mockConversation = {
-        _id: 'conv1',
+        id: 'conv1',
         userId: 'user1',
         title: 'Test',
-        messages: [],
         isActive: true,
-        save: jest.fn().mockResolvedValue({}),
-      } as unknown as ChatConversationDocument;
+      };
       jest
         .spyOn(service, 'createConversation')
-        .mockResolvedValue(mockConversation);
+        .mockResolvedValue(mockConversation as any);
 
       const result = await service.sendMessage('user1', { content: 'test' });
       expect(result).toBeDefined();

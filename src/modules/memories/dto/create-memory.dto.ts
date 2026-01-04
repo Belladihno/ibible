@@ -1,4 +1,3 @@
-// modules/memories/dto/create-memory.dto.ts
 import { ApiProperty } from '@nestjs/swagger';
 import {
   IsString,
@@ -14,6 +13,7 @@ import {
   IsBoolean,
 } from 'class-validator';
 import { Type } from 'class-transformer';
+import { MemoryVisibility } from '../../../entities/memory.entity';
 
 export class FollowUpDto {
   @ApiProperty({ required: false })
@@ -52,10 +52,14 @@ export class CreateMemoryDto {
   @IsString({ each: true })
   verseRefs?: string[];
 
-  @ApiProperty({ required: false, enum: ['private', 'public', 'shared'] })
+  @ApiProperty({ required: false, enum: MemoryVisibility })
   @IsOptional()
-  @IsIn(['private', 'public', 'shared'])
-  visibility?: 'private' | 'public' | 'shared';
+  @IsIn([
+    MemoryVisibility.PRIVATE,
+    MemoryVisibility.PUBLIC,
+    MemoryVisibility.SHARED,
+  ])
+  visibility?: MemoryVisibility;
 
   @ApiProperty({ required: false })
   @IsOptional()

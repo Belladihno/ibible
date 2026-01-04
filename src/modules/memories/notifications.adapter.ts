@@ -2,7 +2,7 @@
 import { Injectable } from '@nestjs/common';
 import { NotificationsService } from '../notifications/notifications.service';
 import { BibleService } from '../bible/bible.service';
-import { Memory } from './schemas/memory.schema';
+import { Memory } from '../../entities/memory.entity';
 
 @Injectable()
 export class NotificationsAdapter {

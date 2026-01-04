@@ -1,14 +1,9 @@
 import { Injectable } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
-import {
-  ChatConversation,
-  ChatConversationDocument,
-} from '../../schemas/chat-conversation.schema';
-import { HistoryItem, HistoryResponse } from './dto/history-response.dto';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DailyVerseConversation } from 'src/entities/daily-verse-conversation.entity';
 import { Repository } from 'typeorm';
+import { ChatConversation } from '../../entities/chat-conversation.entity';
+import { HistoryItem, HistoryResponse } from './dto/history-response.dto';
+import { DailyVerseConversation } from 'src/entities/daily-verse-conversation.entity';
 
 @Injectable()
 export class HistoryService {
@@ -16,29 +11,36 @@ export class HistoryService {
     throw new Error('Method not implemented.');
   }
   constructor(
-    @InjectModel(ChatConversation.name)
-    private chatConversationModel: Model<ChatConversationDocument>,
+    @InjectRepository(ChatConversation)
+    private chatConversationRepository: Repository<ChatConversation>,
     @InjectRepository(DailyVerseConversation)
     private dailyVerseConversationRepo: Repository<DailyVerseConversation>,
   ) {}
 
   async getChatHistory(userId: string): Promise<HistoryItem[]> {
-    const conversations = await this.chatConversationModel
-      .find({ userId })
-      .sort({ updatedAt: -1 })
-      .select('_id title messages createdAt updatedAt')
-      .exec();
+    const conversations = await this.chatConversationRepository.find({
+      where: { userId },
+      order: { updatedAt: 'DESC' },
+      relations: ['messages'],
+    });
 
     return conversations.map((conv) => {
-      const doc = conv as any; // Timestamps are added by Mongoose but not in type
+      // Sort messages by timestamp descending to get the latest
+      const messages = conv.messages || [];
+      const sortedMessages = messages.sort(
+        (a, b) => b.timestamp.getTime() - a.timestamp.getTime(),
+      );
+
+      const lastMessage = sortedMessages[0];
+
       return {
-        id: conv._id.toString(),
+        id: conv.id,
         type: 'chat' as const,
         title: conv.title || 'Untitled Conversation',
-        lastActivity: doc.updatedAt || doc.createdAt || new Date(),
-        preview: conv.messages?.[0]?.content || '',
-        messageCount: conv.messages?.length || 0,
-        createdAt: doc.createdAt || new Date(),
+        lastActivity: conv.updatedAt || conv.createdAt || new Date(),
+        preview: lastMessage?.content || '',
+        messageCount: messages.length,
+        createdAt: conv.createdAt || new Date(),
         metadata: {},
       };
     });
