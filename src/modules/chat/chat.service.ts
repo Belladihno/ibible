@@ -31,7 +31,7 @@ export class ChatService {
     private gemini: GeminiService,
     private chatContextService: ChatContextService,
     @Inject('REDIS_CLIENT') private readonly redis: Redis,
-  ) {}
+  ) { }
 
   async createConversation(
     userId: string,
