@@ -174,7 +174,9 @@ describe('BibleVerseService', () => {
         ReaFeature.BIBLE,
         mockBibleVerse.text,
         expect.objectContaining({
-          systemPrompt: expect.stringContaining('Provide a concise biblical summary'),
+          systemPrompt: expect.stringContaining(
+            'Provide a concise biblical summary',
+          ),
         }),
       );
     });
@@ -220,4 +222,3 @@ describe('BibleVerseService', () => {
     });
   });
 });
-
