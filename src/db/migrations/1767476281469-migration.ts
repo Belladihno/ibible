@@ -4,8 +4,8 @@ export class Migration1767476281469 implements MigrationInterface {
   name = 'Migration1767476281469';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(`DROP INDEX "public"."idx_ai_usage_user"`);
-    await queryRunner.query(`DROP INDEX "public"."idx_ai_usage_feature"`);
+    await queryRunner.query(`DROP INDEX IF EXISTS "public"."idx_ai_usage_user"`);
+    await queryRunner.query(`DROP INDEX IF EXISTS "public"."idx_ai_usage_feature"`);
     await queryRunner.query(
       `CREATE TYPE "public"."memories_visibility_enum" AS ENUM('private', 'public', 'shared')`,
     );
