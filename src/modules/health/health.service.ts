@@ -1,8 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { EmailService } from 'src/modules/email/email.service';
-import { InjectConnection } from '@nestjs/mongoose';
-import { Connection } from 'mongoose';
 import Redis from 'ioredis';
 import { ConfigService } from '@nestjs/config';
 import { BibleService } from '../bible/bible.service';
@@ -18,7 +16,6 @@ export class HealthService {
   constructor(
     private readonly dataSource: DataSource,
     private readonly emailService: EmailService,
-    @InjectConnection() private readonly mongoConnection: Connection,
     private readonly configService: ConfigService,
     private readonly geminiService: GeminiService,
     private readonly bibleService: BibleService,
@@ -32,14 +29,12 @@ export class HealthService {
     const results: {
       database: { status: 'up' | 'down'; detail?: string };
       smtp: { status: 'up' | 'down'; detail?: string };
-      mongodb: { status: 'up' | 'down'; detail?: string };
       redis: { status: 'up' | 'down'; detail?: string };
       gemini: { status: 'up' | 'down'; detail?: string };
       bibleApi: { status: 'up' | 'down'; detail?: string };
     } = {
       database: { status: 'down' },
       smtp: { status: 'down' },
-      mongodb: { status: 'down' },
       redis: { status: 'down' },
       gemini: { status: 'down' },
       bibleApi: { status: 'down' },
@@ -157,25 +152,6 @@ export class HealthService {
         detail: err instanceof Error ? err.message : String(err),
       }));
 
-    // Mongo check is synchronous (fast) — just read readyState safely
-    try {
-      const readyState = Number(
-        (this.mongoConnection && (this.mongoConnection as any).readyState) ?? 0,
-      );
-      if (readyState === 1) {
-        results.mongodb.status = 'up';
-        results.mongodb.detail = 'MongoDB connected';
-      } else {
-        results.mongodb.status = 'down';
-        results.mongodb.detail = `MongoDB not connected (readyState=${readyState})`;
-      }
-    } catch (error: unknown) {
-      results.mongodb.status = 'down';
-      results.mongodb.detail =
-        error instanceof Error ? error.message : 'Unknown error';
-      this.logger.error('MongoDB health check failed', error);
-    }
-
     // Run remaining checks in parallel and merge results
     const settled = await Promise.allSettled([
       bibleCheck,
@@ -198,7 +174,6 @@ export class HealthService {
     const overallStatus =
       results.database.status === 'up' &&
       results.smtp.status === 'up' &&
-      results.mongodb.status === 'up' &&
       results.redis.status === 'up' &&
       results.gemini.status === 'up' &&
       results.bibleApi.status === 'up'

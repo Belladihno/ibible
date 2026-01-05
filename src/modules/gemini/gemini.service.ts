@@ -61,7 +61,7 @@ export class GeminiService {
     [ReaFeature.REFLECTION]: 'google/gemini-2.5-flash',
     [ReaFeature.TITLE]: 'google/gemini-2.5-flash',
     [ReaFeature.MEMORIES]: 'google/gemini-2.5-pro',
-    [ReaFeature.BIBLE]: 'google/gemini-2.5-pro',
+    [ReaFeature.BIBLE]: 'google/gemini-2.5-flash',
   };
 
   private readonly MODEL_PRICING = {
@@ -82,8 +82,11 @@ export class GeminiService {
       userId?: string;
     },
   ): Promise<GenerateResult> {
-    // GLOBAL AI RATE LIMIT (TITLE generation is free)
-    if (feature !== ReaFeature.TITLE) {
+    // GLOBAL AI RATE LIMIT (TITLE generation is free, BIBLE caching for daily verses is free)
+    if (
+      feature !== ReaFeature.TITLE &&
+      !(feature === ReaFeature.BIBLE && !options?.userId)
+    ) {
       if (options?.userId) {
         // Authenticated user limits
         // Daily limit check

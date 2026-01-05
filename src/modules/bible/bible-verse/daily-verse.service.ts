@@ -137,12 +137,34 @@ export class BibleVerseService implements OnModuleInit {
         ReaFeature.BIBLE,
         verse.text,
         {
-          systemPrompt: `Summarize this Bible verse in 1-2 sentences, biblically accurate: ${verse.reference}`,
+          systemPrompt: `Provide a concise biblical summary of this verse in exactly 1 sentence, under 40 words: ${verse.reference}`,
           temperature: 0.7,
-          maxTokens: 120,
+          maxTokens: 800,
           userId,
         },
       );
+
+      // Smart Recovery: If truncated, try to save the valid part
+      if (result.finishReason === 'length') {
+        const lastPunctuation = Math.max(
+          result.content.lastIndexOf('.'),
+          result.content.lastIndexOf('!'),
+          result.content.lastIndexOf('?'),
+        );
+
+        // If we have at least one valid sentence (arbitrary min length 20 chars), use it
+        if (lastPunctuation > 20) {
+          this.logger.warn(
+            `AI Summary truncated. Recovering valid portion up to char ${lastPunctuation}.`,
+          );
+          return result.content.substring(0, lastPunctuation + 1);
+        }
+
+        throw new Error(
+          'AI Summary generation was incomplete/truncated and could not be recovered',
+        );
+      }
+
       return result.content;
     } catch (err: unknown) {
       this.logger.error(

@@ -16,6 +16,7 @@ const dataSource = new DataSource({
   database: configService.get('DATABASE_NAME'),
   entities: ['dist/**/entities/*.entity{.ts,.js}'],
   migrations: ['dist/db/migrations/*.js'],
+  synchronize: true,
   ssl: isProduction
     ? { rejectUnauthorized: false } // cloud DBs
     : false, // local DB

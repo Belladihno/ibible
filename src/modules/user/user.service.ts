@@ -453,20 +453,6 @@ export class UserService {
     await this.refreshTokenRepo.save(token);
   }
 
-  // async validateGoogleUser(userDetails: UserPayload) {
-  //   const user = await this.findOneByEmail(userDetails.email);
-  //   if (user) {
-  //     if (user.authProvider === AuthProvider.EMAIL) {
-  //       throw new BadRequestException(
-  //         'An account with this email already exists. Please sign in using your email and password.',
-  //       );
-  //     }
-  //     return this.googleSignIn(userDetails);
-  //   } else {
-  //     return this.googleSignUp(userDetails);
-  //   }
-  // }
-
   async googleSignIn(userDetails: UserPayload) {
     const user = await this.findOneByEmail(userDetails.email);
     if (!user) {
@@ -478,30 +464,24 @@ export class UserService {
     };
   }
 
-  // async googleSignUp(userDetails: UserPayload) {
-  //   const payload = {
-  //     email: userDetails.email,
-  //     fullName: `${userDetails.firstName} ${userDetails.lastName}`,
-  //     profilePicture: userDetails.picture,
-  //     authProvider: AuthProvider.GOOGLE,
-  //   };
-  //   const newUser = await this.create(payload);
-  //   return {
-  //     msg: `Google signup successful. New user created: ${newUser.email}`,
-  //     user: newUser,
-  //   };
-  // }
-
   async refreshToken(refreshToken: string): Promise<TokenResponseDto> {
     try {
       const payload = await this.jwtService.verifyAsync(refreshToken, {
-        secret:
-          this.configService.get<string>('JWT_REFRESH_SECRET') ||
-          'fallback-refresh-secret',
+        secret: this.configService.get('JWT_REFRESH_SECRET'),
       });
-      const user = await this.findOne(payload.sub as string);
+
+      const tokenRecord = await this.refreshTokenRepo.findOne({
+        where: { token: refreshToken, revoked: false },
+      });
+      if (!tokenRecord) {
+        throw new UnauthorizedException('Refresh token revoked');
+      }
+      tokenRecord.revoked = true;
+      await this.refreshTokenRepo.save(tokenRecord);
+
+      const user = await this.findOne(payload.sub);
       if (!user.isActive) {
-        throw new UnauthorizedException('User account is deactivated');
+        throw new UnauthorizedException('User deactivated');
       }
       return this.generateTokens(user);
     } catch {

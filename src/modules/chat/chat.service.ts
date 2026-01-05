@@ -1,17 +1,22 @@
 import { Injectable, Inject, NotFoundException, Logger } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model, FilterQuery } from 'mongoose';
+import { InjectRepository } from '@nestjs/typeorm';
 import {
-  ChatConversation,
-  ChatConversationDocument,
-} from '../../schemas/chat-conversation.schema';
+  Repository,
+  ILike,
+  FindOptionsWhere,
+  Between,
+  LessThanOrEqual,
+  MoreThanOrEqual,
+} from 'typeorm';
+import { ChatConversation } from '../../entities/chat-conversation.entity';
+import { ChatMessage } from '../../entities/chat-message.entity';
 import { CreateMessageDto } from './dto/create-message.dto';
-import { MessageSender } from '../../schemas/chat-message.schema';
+import { MessageSender } from '../../shared/enums';
 import { ChatContextService } from './services/chat-context.service';
 import Redis from 'ioredis';
 import { GeminiService } from '../gemini/gemini.service';
 import { ChatRole, ReaFeature } from 'src/shared/enums';
-import { ChatMessage } from 'src/shared/types/chat.types';
+import { ChatMessage as ChatMessageType } from 'src/shared/types/chat.types';
 import * as SYS_MSG from '../../shared/constants/systemMessages';
 
 @Injectable()
@@ -19,8 +24,10 @@ export class ChatService {
   private readonly logger = new Logger(ChatService.name);
 
   constructor(
-    @InjectModel(ChatConversation.name)
-    private chatConversationModel: Model<ChatConversationDocument>,
+    @InjectRepository(ChatConversation)
+    private chatConversationRepository: Repository<ChatConversation>,
+    @InjectRepository(ChatMessage)
+    private chatMessageRepository: Repository<ChatMessage>,
     private gemini: GeminiService,
     private chatContextService: ChatContextService,
     @Inject('REDIS_CLIENT') private readonly redis: Redis,
@@ -30,7 +37,7 @@ export class ChatService {
     userId: string,
     firstMessage?: string,
     generateTitle: boolean = true,
-  ): Promise<ChatConversationDocument> {
+  ): Promise<ChatConversation> {
     let title = 'New Conversation';
 
     if (firstMessage) {
@@ -39,19 +46,19 @@ export class ChatService {
     // Make unique if needed
     const uniqueTitle = await this.makeTitleUnique(userId, title);
 
-    const conversation = new this.chatConversationModel({
+    const conversation = this.chatConversationRepository.create({
       userId,
       title: uniqueTitle,
-      messages: [],
       isActive: true,
     });
 
-    const savedConversation = await conversation.save();
+    const savedConversation =
+      await this.chatConversationRepository.save(conversation);
 
     // run title generation in background
     if (firstMessage && generateTitle) {
       void this.generateTitleInBackground(
-        savedConversation._id.toString(),
+        savedConversation.id,
         firstMessage,
         userId,
       );
@@ -73,8 +80,8 @@ export class ChatService {
       const title = await this.getAITitleWithTimeout(message, userId);
       const uniqueTitle = await this.makeTitleUnique(userId, title);
 
-      await this.chatConversationModel.updateOne(
-        { _id: conversationId },
+      await this.chatConversationRepository.update(
+        { id: conversationId },
         { title: uniqueTitle },
       );
 
@@ -153,13 +160,16 @@ export class ChatService {
    */
   async sendMessage(userId: string, createMessageDto: CreateMessageDto) {
     // -------------------- FETCH OR CREATE CONVERSATION --------------------
-    let conversation: ChatConversationDocument;
+    let conversation: ChatConversation;
 
     if (createMessageDto.conversationId) {
-      const existing = await this.chatConversationModel.findOne({
-        _id: createMessageDto.conversationId,
-        userId,
-        isActive: true,
+      const existing = await this.chatConversationRepository.findOne({
+        where: {
+          id: createMessageDto.conversationId,
+          userId,
+          isActive: true,
+        },
+        relations: ['messages'], // Load messages for context history
       });
 
       if (!existing) throw new NotFoundException('Conversation not found');
@@ -170,25 +180,33 @@ export class ChatService {
         createMessageDto.content,
         false,
       );
+      // Initialize messages array for new conversation
+      conversation.messages = [];
     }
 
     // -------------------- ADD USER MESSAGE --------------------
-    conversation.messages.push({
+    const userMessage = this.chatMessageRepository.create({
       sender: MessageSender.USER,
       content: createMessageDto.content,
       timestamp: new Date(),
       references: [],
+      conversation: conversation,
     });
+
+    await this.chatMessageRepository.save(userMessage);
+
+    // Add to local array for AI context generation (to avoid re-fetching)
+    if (!conversation.messages) conversation.messages = [];
+    conversation.messages.push(userMessage);
 
     const scriptureReferences = this.extractScriptureReferences(
       createMessageDto.content,
     );
-    await conversation.save();
 
     // -------------------- BUILD SYSTEM PROMPT --------------------
     const systemPrompt = await this.chatContextService.buildContext(
       userId,
-      conversation.id as string,
+      conversation.id,
       createMessageDto.content,
     );
 
@@ -202,7 +220,7 @@ export class ChatService {
         {
           systemPrompt,
           temperature: 0.7,
-          maxTokens: 3000, // Increased for better completion
+          maxTokens: 3000,
           userId: userId,
         },
       );
@@ -237,11 +255,17 @@ export class ChatService {
       // Generate AI title for new conversation in BACKGROUND
       // We don't await this to make sure the user gets their response faster
       if (!createMessageDto.conversationId) {
-        void this.generateTitleInBackground(
-          conversation.id as string,
-          createMessageDto.content,
-          userId,
-        );
+        try {
+          const aiTitle = await this.getAITitleWithTimeout(
+            createMessageDto.content,
+            userId,
+          );
+          conversation.title = aiTitle;
+          await this.chatConversationRepository.save(conversation);
+          this.logger.log(`Updated conversation title to: "${aiTitle}"`);
+        } catch (error) {
+          this.logger.warn(`AI title update failed: ${error.message}`);
+        }
       }
     } catch (error) {
       this.logger.error('AI response error:', error);
@@ -264,16 +288,18 @@ export class ChatService {
       this.extractScriptureReferences(aiResponseContent);
 
     // -------------------- ADD AI MESSAGE --------------------
-    conversation.messages.push({
+    const aiMessage = this.chatMessageRepository.create({
       sender: MessageSender.AI,
       content: aiResponseContent,
       timestamp: new Date(),
       references: [
         ...new Set([...scriptureReferences, ...aiResponseReferences]),
       ],
+      conversation: conversation,
     });
 
-    await conversation.save();
+    await this.chatMessageRepository.save(aiMessage);
+    conversation.messages.push(aiMessage);
 
     return conversation;
   }
@@ -286,31 +312,36 @@ export class ChatService {
     baseTitle: string,
   ): Promise<string> {
     try {
-      const existing = await this.chatConversationModel.findOne({
-        userId,
-        title: baseTitle,
+      const existing = await this.chatConversationRepository.findOne({
+        where: { userId, title: baseTitle },
       });
 
       if (!existing) return baseTitle;
 
       // Find numbered versions
       const escapedTitle = baseTitle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      const pattern = `^${escapedTitle}\\s*\\(\\d+\\)$`;
-
-      const similarTitles = await this.chatConversationModel.find({
-        userId,
-        title: { $regex: pattern, $options: 'i' },
+      // For SQL, we use ILike or checks.
+      // We will look for anything starting with the title and ending with a number in parenthesis
+      const similarTitles = await this.chatConversationRepository.find({
+        where: {
+          userId,
+          title: ILike(`${baseTitle}%`), // Fetch strict subset to avoid massive scan
+        },
       });
 
-      // Find highest number
+      // Filter in memory for precise regex matching
+      const pattern = new RegExp(`^${escapedTitle}\\s*\\(\\d+\\)$`, 'i');
+
       let maxNum = 1;
       const numPattern = /\((\d+)\)$/;
 
       similarTitles.forEach((doc) => {
-        const match = doc.title.match(numPattern);
-        if (match) {
-          const num = parseInt(match[1], 10);
-          if (num > maxNum) maxNum = num;
+        if (pattern.test(doc.title)) {
+          const match = doc.title.match(numPattern);
+          if (match) {
+            const num = parseInt(match[1], 10);
+            if (num > maxNum) maxNum = num;
+          }
         }
       });
 
@@ -351,43 +382,26 @@ export class ChatService {
     page: number = 1,
     limit: number = 20,
   ) {
-    // Create case-insensitive regex for partial matching
-    const searchRegex = new RegExp(searchQuery, 'i');
-
-    // Build the query
-    const query = {
-      userId,
-      title: { $regex: searchRegex },
-      isActive: true,
-    };
-
-    // Calculate pagination
     const skip = (page - 1) * limit;
 
-    // Execute search with pagination
-    const [conversations, total] = await Promise.all([
-      this.chatConversationModel
-        .find(query)
-        .sort({ updatedAt: -1 }) // Most recently updated first
-        .skip(skip)
-        .limit(limit)
-        .lean(),
-      this.chatConversationModel.countDocuments(query),
-    ]);
+    const [conversations, total] =
+      await this.chatConversationRepository.findAndCount({
+        where: {
+          userId,
+          title: ILike(`%${searchQuery}%`),
+          isActive: true,
+        },
+        order: { updatedAt: 'DESC' },
+        skip,
+        take: limit,
+      });
 
-    // Transform MongoDB documents
-    const transformedConversations = conversations.map((conversation) => {
-      const { _id, ...rest } = conversation;
-      return { id: _id.toString(), ...rest };
-    });
-
-    // Calculate pagination metadata
     const totalPages = Math.ceil(total / limit);
     const hasNextPage = page < totalPages;
     const hasPrevPage = page > 1;
 
     return {
-      conversations: transformedConversations,
+      conversations,
       pagination: {
         total,
         page,
@@ -400,7 +414,7 @@ export class ChatService {
       },
       searchInfo: {
         query: searchQuery,
-        resultsCount: transformedConversations.length,
+        resultsCount: conversations.length,
       },
     };
   }
@@ -425,100 +439,76 @@ export class ChatService {
       limit,
     });
 
-    // Validate limit to prevent abuse
-    const validatedLimit = Math.min(limit, 100); // Max 100 items per page
+    const validatedLimit = Math.min(limit, 100);
     const validatedPage = Math.max(page, 1);
-
-    // Build dynamic query
-    const query: FilterQuery<ChatConversationDocument> = {
-      userId,
-      isActive: true,
-    };
-
-    // Title search (partial match, case-insensitive)
-    if (criteria.title && criteria.title.trim().length > 0) {
-      const searchTerm = criteria.title.trim();
-      query.title = { $regex: new RegExp(searchTerm, 'i') };
-      this.logger.debug(`Title search regex: ${query.title.$regex}`);
-    }
-
-    // Date range filter
-    if (criteria.startDate || criteria.endDate) {
-      query.createdAt = {};
-      if (criteria.startDate) {
-        query.createdAt.$gte = criteria.startDate;
-        this.logger.debug(
-          `Start date filter: ${criteria.startDate.toISOString()}`,
-        );
-      }
-      if (criteria.endDate) {
-        // Add end of day for inclusive filtering
-        const endOfDay = new Date(criteria.endDate);
-        endOfDay.setHours(23, 59, 59, 999);
-        query.createdAt.$lte = endOfDay;
-        this.logger.debug(`End date filter: ${endOfDay.toISOString()}`);
-      }
-    }
-
-    // Has scripture references filter - FIXED
-    if (criteria.hasReferences !== undefined) {
-      if (criteria.hasReferences) {
-        // Conversations that have at least one message with references
-        query['messages'] = {
-          $elemMatch: {
-            references: { $exists: true, $ne: [], $not: { $size: 0 } },
-          },
-        };
-        this.logger.debug(
-          'Filter: Has scripture references (using $elemMatch)',
-        );
-      } else {
-        // Conversations with no references in any message
-        query['messages.references'] = { $exists: false };
-        this.logger.debug('Filter: No scripture references');
-      }
-    }
-
-    this.logger.debug(`Final MongoDB query: ${JSON.stringify(query, null, 2)}`);
-
-    // Calculate pagination
     const skip = (validatedPage - 1) * validatedLimit;
 
+    // Start with QueryBuilder for flexibility
+    const qb =
+      this.chatConversationRepository.createQueryBuilder('conversation');
+    qb.where('conversation.userId = :userId', { userId });
+    qb.andWhere('conversation.isActive = :isActive', { isActive: true });
+
+    if (criteria.title && criteria.title.trim().length > 0) {
+      qb.andWhere('conversation.title ILIKE :title', {
+        title: `%${criteria.title.trim()}%`,
+      });
+    }
+
+    if (criteria.startDate) {
+      qb.andWhere('conversation.createdAt >= :startDate', {
+        startDate: criteria.startDate,
+      });
+    }
+
+    if (criteria.endDate) {
+      const endOfDay = new Date(criteria.endDate);
+      endOfDay.setHours(23, 59, 59, 999);
+      qb.andWhere('conversation.createdAt <= :endDate', { endDate: endOfDay });
+    }
+
+    if (criteria.hasReferences !== undefined) {
+      if (criteria.hasReferences) {
+        // Use inner join to find conversations with at least one message that has references
+        // array_length is Postgres specific
+        qb.innerJoin(
+          'conversation.messages',
+          'refMsg',
+          'cardinality(refMsg.references) > 0',
+        );
+      } else {
+        // Ensure no messages have references
+        qb.andWhere((subQb) => {
+          const subQuery = subQb
+            .subQuery()
+            .select('1')
+            .from(ChatMessage, 'm')
+            .where('m.conversationId = conversation.id')
+            .andWhere('cardinality(m.references) > 0')
+            .getQuery();
+          return `NOT EXISTS ${subQuery}`;
+        });
+      }
+    }
+
+    qb.orderBy('conversation.updatedAt', 'DESC');
+    qb.skip(skip);
+    qb.take(validatedLimit);
+
     try {
-      // Execute search with performance timing
       const startTime = Date.now();
 
-      const [conversations, total] = await Promise.all([
-        this.chatConversationModel
-          .find(query)
-          .select('-__v') // Exclude version key
-          .sort({ updatedAt: -1 }) // Most recently updated first
-          .skip(skip)
-          .limit(validatedLimit)
-          .lean()
-          .exec(),
-        this.chatConversationModel.countDocuments(query).exec(),
-      ]);
+      const [conversations, total] = await qb.getManyAndCount();
 
       const executionTime = Date.now() - startTime;
       this.logger.log(
         `Search executed in ${executionTime}ms, found ${conversations.length} of ${total} total conversations`,
       );
 
-      // Transform results
-      const transformedConversations = conversations.map((conversation) => {
-        const { _id, __v, ...rest } = conversation;
-        return {
-          id: _id.toString(),
-          ...rest,
-        };
-      });
-
-      // Calculate pagination metadata
       const totalPages = Math.ceil(total / validatedLimit);
 
       const result = {
-        conversations: transformedConversations,
+        conversations,
         pagination: {
           total,
           page: validatedPage,
@@ -530,10 +520,6 @@ export class ChatService {
           prevPage: validatedPage > 1 ? validatedPage - 1 : null,
         },
       };
-
-      this.logger.debug(
-        `Pagination info: ${JSON.stringify(result.pagination)}`,
-      );
 
       return result;
     } catch (error) {
@@ -552,9 +538,9 @@ export class ChatService {
 
     for (let i = 0; i < words.length; i++) {
       let word = words[i];
-
       word = word.replace(/^[^\w\d]+|[^\w\d]+$/g, '');
       let bookName = word;
+
       if (/^[1-3]$/.test(word) && words[i + 1]) {
         bookName = `${word} ${words[i + 1].replace(/^[^\w\d]+|[^\w\d]+$/g, '')}`;
         i++;
@@ -576,10 +562,10 @@ export class ChatService {
   private async generateAIResponse(
     userMessage: string,
     references: string[],
-    conversation?: ChatConversationDocument,
+    conversation?: ChatConversation,
   ): Promise<string> {
     try {
-      const history: ChatMessage[] =
+      const history: ChatMessageType[] =
         conversation?.messages?.slice(0, -1).map((msg) => ({
           role:
             msg.sender === MessageSender.USER
@@ -613,44 +599,27 @@ export class ChatService {
   }
 
   async getConversations(userId: string) {
-    const conversations = await this.chatConversationModel
-      .find({ userId })
-      .sort({ createdAt: -1 });
-
-    return conversations.map((conversation) => {
-      const { _id, ...rest } = conversation.toObject();
-      return { id: _id.toString(), ...rest };
+    return this.chatConversationRepository.find({
+      where: { userId },
+      order: { createdAt: 'DESC' },
     });
   }
 
   async getConversationById(conversationId: string, userId: string) {
-    const conversation = await this.chatConversationModel.findOne({
-      _id: conversationId,
-      userId,
+    return this.chatConversationRepository.findOne({
+      where: { id: conversationId, userId },
     });
-
-    if (!conversation) {
-      return null;
-    }
-
-    const { _id, ...rest } = conversation.toObject();
-    return { id: _id.toString(), ...rest };
   }
 
   async deleteConversation(conversationId: string, userId: string) {
-    const conversation = await this.chatConversationModel.findOne({
-      _id: conversationId,
+    const result = await this.chatConversationRepository.delete({
+      id: conversationId,
       userId,
     });
 
-    if (!conversation) {
+    if (result.affected === 0) {
       throw new NotFoundException('Conversation not found or access denied');
     }
-
-    await this.chatConversationModel.deleteOne({
-      _id: conversationId,
-      userId,
-    });
 
     return { message: SYS_MSG.CONVERSATION_DELETED };
   }

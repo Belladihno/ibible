@@ -1,13 +1,9 @@
 import { Module } from '@nestjs/common';
-import { MongooseModule } from '@nestjs/mongoose';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { JwtModule } from '@nestjs/jwt';
 import { HistoryController } from './history.controller';
 import { HistoryService } from './history.service';
-import {
-  ChatConversation,
-  ChatConversationSchema,
-} from '../../schemas/chat-conversation.schema';
+import { ChatConversation } from '../../entities/chat-conversation.entity';
 import { DailyVerseConversation } from '../../entities/daily-verse-conversation.entity';
 import { MeditationSession } from 'src/entities/meditation-session.entity';
 import { MeditationChat } from 'src/entities/meditation-chat.entity';
@@ -17,13 +13,14 @@ import appConfig from 'src/config/auth.config';
 
 @Module({
   imports: [
-    // MongoDB models
-    MongooseModule.forFeature([
-      { name: ChatConversation.name, schema: ChatConversationSchema },
-    ]),
     // TypeORM entities
-    TypeOrmModule.forFeature([DailyVerseConversation, AccessToken]),
-    TypeOrmModule.forFeature([MeditationSession, MeditationChat]),
+    TypeOrmModule.forFeature([
+      ChatConversation,
+      DailyVerseConversation,
+      AccessToken,
+      MeditationSession,
+      MeditationChat,
+    ]),
     JwtModule.register({
       secret: appConfig().jwtSecret,
       signOptions: { expiresIn: '7d' },

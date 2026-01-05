@@ -1,17 +1,13 @@
-import { Injectable, Inject, Logger } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
-import {
-  ChatConversation,
-  ChatConversationDocument,
-} from '../../../schemas/chat-conversation.schema';
-import { MessageSender } from '../../../schemas/chat-message.schema';
+import { Injectable, Logger } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { ChatConversation } from '../../../entities/chat-conversation.entity';
+import { ChatMessage } from '../../../entities/chat-message.entity';
+import { MessageSender } from '../../../shared/enums';
 import {
   IMemoriesService,
   IDiscoverService,
 } from '../interfaces/external-modules.interface';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
 import { User } from '../../../entities/user.entity';
 import { getToneInstruction } from '../constants/tone-prompts';
 import { UserTone } from '../../user/enums/user.enums';
@@ -21,12 +17,12 @@ export class ChatContextService {
   private readonly logger = new Logger(ChatContextService.name);
 
   constructor(
-    @InjectModel(ChatConversation.name)
-    private chatConversationModel: Model<ChatConversationDocument>,
+    @InjectRepository(ChatConversation)
+    private chatConversationRepository: Repository<ChatConversation>,
+    @InjectRepository(ChatMessage)
+    private chatMessageRepository: Repository<ChatMessage>,
     @InjectRepository(User)
     private userRepository: Repository<User>,
-    // In the future, these would be real services injected via tokens
-    // For now we can use optional or mock implementations
   ) {}
 
   // Mock implementations for missing services
@@ -56,15 +52,18 @@ export class ChatContextService {
   }
 
   private async getRecentHistory(conversationId: string): Promise<string> {
-    // Optimize: Only fetch last 10 messages instead of entire conversation
-    const conversation = await this.chatConversationModel
-      .findById(conversationId)
-      .select({ messages: { $slice: -10 } }) // Only get last 10 messages
-      .lean(); // Use lean() for better performance (returns plain JS object)
+    // Fetch last 10 messages for the conversation
+    const messages = await this.chatMessageRepository.find({
+      where: { conversationId },
+      order: { timestamp: 'DESC' },
+      take: 10,
+    });
 
-    if (!conversation || !conversation.messages) return '';
+    if (!messages || messages.length === 0) return '';
 
-    return conversation.messages
+    // Reverse to chronological order for the prompt
+    return messages
+      .reverse()
       .map(
         (msg) =>
           `${msg.sender === MessageSender.USER ? 'User' : 'Rea'}: ${msg.content}`,

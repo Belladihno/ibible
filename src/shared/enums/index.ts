@@ -13,3 +13,8 @@ export enum ChatRole {
   USER = 'user',
   ASSISTANT = 'assistant',
 }
+
+export enum MessageSender {
+  USER = 'user',
+  AI = 'ai',
+}

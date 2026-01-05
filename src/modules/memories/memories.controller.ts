@@ -21,7 +21,11 @@ import {
   ApiBody,
   ApiBearerAuth,
 } from '@nestjs/swagger';
-import { MemoriesService } from './memories.service';
+import {
+  CreateMemoryPayload,
+  MemoriesService,
+  UpdateMemoryPayload,
+} from './memories.service';
 import { CurrentUserId } from '../../decorators/current-user-id.decorator';
 import { CreateMemoryDto } from './dto/create-memory.dto';
 import { UpdateMemoryDto } from './dto/update-memory.dto';
@@ -50,7 +54,7 @@ export class MemoriesController {
     }
 
     // Convert DTO to service payload with proper Date objects
-    const servicePayload = {
+    const servicePayload: any = {
       ...payload,
       followUp: payload.followUp
         ? {
@@ -146,7 +150,7 @@ export class MemoriesController {
   @ApiBody({ type: UpdateMemoryDto })
   async update(@Param('id') id: string, @Body() payload: UpdateMemoryDto) {
     // Convert DTO to service payload with proper Date objects
-    const servicePayload = {
+    const servicePayload: UpdateMemoryPayload = {
       ...payload,
       followUp: payload.followUp
         ? {

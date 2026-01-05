@@ -1,4 +1,3 @@
-// modules/memories/memories.service.ts
 import {
   Injectable,
   Logger,
@@ -6,11 +5,11 @@ import {
   Optional,
   Inject,
 } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model, FilterQuery } from 'mongoose';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository, ILike, FindOptionsWhere } from 'typeorm';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
-import { Memory, MemoryDocument } from './schemas/memory.schema';
+import { Memory } from '../../entities/memory.entity';
 import { AiMemoryService } from './ai-memory.service';
 import { RedisService } from '../redis/redis.service';
 import * as SystemMessages from 'src/shared/constants/systemMessages';
@@ -48,12 +47,12 @@ interface DuplicateCheck {
 }
 
 // Extended interface for create payload
-interface CreateMemoryPayload extends Partial<Memory> {
+export interface CreateMemoryPayload extends Partial<Memory> {
   skipAI?: boolean;
 }
 
 // Extended interface for update payload
-interface UpdateMemoryPayload extends Partial<Memory> {
+export interface UpdateMemoryPayload extends Partial<Memory> {
   skipAI?: boolean;
   forceAIReprocess?: boolean;
 }
@@ -67,8 +66,8 @@ export class MemoriesService {
   >();
 
   constructor(
-    @InjectModel(Memory.name)
-    private readonly memoryModel: Model<MemoryDocument>,
+    @InjectRepository(Memory)
+    private readonly memoryRepository: Repository<Memory>,
     @Optional() private readonly aiMemoryService?: AiMemoryService,
     @Optional() private readonly redisService?: RedisService,
     @Optional()
@@ -100,157 +99,22 @@ export class MemoriesService {
     }
   }
 
-  private clean(doc: unknown): CleanedMemory | null {
-    if (!doc) return null;
-
-    const maybeDoc = doc as { toJSON?: () => unknown };
-    const raw =
-      typeof maybeDoc.toJSON === 'function' ? maybeDoc.toJSON() : maybeDoc;
-
-    const obj = { ...(raw as Record<string, unknown>) };
-
-    // Convert _id to id with COMPLETELY SAFE handling - NO toString() calls
-    if (obj._id != null) {
-      obj.id = this.extractIdFromUnknown(obj._id);
-      delete obj._id;
-    }
-
-    // Remove __v
-    if (obj.__v !== undefined) delete obj.__v;
-
-    // Ensure required fields exist with defaults
-    const cleanedMemory: CleanedMemory = {
-      id: this.safeString(obj.id) || '',
-      userId: this.safeString(obj.userId) || '',
-      title: this.safeString(obj.title) || '',
-      body: this.safeString(obj.body) || '',
+  // TypeORM entities are already clean, but we map to interface for consistency if needed
+  private toCleanedMemory(memory: Memory): CleanedMemory {
+    return {
+      id: memory.id,
+      userId: memory.userId,
+      title: memory.title,
+      body: memory.body,
+      tags: memory.tags,
+      verseRefs: memory.verseRefs,
+      visibility: memory.visibility,
+      followUp: memory.followUp,
+      aiRephrase: memory.aiRephrase,
+      createdAt: memory.createdAt,
+      updatedAt: memory.updatedAt,
+      skipAI: memory.skipAI,
     };
-
-    // Add optional fields if they exist
-    if (obj.tags !== undefined) cleanedMemory.tags = obj.tags as string[];
-    if (obj.verseRefs !== undefined)
-      cleanedMemory.verseRefs = obj.verseRefs as string[];
-    if (obj.visibility !== undefined)
-      cleanedMemory.visibility = obj.visibility as
-        | 'private'
-        | 'public'
-        | 'shared';
-    if (obj.followUp !== undefined)
-      cleanedMemory.followUp = obj.followUp as any;
-    if (obj.aiRephrase !== undefined)
-      cleanedMemory.aiRephrase = obj.aiRephrase as any;
-    if (obj.createdAt !== undefined)
-      cleanedMemory.createdAt = obj.createdAt as Date;
-    if (obj.updatedAt !== undefined)
-      cleanedMemory.updatedAt = obj.updatedAt as Date;
-    if (obj.skipAI !== undefined) cleanedMemory.skipAI = obj.skipAI as boolean;
-    if (obj.forceAIReprocess !== undefined)
-      cleanedMemory.forceAIReprocess = obj.forceAIReprocess as boolean;
-
-    return cleanedMemory;
-  }
-
-  private extractIdFromUnknown(value: unknown): string {
-    if (value === null || value === undefined) {
-      return '';
-    }
-
-    if (typeof value === 'string') {
-      return value;
-    }
-
-    // Handle numbers, booleans, etc.
-    if (typeof value !== 'object') {
-      // Use Number conversion for numbers, String for others would be safe but let's avoid it
-      if (typeof value === 'number') {
-        return value.toString(); // toString() is safe on numbers
-      }
-      if (typeof value === 'boolean') {
-        return value ? 'true' : 'false';
-      }
-      return '';
-    }
-
-    // Handle objects - AVOID toString() completely
-    const obj = value as Record<string, unknown>;
-
-    // Check for MongoDB ObjectId pattern
-    if (obj._bsontype === 'ObjectID' || obj.constructor?.name === 'ObjectID') {
-      // Try toHexString first (MongoDB ObjectId method)
-      if (typeof (obj as any).toHexString === 'function') {
-        try {
-          const result = (obj as any).toHexString();
-          if (typeof result === 'string') {
-            return result;
-          }
-        } catch {
-          // Fall through
-        }
-      }
-    }
-
-    // Look for string properties that might contain the ID
-    const stringProps = ['id', '_id', 'hex', 'str', 'value', 'key'];
-    for (const prop of stringProps) {
-      if (typeof obj[prop] === 'string') {
-        return obj[prop];
-      }
-    }
-
-    try {
-      const jsonStr = JSON.stringify(obj);
-
-      const hexMatch = jsonStr.match(/"([a-f0-9]{24})"/);
-      if (hexMatch && hexMatch[1]) {
-        return hexMatch[1];
-      }
-
-      return `obj_${this.generateStableHash(jsonStr)}`;
-    } catch {
-      return `id_${Date.now()}_${Math.floor(Math.random() * 1000000)}`;
-    }
-  }
-
-  private safeString(value: unknown): string {
-    if (value === null || value === undefined) {
-      return '';
-    }
-
-    if (typeof value === 'string') {
-      return value;
-    }
-
-    if (typeof value === 'number') {
-      return value.toString();
-    }
-
-    if (typeof value === 'boolean') {
-      return value ? 'true' : 'false';
-    }
-
-    if (typeof value === 'bigint') {
-      return value.toString();
-    }
-
-    if (typeof value === 'symbol') {
-      return value.toString();
-    }
-
-    try {
-      return JSON.stringify(value);
-    } catch {
-      return '[Object]';
-    }
-  }
-
-  private generateStableHash(str: string): string {
-    let hash = 0;
-    for (let i = 0; i < str.length; i++) {
-      const char = str.charCodeAt(i);
-      hash = (hash << 5) - hash + char;
-      hash = hash & hash;
-    }
-    return Math.abs(hash).toString(16);
   }
 
   private hashContent(content: string): string {
@@ -312,9 +176,13 @@ export class MemoriesService {
       }
     }
 
-    const doc = new this.memoryModel({ ...payload, userId, aiRephrase });
-    const saved = await doc.save();
-    const cleaned = this.clean(saved);
+    const memoryRaw = this.memoryRepository.create({
+      ...payload,
+      userId,
+      aiRephrase,
+    });
+    const saved = await this.memoryRepository.save(memoryRaw);
+    const cleaned = this.toCleanedMemory(saved);
 
     this.logger.debug(`Memory created with ID: ${cleaned?.id}`);
 
@@ -388,8 +256,11 @@ export class MemoriesService {
 
     this.logger.debug(`📋 Fetching memory ${id} from database`);
 
-    const doc = await this.memoryModel.findById(id).exec();
-    const cleaned = this.clean(doc);
+    const doc = await this.memoryRepository.findOne({ where: { id } });
+
+    if (!doc) return null;
+
+    const cleaned = this.toCleanedMemory(doc);
 
     // Cache in Redis
     if (this.redisService && cleaned) {
@@ -476,20 +347,14 @@ export class MemoriesService {
       }
     }
 
-    const [results, total] = await Promise.all([
-      this.memoryModel
-        .find({ userId })
-        .sort('-createdAt')
-        .skip(skip)
-        .limit(limit)
-        .lean()
-        .exec(),
-      this.memoryModel.countDocuments({ userId }),
-    ]);
+    const [results, total] = await this.memoryRepository.findAndCount({
+      where: { userId },
+      order: { createdAt: 'DESC' },
+      skip,
+      take: limit,
+    });
 
-    const cleaned = results
-      .map((r) => this.clean(r))
-      .filter((r): r is CleanedMemory => r !== null);
+    const cleaned = results.map((r) => this.toCleanedMemory(r));
 
     const response = { results: cleaned, total, page, limit };
 
@@ -516,6 +381,13 @@ export class MemoriesService {
   ): Promise<CleanedMemory | null> {
     this.logger.debug(`Updating memory ${id}`);
 
+    const doc = await this.memoryRepository.findOne({ where: { id } });
+
+    if (!doc) {
+      this.logger.debug('memory not found');
+      throw new NotFoundException(SystemMessages.MEMORY_NOT_FOUND);
+    }
+
     // If AI service is available and body or title is being updated, rephrase
     if (
       this.aiMemoryService &&
@@ -523,12 +395,6 @@ export class MemoriesService {
     ) {
       try {
         this.logger.debug('Attempting AI rephrase for updated memory');
-        const doc = await this.memoryModel.findById(id).exec();
-
-        if (!doc) {
-          this.logger.debug('memory not dound');
-          throw new NotFoundException(`Memory Not found`);
-        }
 
         const title = payload.title ?? doc?.title ?? '';
         const body = payload.body ?? doc?.body ?? '';
@@ -553,15 +419,10 @@ export class MemoriesService {
       }
     }
 
-    const doc = await this.memoryModel
-      .findByIdAndUpdate(id, payload, { new: true })
-      .exec();
-
-    if (!doc) {
-      this.logger.debug('memory not found');
-      throw new NotFoundException(SystemMessages.MEMORY_NOT_FOUND);
-    }
-    const cleaned = this.clean(doc);
+    // Merge changes
+    Object.assign(doc, payload);
+    const saved = await this.memoryRepository.save(doc);
+    const cleaned = this.toCleanedMemory(saved);
 
     // Invalidate cache
     if (this.redisService && cleaned) {
@@ -592,14 +453,15 @@ export class MemoriesService {
   async remove(id: string): Promise<CleanedMemory | null> {
     this.logger.debug(`Removing memory ${id}`);
 
-    const doc = await this.memoryModel.findByIdAndDelete(id).exec();
+    const doc = await this.memoryRepository.findOne({ where: { id } });
 
     if (!doc) {
       this.logger.debug(`Memory not found`);
       throw new NotFoundException(SystemMessages.MEMORY_NOT_FOUND);
     }
 
-    const cleaned = this.clean(doc);
+    const cleaned = this.toCleanedMemory(doc);
+    await this.memoryRepository.remove(doc);
 
     // Invalidate cache
     if (this.redisService && cleaned) {
@@ -649,29 +511,25 @@ export class MemoriesService {
     }
 
     const skip = (page - 1) * limit;
-    const query: FilterQuery<MemoryDocument> = {
-      userId,
-      $or: [
-        { title: { $regex: keyword, $options: 'i' } },
-        { body: { $regex: keyword, $options: 'i' } },
-        { tags: { $regex: keyword, $options: 'i' } },
-        { verseRefs: { $regex: keyword, $options: 'i' } },
-      ],
-    };
 
-    const [results, total] = await Promise.all([
-      this.memoryModel
-        .find(query)
-        .sort('-createdAt')
-        .skip(skip)
-        .limit(limit)
-        .lean(),
-      this.memoryModel.countDocuments(query),
-    ]);
+    // TypeORM OR query with ILike
+    // For arrays (tags, verseRefs), we check if the string representation contains the keyword
+    // Just using ILike on array columns often works if they are text-based in Postgres
+    const whereConditions: FindOptionsWhere<Memory>[] = [
+      { userId, title: ILike(`%${keyword}%`) },
+      { userId, body: ILike(`%${keyword}%`) },
+      { userId, tags: ILike(`%${keyword}%`) },
+      { userId, verseRefs: ILike(`%${keyword}%`) },
+    ];
 
-    const cleaned = results
-      .map((r) => this.clean(r))
-      .filter((r): r is CleanedMemory => r !== null);
+    const [results, total] = await this.memoryRepository.findAndCount({
+      where: whereConditions,
+      order: { createdAt: 'DESC' },
+      skip,
+      take: limit,
+    });
+
+    const cleaned = results.map((r) => this.toCleanedMemory(r));
 
     return {
       results: cleaned,
@@ -684,7 +542,7 @@ export class MemoriesService {
   async completeFollowUp(id: string): Promise<CleanedMemory | null> {
     this.logger.debug(`Completing follow-up for memory ${id}`);
 
-    const doc = await this.memoryModel.findById(id);
+    const doc = await this.memoryRepository.findOne({ where: { id } });
 
     if (!doc) {
       throw new NotFoundException(SystemMessages.MEMORY_NOT_FOUND);
@@ -694,10 +552,10 @@ export class MemoriesService {
       this.logger.debug('follow status is already updated');
     } else {
       doc.followUp = { ...doc.followUp, isCompleted: true };
-      await doc.save();
+      await this.memoryRepository.save(doc);
     }
 
-    const cleaned = this.clean(doc);
+    const cleaned = this.toCleanedMemory(doc);
 
     // Invalidate cache
     if (this.redisService) {
@@ -723,15 +581,12 @@ export class MemoriesService {
   }> {
     this.logger.debug(`Getting timeline for user ${userId}`);
 
-    const results = await this.memoryModel
-      .find({ userId })
-      .sort('createdAt')
-      .lean()
-      .exec();
+    const results = await this.memoryRepository.find({
+      where: { userId },
+      order: { createdAt: 'ASC' },
+    });
 
-    const cleaned = results
-      .map((r) => this.clean(r))
-      .filter((r): r is CleanedMemory => r !== null);
+    const cleaned = results.map((r) => this.toCleanedMemory(r));
 
     return { results: cleaned, total: cleaned.length };
   }

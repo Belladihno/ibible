@@ -1,22 +1,13 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { getModelToken } from '@nestjs/mongoose';
+import { getRepositoryToken } from '@nestjs/typeorm';
 import { MemoriesService } from './memories.service';
-import { Memory } from './schemas/memory.schema';
+import { Memory } from '../../entities/memory.entity';
 import { AiMemoryService } from './ai-memory.service';
 import { RedisService } from '../redis/redis.service';
 
 describe('MemoriesService', () => {
   let service: MemoriesService;
-
-  const mockMemoryModel = {
-    new: jest.fn().mockResolvedValue({}),
-    constructor: jest.fn().mockResolvedValue({}),
-    find: jest.fn(),
-    findById: jest.fn(),
-    findByIdAndUpdate: jest.fn(),
-    findByIdAndDelete: jest.fn(),
-    countDocuments: jest.fn(),
-  };
+  let memoryRepo: any;
 
   const mockAiMemoryService = {
     rephraseMemory: jest.fn(),
@@ -30,12 +21,27 @@ describe('MemoriesService', () => {
   };
 
   beforeEach(async () => {
+    memoryRepo = {
+      create: jest
+        .fn()
+        .mockImplementation((dto: Partial<Memory>) => dto as Memory),
+      save: jest.fn().mockImplementation((entity: Memory) => {
+        const saved = { ...entity } as Memory;
+        if (!saved.id) saved.id = 'saved-id';
+        return Promise.resolve(saved);
+      }),
+      findOne: jest.fn(),
+      find: jest.fn(),
+      findAndCount: jest.fn(),
+      remove: jest.fn(),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         MemoriesService,
         {
-          provide: getModelToken(Memory.name),
-          useValue: mockMemoryModel,
+          provide: getRepositoryToken(Memory),
+          useValue: memoryRepo,
         },
         {
           provide: AiMemoryService,
@@ -66,20 +72,14 @@ describe('MemoriesService', () => {
       const memoryId = 'some-id';
       const userId = 'user-id';
       const mockMemory = {
-        _id: memoryId,
+        id: memoryId,
         userId: userId,
         title: 'Test Memory',
         body: 'This is a test memory.',
-        toObject: () => ({
-          id: memoryId,
-          userId: userId,
-          title: 'Test Memory',
-          body: 'This is a test memory.',
-        }),
       };
-      mockMemoryModel.findById.mockReturnValue({
-        exec: jest.fn().mockResolvedValue(mockMemory),
-      });
+
+      memoryRepo.findOne.mockResolvedValue(mockMemory);
+
       const result = await service.findById(memoryId);
       expect(result).not.toBeNull();
       expect(result?.id).toEqual(memoryId);
@@ -87,9 +87,9 @@ describe('MemoriesService', () => {
 
     it('should return null if memory not found', async () => {
       const memoryId = 'non-existent-id';
-      mockMemoryModel.findById.mockReturnValue({
-        exec: jest.fn().mockResolvedValue(null),
-      });
+
+      memoryRepo.findOne.mockResolvedValue(null);
+
       const result = await service.findById(memoryId);
       expect(result).toBeNull();
     });
